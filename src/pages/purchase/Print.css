@@ -1,0 +1,11 @@
+@media print {
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background-color: white !important;
+    }
+    
+    .panel {
+        background-color: white !important; /* Ensure the panel remains white */
+    }
+}
