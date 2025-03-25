@@ -137,7 +137,7 @@ const User: React.FC = () => {
                                 <div className="md:absolute md:top-0 ltr:md:left-0 rtl:md:right-0">
                                     <div className="mb-5 flex items-center gap-2">
                                         {hasPermission('User-Create') &&
-                                            <NavLink to="/admin/adduser" className="btn btn-primary gap-2" >
+                                            <NavLink to="/adduser" className="btn btn-primary gap-2" >
                                                 <svg
                                                     xmlns="http://www.w3.org/2000/svg"
                                                     width="24px"
