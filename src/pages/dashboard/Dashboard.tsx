@@ -7,7 +7,7 @@ const Dashboard: React.FC = () => {
         <div>
             <ul className="flex space-x-2 rtl:space-x-reverse">
                 <li>
-                    <Link to="/admin/dashboard" className="text-primary hover:underline">Dashboard</Link>
+                    <Link to="/admin/dashboard" className="text-primary hover:underline">Dashboardsdfdfdsfdsdsfs</Link>
                 </li>
                 <li className="before:content-['/'] ltr:before:mr-1 rtl:before:ml-1">
                     <span>Sales</span>
@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
                                 <thead>
                                     <tr>
                                         <th className="ltr:rounded-l-md rtl:rounded-r-md">Customer</th>
-                                        <th>Product very bbbb</th>
+                                        <th>Product</th>
                                         <th>Invoice</th>
                                         <th>Price</th>
                                         <th className="ltr:rounded-r-md rtl:rounded-l-md">Status</th>
