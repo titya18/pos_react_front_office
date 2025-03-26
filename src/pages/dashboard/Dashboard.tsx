@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
                                 <thead>
                                     <tr>
                                         <th className="ltr:rounded-l-md rtl:rounded-r-md">Customer</th>
-                                        <th>Product hhhhhhhh</th>
+                                        <th>Product very hard</th>
                                         <th>Invoice</th>
                                         <th>Price</th>
                                         <th className="ltr:rounded-r-md rtl:rounded-l-md">Status</th>
