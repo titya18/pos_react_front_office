@@ -26,12 +26,15 @@ jobs:
             # Pull latest frontend code
             git pull origin main
             
-            # Build only frontend without affecting backend or database
+            # Remove any unused Docker images (helpful to avoid "ContainerConfig" error)
+            docker image prune -f
+
+            # Rebuild only the frontend container (without affecting the backend or database)
             docker-compose build frontend
-            
-            # Restart only the frontend container
+
+            # Restart only the frontend container without affecting other services (like backend)
             docker-compose up -d --no-deps frontend
 
-            # Remove unused Docker images to save space
-            docker image prune -f
+            # Clean up unused volumes (optional but helps with disk space)
+            docker volume prune -f
           EOF
