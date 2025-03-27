@@ -21,7 +21,7 @@ jobs:
       - name: Deploy to Server
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-            cd /pos_react_front_office
+            cd pos_react_front_office
             git pull origin main
             docker-compose build frontend
             docker-compose up -d --no-deps frontend
