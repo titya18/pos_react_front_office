@@ -23,7 +23,6 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
             cd /pos_react_front_office
             git pull origin main
-            docker-compose down pos_frontend
             docker-compose build pos_frontend
             docker-compose up -d --no-deps pos_frontend
           EOF
