@@ -43,5 +43,6 @@ jobs:
           echo "Restarting frontend on VPS..."
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@${{ secrets.SERVER_IP }} << 'EOF'
             cd /var/www/pos_react_front_office
-            docker-compose up -d --build frontend  # Restart frontend container only
+            docker-compose build frontend  # Only rebuild the frontend container
+            docker-compose up -d frontend  # Restart frontend container only
           EOF
