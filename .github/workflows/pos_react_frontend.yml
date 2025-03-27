@@ -22,19 +22,11 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
             cd pos_react_front_office
-
+            
             # Pull latest frontend code
             git pull origin main
-            
-            # Remove any unused Docker images (helpful to avoid "ContainerConfig" error)
-            docker image prune -f
 
-            # Rebuild only the frontend container (without affecting the backend or database)
+            # Rebuild and restart only the frontend container
             docker-compose build frontend
-
-            # Restart only the frontend container without affecting other services (like backend)
-            docker-compose up -d --no-deps frontend
-
-            # Clean up unused volumes (optional but helps with disk space)
-            docker volume prune -f
+            docker-compose up -d frontend
           EOF
