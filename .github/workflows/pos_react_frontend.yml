@@ -41,5 +41,5 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /var/www/pos_react_front_office
-            docker compose -f docker-compose.frontend.yml down
-            docker compose -f docker-compose.frontend.yml up -d --build
+            docker-compose -f docker-compose.frontend.yml down
+            docker-compose -f docker-compose.frontend.yml up -d --build
