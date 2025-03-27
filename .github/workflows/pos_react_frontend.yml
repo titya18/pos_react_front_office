@@ -21,7 +21,11 @@ jobs:
 
       # Step 2: Debug - Check files in workspace
       - name: Debug - List files in workspace
-        run: ls -la $GITHUB_WORKSPACE
+        run: |
+          echo "Current Directory:"
+          pwd
+          echo "Listing files:"
+          ls -la
 
       # Step 3: Set up SSH
       - name: Set up SSH
@@ -32,7 +36,14 @@ jobs:
       # Step 4: Copy frontend files to VPS
       - name: Copy files to VPS
         run: |
-          scp -r $GITHUB_WORKSPACE/frontoffice root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
+          if [ -d "$GITHUB_WORKSPACE/frontoffice" ]; then
+            scp -r $GITHUB_WORKSPACE/frontoffice root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
+          elif [ -d "$GITHUB_WORKSPACE/pos_react_front_office/frontoffice" ]; then
+            scp -r $GITHUB_WORKSPACE/pos_react_front_office/frontoffice root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
+          else
+            echo "Error: frontoffice directory not found!"
+            exit 1
+          fi
 
       # Step 5: SSH into VPS and restart frontend
       - name: Deploy to VPS
