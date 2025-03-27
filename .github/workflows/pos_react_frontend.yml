@@ -37,7 +37,13 @@ jobs:
           echo "Cloning or pulling frontend repository..."
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@${{ secrets.SERVER_IP }} << 'EOF'
             cd /var/www
-            git -C pos_react_front_office pull || git clone https://github.com/${{ secrets.GITHUB_USER }}/pos_react_front_office.git
+            if [ -d "pos_react_front_office" ]; then
+              cd pos_react_front_office
+              git fetch --all  # Fetch all branches
+              git reset --hard origin/main  # Discard local changes and force sync with remote
+            else
+              git clone https://github.com/${{ secrets.GITHUB_USER }}/pos_react_front_office.git  # Clone if the directory doesn't exist
+            fi
           EOF
 
       # Step 5: SSH into VPS and restart frontend
