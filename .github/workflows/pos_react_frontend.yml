@@ -1,22 +1,29 @@
-name: Deploy Frontend
+name: Deploy React Frontend
 
 on:
   push:
     branches:
-      - main
+      - main  # Change to your deployment branch
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up SSH Key
+        run: |
+          echo "${{ secrets.SERVER_SSH_KEY }}" > private_key
+          chmod 600 private_key
+
       - name: Deploy to Server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            cd /root/pos_react_front_office
+        run: |
+          ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+            cd /pos_react_front_office
             git pull origin main
-            docker-compose up -d --build
+            docker-compose down
+            docker-compose build
+            docker-compose up -d
+          EOF
