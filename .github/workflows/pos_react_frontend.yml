@@ -36,12 +36,13 @@ jobs:
       # Step 4: Copy frontend files to VPS
       - name: Copy files to VPS
         run: |
-          if [ -d "$GITHUB_WORKSPACE/frontoffice" ]; then
-            scp -r $GITHUB_WORKSPACE/frontoffice root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
-          elif [ -d "$GITHUB_WORKSPACE/pos_react_front_office/frontoffice" ]; then
-            scp -r $GITHUB_WORKSPACE/pos_react_front_office/frontoffice root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
+          echo "Checking for the correct directory..."
+          if [ -d "$GITHUB_WORKSPACE/pos_react_front_office" ]; then
+            echo "Found pos_react_front_office at $GITHUB_WORKSPACE/pos_react_front_office"
+            scp -r $GITHUB_WORKSPACE/pos_react_front_office root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
           else
-            echo "Error: frontoffice directory not found!"
+            echo "Error: pos_react_front_office directory not found!"
+            ls -la $GITHUB_WORKSPACE  # Debug: List files
             exit 1
           fi
 
