@@ -31,7 +31,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      # Step 4: Clone frontend files from GitHub (or pull latest changes)d
+      # Step 4: Clone frontend files from GitHub (or pull latest changes)
       - name: Clone frontend files from GitHub
         run: |
           echo "Cloning or pulling frontend repository..."
@@ -42,17 +42,16 @@ jobs:
               git fetch --all  # Fetch all branches
               git reset --hard origin/main  # Discard local changes and force sync with remote
             else
-              git clone https://github.com/${{ secrets.GITHUB_USER }}/pos_react_front_office.git  # Clone if the directory doesn't exist
+              git clone https://github.com/titya18/pos_react_front_office.git  # Clone if the directory doesn't exist
             fi
           EOF
 
-      # Step 5: SSH into VPS and restart frontend only
+      # Step 5: Rebuild and deploy frontend only
       - name: Deploy frontend to VPS
         run: |
           echo "Rebuilding and restarting frontend on VPS..."
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@${{ secrets.SERVER_IP }} << 'EOF'
             cd /var/www/pos_react_front_office
-            docker-compose build --no-cache frontend  # Rebuild frontend without cache
-            docker-compose logs frontend  # Output logs to debug any issues during build
-            docker container restart pos_frontend  # Restart only the frontend container
+            docker-compose -f /var/www/docker-compose.frontend.yml build --no-cache frontend  # Rebuild frontend without cache
+            docker-compose -f /var/www/docker-compose.frontend.yml up -d --no-deps frontend  # Restart only frontend container
           EOF
