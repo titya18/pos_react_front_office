@@ -7,7 +7,7 @@ const Dashboard: React.FC = () => {
         <div>
             <ul className="flex space-x-2 rtl:space-x-reverse">
                 <li>
-                    <Link to="/admin/dashboard" className="text-primary hover:underline">Dashboard i want</Link>
+                    <Link to="/admin/dashboard" className="text-primary hover:underline">Dashboard i wants</Link>
                 </li>
                 <li className="before:content-['/'] ltr:before:mr-1 rtl:before:ml-1">
                     <span>Sales</span>

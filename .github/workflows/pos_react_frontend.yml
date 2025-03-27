@@ -21,7 +21,7 @@ jobs:
       - name: Deploy Frontend Only
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-            cd /home/${{ secrets.SERVER_USER }}/pos_react_front_office
+            cd pos_react_front_office
 
             # Pull latest frontend code
             git pull origin main
