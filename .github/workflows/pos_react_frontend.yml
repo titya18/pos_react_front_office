@@ -1,28 +1,37 @@
-name: Deploy React Frontend
+name: Deploy Frontend to VPS
 
 on:
   push:
     branches:
-      - main  # Change to your deployment branch
+      - main  # Triggers deployment when changes are pushed to the 'main' branch
+  pull_request:
+    branches:
+      - main  # Triggers deployment when a PR is merged into 'main'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      - name: Set up SSH Key
-        run: |
-          echo "${{ secrets.SERVER_SSH_KEY }}" > private_key
-          chmod 600 private_key
+      # Step 2: Set up SSH for deployment
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      - name: Deploy to Server
+      # Step 3: Copy frontend files to VPS
+      - name: Copy files to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
-            cd pos_react_front_office
-            git pull origin main
-            docker-compose build frontend
-            docker-compose up -d --no-deps frontend
+          scp -r ./pos_react_front_office root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
+
+      # Step 4: SSH into VPS and deploy
+      - name: Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+            cd /var/www/pos_react_front_office
+            docker-compose up -d --build frontend  # Only restart the frontend container
           EOF
