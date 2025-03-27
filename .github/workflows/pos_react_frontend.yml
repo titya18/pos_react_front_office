@@ -18,15 +18,11 @@ jobs:
           echo "${{ secrets.SERVER_SSH_KEY }}" > private_key
           chmod 600 private_key
 
-      - name: Deploy Frontend Only
+      - name: Deploy to Server
         run: |
           ssh -o StrictHostKeyChecking=no -i private_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
             cd pos_react_front_office
-            
-            # Pull latest frontend code
             git pull origin main
-
-            # Rebuild and restart only the frontend container
             docker-compose build frontend
-            docker-compose up -d frontend
+            docker-compose up -d --no-deps frontend
           EOF
