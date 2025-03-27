@@ -26,7 +26,7 @@ jobs:
       # Step 3: Copy frontend files to VPS
       - name: Copy files to VPS
         run: |
-          scp -r /frontoffice root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
+          scp -r frontoffice root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
 
       # Step 4: SSH into VPS and deploy
       - name: Deploy to VPS
