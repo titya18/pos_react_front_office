@@ -53,5 +53,5 @@ jobs:
           ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@${{ secrets.SERVER_IP }} << 'EOF'
             cd /var/www/pos_react_front_office
             docker-compose build --no-cache frontend  # Rebuild frontend without cache
-            docker-compose up -d --no-deps frontend  # Restart only frontend without affecting other services
+            docker container restart pos_frontend  # Restart only the frontend container
           EOF
