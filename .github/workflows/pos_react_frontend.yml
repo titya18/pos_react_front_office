@@ -22,31 +22,26 @@ jobs:
       # Step 2: Debug - Check files in workspace
       - name: Debug - List files in workspace
         run: |
-          echo "Current Directory:"
-          pwd
-          echo "Listing files:"
-          ls -la
+          echo "Listing files in GitHub Actions workspace..."
+          ls -la $GITHUB_WORKSPACE
 
-      # Step 3: Set up SSH
+      # Step 3: Set up SSH for deployment
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      # Step 4: Copy frontend files to VPS
+      # Step 4: Copy frontend files to VPS (Fix SSH host key verification)
       - name: Copy files to VPS
         run: |
-          echo "Checking for the correct directory..."
-          ls -la $GITHUB_WORKSPACE  # Debugging step
-
           echo "Copying files to VPS..."
-          scp -r $GITHUB_WORKSPACE/* root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
+          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r $GITHUB_WORKSPACE/* root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
 
-
-            # Step 5: SSH into VPS and restart frontend
-            - name: Deploy to VPS
-              run: |
-                ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
-                  cd /var/www/pos_react_front_office
-                  docker-compose up -d --build frontend  # Restart frontend container only
-                EOF
+      # Step 5: SSH into VPS and restart frontend
+      - name: Deploy to VPS
+        run: |
+          echo "Restarting frontend on VPS..."
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@${{ secrets.SERVER_IP }} << 'EOF'
+            cd /var/www/pos_react_front_office
+            docker-compose up -d --build frontend  # Restart frontend container only
+          EOF
