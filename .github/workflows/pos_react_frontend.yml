@@ -31,7 +31,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      # Step 4: Clone frontend files from GitHub (or pull latest changes)s
+      # Step 4: Clone frontend files from GitHub (or pull latest changes)d
       - name: Clone frontend files from GitHub
         run: |
           echo "Cloning or pulling frontend repository..."
