@@ -32,10 +32,13 @@ jobs:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
       # Step 4: Copy frontend files to VPS (Fix SSH host key verification)s
-      - name: Copy files to VPS
+      - name: Clone frontend files from GitHub
         run: |
-          echo "Copying files to VPS..."
-          scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -r $GITHUB_WORKSPACE/* root@${{ secrets.SERVER_IP }}:/var/www/pos_react_front_office
+          echo "Cloning or pulling frontend repository..."
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null root@${{ secrets.SERVER_IP }} << 'EOF'
+            cd /var/www
+            git -C pos_react_front_office pull || git clone https://github.com/${{ secrets.GITHUB_USER }}/pos_react_front_office.git
+          EOF
 
       # Step 5: SSH into VPS and restart frontend
       - name: Deploy to VPS
