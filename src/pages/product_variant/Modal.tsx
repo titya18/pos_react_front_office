@@ -46,7 +46,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, productVariant
     const numericProductId = id ? parseInt(id, 10) : null; // Convert to number, or null if not present
 
     const { hasPermission } = useAppContext();
-    const API_BASE_URL = process.env.API_URL || "";
+    const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 
     useEffect(() => {
         const fetchUnits = async () => {

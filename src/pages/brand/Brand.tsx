@@ -145,7 +145,7 @@ const Brand: React.FC = () => {
         }
     };
 
-    const API_BASE_URL = process.env.REACT_APP_FRONTEND_URL || "";
+    const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 
     return (
         <>
