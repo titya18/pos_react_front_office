@@ -114,7 +114,7 @@ const RoleForm: React.FC = () => {
                 position: "top-right",
                 autoClose: 2000
             });
-            navigate("/admin/role");
+            navigate("/role");
         } catch (error: any) {
             // Check if err.message is set by your API function
             if (error.message) {

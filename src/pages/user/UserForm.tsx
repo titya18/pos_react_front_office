@@ -152,7 +152,7 @@ const UserForm: React.FC = () => {
                     autoClose: 2500
                 });
             }
-            navigate("/admin/user");
+            navigate("/user");
         } catch (err: any) {
             if (err.message) {
                 toast.error(err.message, {
