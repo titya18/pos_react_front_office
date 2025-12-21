@@ -1,25 +1,26 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+import { ProductType } from "../data_types/types";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-export interface ProductData {
-    id?: number;
-    categoryId: number;
-    brandId: number;
-    categories: { id: number, name: string } | null;
-    brands: { id: number, name: string } | null;
-    name: string;
-    note: string;
-    isActive: string;
-    image: File[] | null;
-    imagesToDelete: string[];
-};
+// export interface ProductData {
+//     id?: number;
+//     categoryId: number;
+//     brandId: number;
+//     categories: { id: number, name: string } | null;
+//     brands: { id: number, en_name: string, kh_name: string } | null;
+//     name: string;
+//     note: string;
+//     isActive: string;
+//     image: File[] | null;
+//     imagesToDelete: string[];
+// };
 
 export const getAllProducts = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
-): Promise<{ data: ProductData[], total: number }> => {
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
+): Promise<{ data: ProductType[], total: number }> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/product?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
         credentials: "include"
@@ -30,7 +31,7 @@ export const getAllProducts = async (
     return response.json();
 };
 
-export const getProductById = async (id: number): Promise<ProductData> => {
+export const getProductById = async (id: number): Promise<ProductType> => {
     const response = await fetch(`${API_BASE_URL}/api/product/${id}`, {
         credentials: "include"
     });
@@ -40,7 +41,7 @@ export const getProductById = async (id: number): Promise<ProductData> => {
     return response.json();
 };
 
-export const upsertProduct = async (productData: ProductData): Promise<ProductData> => {
+export const upsertProduct = async (productData: ProductType): Promise<ProductType> => {
     const { id, image, imagesToDelete, ...data } = productData;
     const method = id ? "PUT" : "POST";
     const url = id ? `${API_BASE_URL}/api/product/${id}` : `${API_BASE_URL}/api/product`;
@@ -77,7 +78,7 @@ export const upsertProduct = async (productData: ProductData): Promise<ProductDa
     return response.json();
 };
 
-export const deleteProduct = async (id: number): Promise<ProductData> => {
+export const deleteProduct = async (id: number): Promise<ProductType> => {
     const response = await fetch(`${API_BASE_URL}/api/product/${id}`, {
         credentials: "include",
         method: "DELETE",
@@ -92,7 +93,7 @@ export const deleteProduct = async (id: number): Promise<ProductData> => {
     return response.json();
 };
 
-export const statusProduct = async (id: number): Promise<ProductData> => {
+export const statusProduct = async (id: number): Promise<ProductType> => {
     const response = await fetch(`${API_BASE_URL}/api/product/status/${id}`, {
         credentials: "include"
     });

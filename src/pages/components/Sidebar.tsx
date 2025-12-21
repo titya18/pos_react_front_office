@@ -3,6 +3,23 @@ import { useLocation } from 'react-router-dom';
 // import { AppContext } from "../../contexts/AppContext";
 import { useAppContext } from '../../hooks/useAppContext';
 import { NavLink } from "react-router-dom";
+import { 
+    ChartColumnStacked, 
+    Users, 
+    GitBranchPlus, 
+    AlignEndHorizontal, 
+    LayoutList, 
+    Tags, 
+    Boxes, 
+    SquareUserRound, 
+    ShoppingCart, 
+    HeartHandshake, 
+    TextQuote, 
+    FilePenLine, 
+    Layers,
+    Layers2,
+    FolderSync
+} from 'lucide-react';
 
 // Define a type for the state
 // type activeDropdown = 'user' | 'invoice' | 'error_list' | null;
@@ -11,18 +28,10 @@ type activeDropdown = 'dashboard' | 'user' | null;
 
 const Sidebar: React.FC = () => {
     const location = useLocation();
-    const pathname = location.pathname;
-    // // Find the last index of a slash
-    // const lastSlashIndex = pathname.lastIndexOf('/');
-    // // Extract the last segment after the last slash
-    // const lastSegment = pathname.slice(lastSlashIndex + 1);
+    const lastSegment = location.pathname.split('/').filter(Boolean).pop() ?? "";
+    const segments = location.pathname.split('/').filter(Boolean);
     
     const defaultClass = 'group'; // Your default class
-
-    // Split the pathname into an array of segments
-    const pathSegments = pathname.split('/');
-    // Extract the first segment after the initial slash
-    const lastSegment = pathSegments[2];
 
     const { toggleSidebar, hasPermission } = useAppContext();
 
@@ -58,6 +67,11 @@ const Sidebar: React.FC = () => {
         // setActiveDropdown(prev => (prev === activeDropdown ? null : activeDropdown));
         localStorage.setItem('activeDropdown', newActiveDropdown || '');
     };
+
+    const canViewUser =
+        hasPermission('User-View') ||
+        hasPermission('Role-View') ||
+        hasPermission('Permission-View');
     
 
     return (
@@ -69,8 +83,8 @@ const Sidebar: React.FC = () => {
                 <div className="h-full bg-white dark:bg-[#0e1726]">
                     <div className="flex items-center justify-between px-4 py-3">
                         <NavLink to="/dashboard" className="main-logo flex shrink-0 items-center">
-                            <img className="ml-[5px] w-8 flex-none" src="/../admin_assets/images/logo.svg" alt="Company logo" />
-                            <span className="align-middle text-2xl font-semibold ltr:ml-1.5 rtl:mr-1.5 dark:text-white-light lg:inline">Lorn Titya</span>
+                            <img style={{ width: "8rem" }} className="ml-[5px] flex-none" src="/../admin_assets/images/izoom-logo.png" alt="Company logo" />
+                            {/* <span className="align-middle text-2xl font-semibold ltr:ml-1.5 rtl:mr-1.5 dark:text-white-light lg:inline">Lorn Titya</span> */}
                         </NavLink>
                         <button
                             onClick={handleClick}
@@ -94,44 +108,108 @@ const Sidebar: React.FC = () => {
                     >
 
                         {/* Start I comment this blog for example use later on */}
+                            {(
+                                hasPermission('Branch-View') || 
+                                canViewUser 
+                            ) && (
+                                <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                    <svg
+                                        className="hidden h-5 w-4 flex-none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                        strokeWidth="1.5"
+                                        fill="none"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    <span>People</span>
+                                </h2>
+                            )}
 
-                            <li className="menu nav-item">
-                                <button
-                                    type="button"
-                                    className={`nav-link group ${activeDropdown == 'user' ? 'active' : ''}`}
-                                    onClick={() => handleToggleMenu('user')}
-                                >
-                                    <div className="flex items-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
-                                            <path d="M144 0a80 80 0 1 1 0 160A80 80 0 1 1 144 0zM512 0a80 80 0 1 1 0 160A80 80 0 1 1 512 0zM0 298.7C0 239.8 47.8 192 106.7 192l42.7 0c15.9 0 31 3.5 44.6 9.7c-1.3 7.2-1.9 14.7-1.9 22.3c0 38.2 16.8 72.5 43.3 96c-.2 0-.4 0-.7 0L21.3 320C9.6 320 0 310.4 0 298.7zM405.3 320c-.2 0-.4 0-.7 0c26.6-23.5 43.3-57.8 43.3-96c0-7.6-.7-15-1.9-22.3c13.6-6.3 28.7-9.7 44.6-9.7l42.7 0C592.2 192 640 239.8 640 298.7c0 11.8-9.6 21.3-21.3 21.3l-213.3 0zM224 224a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zM128 485.3C128 411.7 187.7 352 261.3 352l117.3 0C452.3 352 512 411.7 512 485.3c0 14.7-11.9 26.7-26.7 26.7l-330.7 0c-14.7 0-26.7-11.9-26.7-26.7z"/>
-                                        </svg>
+                            {hasPermission('Branch-View') &&
+                                <li className="nav-item">
+                                    <ul>
+                                        <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                            <NavLink to="/branches" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
+                                                <div className="flex items-center">
+                                                    <GitBranchPlus />
+                                                    <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Branches</span>
+                                                </div>
+                                            </NavLink>
+                                        </li>
+                                    </ul>
+                                </li>
+                            }
 
-                                        <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Users</span>
-                                    </div>
-                                    <div className={`rtl:rotate-180 ${activeDropdown == 'user' ? '!rotate-90' : ''}`}>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M9 5L15 12L9 19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                        </svg>
-                                    </div>
-                                </button>
-                                <ul className={`sub-menu text-gray-500 collapsible ${activeDropdown == 'user' ? 'expanded' : ''}`}>
-                                    {hasPermission('User-View') &&
-                                        <li>
-                                            <NavLink to="/user" className={`${['user','adduser','edituser'].includes(lastSegment) ? 'active' : ''}`}>Users</NavLink>
+                            {canViewUser && (
+                                <li className="menu nav-item">
+                                    <button
+                                        type="button"
+                                        className={`nav-link group ${activeDropdown == 'user' ? 'active' : ''}`}
+                                        onClick={() => handleToggleMenu('user')}
+                                    >
+                                        <div className="flex items-center">
+                                            <Users />
+
+                                            <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Users</span>
+                                        </div>
+                                        <div className={`rtl:rotate-180 ${activeDropdown == 'user' ? '!rotate-90' : ''}`}>
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M9 5L15 12L9 19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        </div>
+                                    </button>
+                                    <ul className={`sub-menu text-gray-500 collapsible ${activeDropdown == 'user' ? 'expanded' : ''}`}>
+                                        {hasPermission('User-View') &&
+                                            <li>
+                                                <NavLink to="/user" className={`${['user','adduser','edituser'].includes(segments[0]) ? 'active' : ''}`}>Users</NavLink>
+                                            </li>
+                                        }
+                                        {hasPermission('Role-View') &&
+                                            <li>
+                                                <NavLink to="/role" className={`${['role','addrole','editrole'].includes(segments[0]) ? 'active' : ''}`}>Roles</NavLink>
+                                            </li>
+                                        }
+                                        {hasPermission('Permission-View') &&
+                                            <li>
+                                                <NavLink to="/modulepermission" className={`${segments[0] == 'permission' ? 'active' : ''}`}>Permissions</NavLink>
+                                            </li>
+                                        }
+                                    </ul>
+                                </li>
+                            )}
+
+                            {hasPermission('Customer-View') && 
+                                <li className="nav-item">
+                                    <ul>
+                                        <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                            <NavLink to="/customer" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
+                                                <div className="flex items-center">
+                                                    <Users />
+                                                    <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Customers</span>
+                                                </div>
+                                            </NavLink>
                                         </li>
-                                    }
-                                    {hasPermission('Role-View') &&
-                                        <li>
-                                            <NavLink to="/role" className={`${['role','addrole','editrole'].includes(lastSegment) ? 'active' : ''}`}>Roles</NavLink>
+                                    </ul>
+                                </li>
+                            }
+
+                            {hasPermission('Supplier-View') &&
+                                <li className="nav-item">
+                                    <ul>
+                                        <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                            <NavLink to="/supplier" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
+                                                <div className="flex items-center">
+                                                    <SquareUserRound />
+                                                    <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span>
+                                                </div>
+                                            </NavLink>
                                         </li>
-                                    }
-                                    {hasPermission('Permission-View') &&
-                                        <li>
-                                            <NavLink to="/modulepermission" className={`${lastSegment == 'permission' ? 'active' : ''}`}>Permissions</NavLink>
-                                        </li>
-                                    }
-                                </ul>
-                            </li>
+                                    </ul>
+                                </li>
+                            }
 
                             {/* <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
                                 <svg
@@ -260,17 +338,55 @@ const Sidebar: React.FC = () => {
                             </li> */}
 
                         {/* End I comment this blog for example use later on */}
-                        
-                        {hasPermission('Branch-View') && 
+                        {(
+                            hasPermission('Category-View') ||
+                            hasPermission('Brand-View') ||
+                            hasPermission('Payment-Method-View') ||
+                            hasPermission('Unit-View') ||
+                            hasPermission('Varient-Attribute-View') ||
+                            hasPermission('Product-View') ||
+                            hasPermission('Service-View') ||
+                            hasPermission('Purchase-View')
+                        ) && (
+                            <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                <svg
+                                    className="hidden h-5 w-4 flex-none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>Inventory</span>
+                            </h2>
+                        )}
+
+                        {hasPermission('Category-View') &&
                             <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>
-                                        <NavLink to="/branches" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
+                                        <NavLink to="/categories" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
                                             <div className="flex items-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" className="shrink-0 group-hover:!text-primary">
-                                                    <path d="M80 104a24 24 0 1 0 0-48 24 24 0 1 0 0 48zm80-24c0 32.8-19.7 61-48 73.3l0 87.8c18.8-10.9 40.7-17.1 64-17.1l96 0c35.3 0 64-28.7 64-64l0-6.7C307.7 141 288 112.8 288 80c0-44.2 35.8-80 80-80s80 35.8 80 80c0 32.8-19.7 61-48 73.3l0 6.7c0 70.7-57.3 128-128 128l-96 0c-35.3 0-64 28.7-64 64l0 6.7c28.3 12.3 48 40.5 48 73.3c0 44.2-35.8 80-80 80s-80-35.8-80-80c0-32.8 19.7-61 48-73.3l0-6.7 0-198.7C19.7 141 0 112.8 0 80C0 35.8 35.8 0 80 0s80 35.8 80 80zm232 0a24 24 0 1 0 -48 0 24 24 0 1 0 48 0zM80 456a24 24 0 1 0 0-48 24 24 0 1 0 0 48z"/>
-                                                </svg>
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Branches</span>
+                                                <LayoutList />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Categories</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Brand-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink to="/brands" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
+                                            <div className="flex items-center">
+                                                <Tags />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Brands</span>
                                             </div>
                                         </NavLink>
                                     </li>
@@ -298,66 +414,13 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
-                        {hasPermission('Product-View') &&
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
-                                        <NavLink to="/products" className={`${['products','productvariant'].includes(lastSegment) ? 'active' : ''}`}>
-                                            <div className="flex items-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                                                    <path d="M326.3 218.8c0 20.5-16.7 37.2-37.2 37.2h-70.3v-74.4h70.3c20.5 0 37.2 16.7 37.2 37.2zM504 256c0 137-111 248-248 248S8 393 8 256 119 8 256 8s248 111 248 248zm-128.1-37.2c0-47.9-38.9-86.8-86.8-86.8H169.2v248h49.6v-74.4h70.3c47.9 0 86.8-38.9 86.8-86.8z"/>
-                                                </svg>
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Products</span>
-                                            </div>
-                                        </NavLink>
-                                    </li>
-                                </ul>
-                            </li>
-                        }
-
-                        {hasPermission('Category-View') &&
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
-                                        <NavLink to="/categories" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
-                                            <div className="flex items-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                                                    <path d="M40 48C26.7 48 16 58.7 16 72l0 48c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24l0-48c0-13.3-10.7-24-24-24L40 48zM192 64c-17.7 0-32 14.3-32 32s14.3 32 32 32l288 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L192 64zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32l288 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-288 0zm0 160c-17.7 0-32 14.3-32 32s14.3 32 32 32l288 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-288 0zM16 232l0 48c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24l0-48c0-13.3-10.7-24-24-24l-48 0c-13.3 0-24 10.7-24 24zM40 368c-13.3 0-24 10.7-24 24l0 48c0 13.3 10.7 24 24 24l48 0c13.3 0 24-10.7 24-24l0-48c0-13.3-10.7-24-24-24l-48 0z"/>
-                                                </svg>
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Categories</span>
-                                            </div>
-                                        </NavLink>
-                                    </li>
-                                </ul>
-                            </li>
-                        }
-
-                        {hasPermission('Brand-View') &&
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
-                                        <NavLink to="/brands" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
-                                            <div className="flex items-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-                                                    <path d="M91.7 96C106.3 86.8 116 70.5 116 52C116 23.3 92.7 0 64 0S12 23.3 12 52c0 16.7 7.8 31.5 20 41l0 3 0 352 0 64 64 0 0-64 373.6 0c14.6 0 26.4-11.8 26.4-26.4c0-3.7-.8-7.3-2.3-10.7L432 272l61.7-138.9c1.5-3.4 2.3-7 2.3-10.7c0-14.6-11.8-26.4-26.4-26.4L91.7 96z"/>
-                                                </svg>
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Brands</span>
-                                            </div>
-                                        </NavLink>
-                                    </li>
-                                </ul>
-                            </li>
-                        }
-
                         {hasPermission('Unit-View') &&
                             <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>
                                         <NavLink to="/units" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
                                             <div className="flex items-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
-                                                    <path d="M243.6 91.6L323.7 138.4C326.6 140 326.7 144.6 323.7 146.2L228.5 201.9C225.6 203.6 222.2 203.4 219.5 201.9L124.4 146.2C121.4 144.6 121.4 140 124.4 138.4L204.4 91.6V0L0 119.4V358.3L78.4 312.5V218.9C78.3 215.6 82.2 213.2 85.1 215L180.3 270.6C183.2 272.3 184.8 275.3 184.8 278.5V389.7C184.8 393 181 395.4 178.1 393.6L98 346.8L19.6 392.6L224 512L428.4 392.6L350 346.8L269.9 393.6C267.1 395.3 263.1 393.1 263.2 389.7V278.5C263.2 275.1 265.1 272.2 267.7 270.6L362.9 215C365.7 213.2 369.7 215.5 369.6 218.9V312.5L448 358.3V119.4L243.6 0V91.6z"/>
-                                                </svg>
+                                                <Boxes />
                                                 <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Units</span>
                                             </div>
                                         </NavLink>
@@ -366,16 +429,14 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
-                        {hasPermission('Supplier-View') &&
+                        {hasPermission('Varient-Attribute-View') &&
                             <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>
-                                        <NavLink to="/supplier" className={({ isActive }) => `${defaultClass} ${isActive ? 'active' : ''}`.trim()}>
+                                        <NavLink to="/varientattributes" className={`${['varientattributes'].includes(segments[0]) ? 'active' : ''}`}>
                                             <div className="flex items-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
-                                                    <path d="M112 0C85.5 0 64 21.5 64 48l0 48L16 96c-8.8 0-16 7.2-16 16s7.2 16 16 16l48 0 208 0c8.8 0 16 7.2 16 16s-7.2 16-16 16L64 160l-16 0c-8.8 0-16 7.2-16 16s7.2 16 16 16l16 0 176 0c8.8 0 16 7.2 16 16s-7.2 16-16 16L64 224l-48 0c-8.8 0-16 7.2-16 16s7.2 16 16 16l48 0 144 0c8.8 0 16 7.2 16 16s-7.2 16-16 16L64 288l0 128c0 53 43 96 96 96s96-43 96-96l128 0c0 53 43 96 96 96s96-43 96-96l32 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l0-64 0-32 0-18.7c0-17-6.7-33.3-18.7-45.3L512 114.7c-12-12-28.3-18.7-45.3-18.7L416 96l0-48c0-26.5-21.5-48-48-48L112 0zM544 237.3l0 18.7-128 0 0-96 50.7 0L544 237.3zM160 368a48 48 0 1 1 0 96 48 48 0 1 1 0-96zm272 48a48 48 0 1 1 96 0 48 48 0 1 1 -96 0z"/>
-                                                </svg>
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Suppliers</span>
+                                                <ChartColumnStacked />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Varient Attributes</span>
                                             </div>
                                         </NavLink>
                                     </li>
@@ -383,15 +444,73 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
+                        {hasPermission('Product-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/products"
+                                            className={location.pathname.includes('/products') || location.pathname.includes('/productvariant') ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <AlignEndHorizontal />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Products</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Service-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/services"
+                                            className={location.pathname.includes('/services') ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <HeartHandshake />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Services</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {(
+                            hasPermission('Purchase-View') ||
+                            hasPermission('Quotation-View') || 
+                            hasPermission('Invoice-View') 
+                        ) && (
+                            <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                <svg
+                                    className="hidden h-5 w-4 flex-none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>Sale</span>
+                            </h2>
+                        )}
+
                         {hasPermission('Purchase-View') &&
                             <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>
-                                        <NavLink to="/purchase" className={`${['purchase','addpurchase','editpurchase'].includes(lastSegment) ? 'active' : ''}`.trim()}>
+                                        <NavLink
+                                            to="/purchase"
+                                            className={['purchase','addpurchase','editpurchase'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
                                             <div className="flex items-center">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512">
-                                                    <path d="M0 24C0 10.7 10.7 0 24 0L69.5 0c22 0 41.5 12.8 50.6 32l411 0c26.3 0 45.5 25 38.6 50.4l-41 152.3c-8.5 31.4-37 53.3-69.5 53.3l-288.5 0 5.4 28.5c2.2 11.3 12.1 19.5 23.6 19.5L488 336c13.3 0 24 10.7 24 24s-10.7 24-24 24l-288.3 0c-34.6 0-64.3-24.6-70.7-58.5L77.4 54.5c-.7-3.8-4-6.5-7.9-6.5L24 48C10.7 48 0 37.3 0 24zM128 464a48 48 0 1 1 96 0 48 48 0 1 1 -96 0zm336-48a48 48 0 1 1 0 96 48 48 0 1 1 0-96z"/>
-                                                </svg>
+                                                <ShoppingCart />
                                                 <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchases</span>
                                             </div>
                                         </NavLink>
@@ -400,7 +519,116 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
+                        {hasPermission('Quotation-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/quotation"
+                                            className={['quotation','addquotation','editquotation'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <TextQuote />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Quotations</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
 
+                        {hasPermission('Invoice-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/invoice"
+                                            className={['invoice','addinvoice','editinvoice'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <FilePenLine />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Invoices</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {(
+                            hasPermission('Check-Stock') ||
+                            hasPermission('Adjust-Stock-View') ||
+                            hasPermission('Stock-Movement-View')
+                        ) && (
+                            <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                <svg
+                                    className="hidden h-5 w-4 flex-none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>Stock</span>
+                            </h2>
+                        )}
+
+                        {hasPermission('Check-Stock') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/stocksummary"
+                                            className={['stocksummary'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <Layers />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Check Stock</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Adjust-Stock-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/adjuststock"
+                                            className={['adjuststock','addadjuststock','editadjuststock'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <Layers2 />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Adjustment</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Stock-Movement-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/movestock"
+                                            className={['movestock','addmovestock','editmovestock'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <FolderSync />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Movement</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
                     </ul>
                 </div>
             </nav>

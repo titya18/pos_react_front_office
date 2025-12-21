@@ -1,115 +1,93 @@
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faSave } from "@fortawesome/free-solid-svg-icons";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { getAllBranches } from "../../api/branch";
-import { getRoles } from "../../api/role";
+import { getAllRoles } from "../../api/role";
 import { createUser, getUserById, updateUser } from "../../api/user";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { useAppContext } from '../../hooks/useAppContext';
-
-interface BranchData {
-    id: number;
-    name: string;
-}
-
-interface RoleData {
-    id: number;
-    name: string;
-}
-
-interface RoleType {
-    id: number;
-    name: string;
-}
-
-interface UserData {
-    id?: number;
-    branchId: number | null;
-    email: string;
-    phoneNumber: string;
-    password: string;
-    confirmPassword: string;
-    firstName: string;
-    lastName: string;
-    status: string;
-    roleType: string;
-    branch: { id: number, name: string } | null; // Define branch as an object with a name
-    roles: RoleType[];
-};
+import { BranchType, RoleType, UserType } from "../../data_types/types";
 
 const UserForm: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [isLoading, setIsLoading] = useState(false);
-    const [braches, setBranches] = useState<BranchData[]>([]);
-    const [roleData, setRoleData] = useState<RoleData[]>([]);
+    const [branches, setBranches] = useState<BranchType[]>([]);
+    const [roleData, setRoleData] = useState<RoleType[]>([]);
     const [selectRoles, setSelectRoles] = useState<number[]>([]);
+    const [userData, setUserData] = useState<UserType | null>(null);
     // const [userRoleType, setUserRoleType] = useState<string>();
 
     const { user, hasPermission } = useAppContext();
 
     const navigate = useNavigate()
 
-    const { register, watch, handleSubmit, setValue, formState: { errors } } = useForm<UserData> ();
+    const { register, watch, handleSubmit, setValue, formState: { errors } } = useForm<UserType> ();
+
+    const fetchBranches = async () => {
+        setIsLoading(true);
+        try {
+            const data = await getAllBranches();
+            setBranches(data as BranchType[]);
+        } catch (error) {
+            console.error("Error fetching branch:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const fetchRole = async () => {
+        setIsLoading(true);
+        try {
+            const data = await getAllRoles();
+            setRoleData(data as RoleType[]);
+        } catch (error) {
+            console.error("Error fetching role:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const fetchUser = async () => {
+        setIsLoading(true);
+        try {
+            if (id) {
+                const userResult = await getUserById(parseInt(id, 10));
+                const roleIds = userResult.roles.map((role: any) => role.roleId);
+                setSelectRoles(roleIds);
+                setUserData(userResult);
+            }
+        } catch (error) {
+            console.error("Error fetching user:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     // Watch the value of "roleType"
     const showAndHideRoleDiv = watch("roleType", "USER"); // Default to "ADMIN"
     useEffect(() => {
-        if (!watch("roleType")) {
-            setValue("roleType", "USER");
-        }
-
-        const fetchBranches = async () => {
-            setIsLoading(true);
-            try {
-                const { data } = await getAllBranches(1, "", 100, null, null);
-                setBranches(data as BranchData[]);
-            } catch (error) {
-                console.error("Error fetching branch:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-
-        const fetchUser = async () => {
-            setIsLoading(true);
-            try {
-                if (id) {
-                    const userData: UserData = await getUserById(parseInt(id, 10));
-                    const roleIds = userData.roles.map((role: any) => role.roleId);
-                    setSelectRoles(roleIds);
-                    setValue("branchId", userData.branchId);
-                    setValue("email", userData.email);
-                    setValue("firstName", userData.firstName);
-                    setValue("lastName", userData.lastName);
-                    setValue("phoneNumber", userData.phoneNumber);
-                    setValue("roleType", userData.roleType);
-                    setValue("roles", userData.roles || []);
-                }
-            } catch (error) {
-                console.error("Error fetching user:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        const fetchRole = async () => {
-            setIsLoading(true);
-            try {
-                const { data } = await getRoles(1, "", 100, null, null);
-                setRoleData(data as RoleData[]);
-            } catch (error) {
-                console.error("Error fetching role:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchBranches();
         fetchUser();
         fetchRole();
-    }, [id, setValue]);
+    }, [id]);
+
+    useEffect(() => {
+        if (!watch("roleType")) {
+            setValue("roleType", "USER");
+        }
+        if (userData) {
+            setValue("branchId", userData.branchId);
+            setValue("email", userData.email);
+            setValue("firstName", userData.firstName);
+            setValue("lastName", userData.lastName);
+            setValue("phoneNumber", userData.phoneNumber);
+            setValue("roleType", userData.roleType);
+            setValue("roles", userData.roles || []);
+        }
+    }, [watch, setValue, userData]);
 
     const handleRoleChange = (roleId: number, isChecked: boolean) => {
         const updateRoles = isChecked
@@ -119,12 +97,12 @@ const UserForm: React.FC = () => {
         setSelectRoles(updateRoles);
     
         // Transform the number[] (role IDs) to RoleData[]
-        const updatedRoleData = roleData.filter(role => updateRoles.includes(role.id));
+        const updatedRoleData = roleData.filter(role => updateRoles.includes(Number(role.id)));
     
         setValue("roles", updatedRoleData, { shouldValidate: true }); // Setting RoleData[] here
     };
 
-    const onSubmit: SubmitHandler<UserData> = async (userData) => {
+    const onSubmit: SubmitHandler<UserType> = async (userData) => {
         setIsLoading(true);
         try {
             // Check if userData.branchId is empty or undefined, or if user?.branchId is undefined
@@ -223,10 +201,10 @@ const UserForm: React.FC = () => {
                                     })} 
                                 >
                                     <option value="">Select a branch</option>
-                                    {braches.map((option) => (
-                                    <option key={option.id} value={option.id}>
-                                        {option.name}
-                                    </option>
+                                    {branches.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {option.name}
+                                        </option>
                                     ))}
                                 </select>
                                 {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
@@ -302,8 +280,8 @@ const UserForm: React.FC = () => {
                                                 className="form-checkbox"
                                                 id={`${role_row.id}`}
                                                 value={role_row.id}
-                                                checked={selectRoles.includes(role_row.id)}
-                                                onChange={e => handleRoleChange(role_row.id, e.target.checked)} 
+                                                checked={selectRoles.includes(Number(role_row.id))}
+                                                onChange={e => handleRoleChange(Number(role_row.id), e.target.checked)} 
                                             />
                                             <span className="text-white-dark">{role_row.name}</span>
                                         </label>
@@ -313,7 +291,7 @@ const UserForm: React.FC = () => {
                         </div>
                     }
                     <div className="flex justify-end items-center mt-8">
-                        <NavLink to="/admin/user" type="button" className="btn btn-outline-warning">
+                        <NavLink to="/user" type="button" className="btn btn-outline-warning">
                             <FontAwesomeIcon icon={faArrowLeft} className='mr-1' />
                             Go Back
                         </NavLink>

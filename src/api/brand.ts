@@ -1,19 +1,13 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+import { BrandType } from "@/data_types/types";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-export interface BrandData {
-    id?: number;
-    name: string;
-    description: string;
-    image: File | null;
-};
-
-export const getAllBrands = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
+export const getAllBrandsWithPagination = async (
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
-): Promise<{ data: BrandData[], total: number }> => {
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
+): Promise<{ data: BrandType[], total: number }> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/brand?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
         credentials: "include"
@@ -24,7 +18,17 @@ export const getAllBrands = async (
     return response.json();
 };
 
-export const getBrandById = async (id: number): Promise<BrandData> => {
+export const getAllBrands = async (): Promise<BrandType[]> => {
+    const response = await fetch(`${API_BASE_URL}/api/brand/all`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching brands");
+    }
+    return response.json();
+};
+
+export const getBrandById = async (id: number): Promise<BrandType> => {
     const response = await fetch(`${API_BASE_URL}/api/brand/${id}`, {
         credentials: "include"
     });
@@ -34,14 +38,15 @@ export const getBrandById = async (id: number): Promise<BrandData> => {
     return response.json();
 };
 
-export const upsertBrand = async (brandData: BrandData): Promise<BrandData> => {
+export const upsertBrand = async (brandData: BrandType): Promise<BrandType> => {
     const { id, image, ...data } = brandData;
     const method = id ? "PUT" : "POST";
     const url = id ? `${API_BASE_URL}/api/brand/${id}` : `${API_BASE_URL}/api/brand`;
 
     // Prepare FormData
     const formData = new FormData();
-    formData.append('name', data.name);
+    formData.append('en_name', data.en_name);
+    // formData.append('kh_name', data.kh_name);
     formData.append('description', data.description);
     if (image) formData.append('image', image);
     
@@ -59,7 +64,7 @@ export const upsertBrand = async (brandData: BrandData): Promise<BrandData> => {
     return response.json();
 };
 
-export const deleteBrand = async (id: number): Promise<BrandData> => {
+export const deleteBrand = async (id: number): Promise<BrandType> => {
     const response = await fetch(`${API_BASE_URL}/api/brand/${id}`, {
         credentials: "include",
         method: "DELETE",

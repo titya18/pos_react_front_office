@@ -3,13 +3,13 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faClose } from '@fortawesome/free-solid-svg-icons';
 import { useForm } from "react-hook-form";
 import { useAppContext } from "../../hooks/useAppContext";
-import { SupplierData } from "../../hooks/useSupplier";
+import { SupplierType } from "../../data_types/types";
 
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (supplierData: SupplierData) => void;
-    supplier?: SupplierData | null;
+    onSubmit: (supplierData: SupplierType) => void;
+    supplier?: SupplierType | null;
 };
 
 export interface FormData {
@@ -28,14 +28,14 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, supplier }) =>
     useEffect(() => {
         if (supplier) {
             setValue('name', supplier.name);
-            setValue('phone', supplier.phone);
-            setValue('email', supplier.email);
-            setValue('address', supplier.address);
+            setValue('phone', supplier.phone || '');
+            setValue('email', supplier.email || '');
+            setValue('address', supplier.address || '');
             reset({
                 name: supplier.name,
-                phone: supplier.phone,
-                email: supplier.email,
-                address: supplier.address,
+                phone: supplier.phone || '',
+                email: supplier.email || '',
+                address: supplier.address || '',
             });
         } else {
             reset({
@@ -50,7 +50,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, supplier }) =>
     const handleFormSubmit = async (data: FormData) => {
         setIsLoading(true);
         try {
-            const supplierData: SupplierData = {
+            const supplierData: SupplierType = {
                 id: supplier?.id,
                 name: data.name,
                 phone: data.phone,

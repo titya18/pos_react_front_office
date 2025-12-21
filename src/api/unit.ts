@@ -1,11 +1,7 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+import { UnitType } from "@/data_types/types";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-export interface UnitData {
-    id?: number;
-    name: string;
-}
-
-export const upsertUnit = async (unitData: UnitData): Promise<UnitData> => {
+export const upsertUnit = async (unitData: UnitType): Promise<UnitType> => {
     const { id, ...data } =  unitData;
     const method = id ? "PUT" : "POST";
     const url = id ? `${API_BASE_URL}/api/unit/${id}` : `${API_BASE_URL}/api/unit`;
@@ -26,13 +22,13 @@ export const upsertUnit = async (unitData: UnitData): Promise<UnitData> => {
     return response.json();
 };
 
-export const getAllUnits = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
+export const getAllUnitsWithPagination = async (
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
-): Promise<{ data: UnitData[], total: number }> => {
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
+): Promise<{ data: UnitType[], total: number }> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/unit?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
         credentials: "include"
@@ -43,7 +39,17 @@ export const getAllUnits = async (
     return response.json();
 };
 
-export const getCategoryById = async (id: number): Promise<UnitData> => {
+export const getAllUnits = async (): Promise<UnitType[]> => {
+    const response = await fetch(`${API_BASE_URL}/api/unit/all`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching units");
+    }
+    return response.json();
+};
+
+export const getUnitById = async (id: number): Promise<UnitType> => {
     const response = await fetch(`${API_BASE_URL}/api/unit/${id}`, {
         credentials: "include"
     });
@@ -53,7 +59,7 @@ export const getCategoryById = async (id: number): Promise<UnitData> => {
     return response.json();
 };
 
-export const deleteUnit = async (id: number): Promise<UnitData> => {
+export const deleteUnit = async (id: number): Promise<UnitType> => {
     const response = await fetch(`${API_BASE_URL}/api/unit/${id}`, {
         credentials: "include",
         method: "DELETE",

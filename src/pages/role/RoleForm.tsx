@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { NavLink, useParams, useNavigate } from "react-router-dom";
 import { getRoleById, upsertRole } from "../../api/role";
-import { getModules } from "../../api/module_permission";
+import { getAllModules } from "../../api/module_permission";
 import { toast } from "react-toastify";
 import io from 'socket.io-client';
 import { useAppContext } from "../../hooks/useAppContext";
@@ -28,7 +28,7 @@ interface RoleData {
 }
 
 // Initialize the socket connection
-const socket = io(`${process.env.REACT_APP_API_URL}`, {
+const socket = io(`${import.meta.env.VITE_API_URL}`, {
     transports: ['websocket'],
 });
 
@@ -48,7 +48,7 @@ const RoleForm: React.FC = () => {
         const fetchPermission = async () => {
             setIsLoading(true);
             try {
-                const { data } = await getModules(1, "", 100, null, null);
+                const data = await getAllModules();
                 setPermissions(data);
             } catch (error) {
                 console.error("Error fetching permissions:", error);
@@ -197,7 +197,7 @@ const RoleForm: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex justify-end items-center mt-8">
-                        <NavLink to="/admin/role" type="button" className="btn btn-outline-warning">
+                        <NavLink to="/role" type="button" className="btn btn-outline-warning">
                             <FontAwesomeIcon icon={faArrowLeft} className='mr-1' />
                             Go Back
                         </NavLink>

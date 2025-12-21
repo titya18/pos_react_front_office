@@ -2,92 +2,51 @@ import React, { useEffect, useState } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faClose } from '@fortawesome/free-solid-svg-icons';
 import { useForm } from "react-hook-form";
-
-interface Product {
-    id: number;
-    name: string;
-}
+import { PurchaseDetailType } from "@/data_types/types";
 
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (
-        id: number | null,
-        productId: number | null,
-        productVariantId: number | null,
-        name: string | null,
-        code: string | null,
-        products: Product | null,
-        quantity: number,
-        cost: number,
-        taxNet: number,
-        taxMethod: string | null,
-        discount: number,
-        discountMethod: string | null,
-        total: number | null,
-    ) => void;
-    clickData?: {
-        id: number | undefined,
-        productId: number | null,
-        productVariantId: number | null,
-        name: string | null,
-        code: string | null,
-        products: Product | null,
-        quantity: number,
-        cost: number,
-        taxNet: number,
-        taxMethod: string | null,
-        discount: number,
-        discountMethod: string | null,
-        total: number | null,
-    } | null;
-};
-
-export interface FormData {
-    quantity: number;
-    cost: number;
-    taxNet: number;
-    taxMethod: string | null;
-    discount: number;
-    discountMethod: string | null;
-    total: number;
+    onSubmit: (payload: PurchaseDetailType) => Promise<void> | void;
+    clickData?: { id: number | undefined } & Partial<PurchaseDetailType> | null;
 };
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) => {
     const [isLoading, setIsLoading] = useState(false);
-    const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<FormData>();
+    const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<PurchaseDetailType>();
 
     useEffect(() => {
         if (clickData?.cost) {
             setValue('cost', clickData.cost);
-            setValue('quantity', clickData.quantity);
-            setValue('taxMethod', clickData.taxMethod);
-            setValue('taxNet', clickData.taxNet);
-            setValue('discountMethod', clickData.discountMethod);
-            setValue('discount', clickData.discount);
+            setValue('quantity', clickData.quantity ?? 0);
+            setValue('taxMethod', clickData.taxMethod ?? null);
+            setValue('taxNet', clickData.taxNet ?? 0);
+            setValue('discountMethod', clickData.discountMethod ?? null);
+            setValue('discount', clickData.discount ?? 0);
         } else {
             reset()
         }
     }, [clickData, setValue, reset])
 
-    const handleFormSubmit = async (data: FormData) => {
+    const handleFormSubmit = async (data: PurchaseDetailType) => {
         setIsLoading(true);
         try {
-            await onSubmit(
-                clickData?.id ?? 0, // Default to 0 or another fallback value
-                clickData?.productId ?? 0,
-                clickData?.productVariantId ?? 0,
-                clickData?.name ?? "",
-                clickData?.code ?? "",
-                clickData?.products ?? null,
-                data.quantity,
-                data.cost,
-                data.taxNet,
-                data.taxMethod ?? null,
-                data.discount,
-                data.discountMethod ?? null,
-                clickData?.total ?? 0
-            );
+            const payload: PurchaseDetailType = {
+                id: clickData?.id ?? 0,
+                productId: clickData?.productId ?? 0,
+                productVariantId: clickData?.productVariantId ?? 0,
+                quantity: Number(data.quantity) || 0,
+                cost: Number(data.cost) || 0,
+                taxNet: Number(data.taxNet) || 0,
+                taxMethod: (data.taxMethod as string) ?? null,
+                discount: Number(data.discount) || 0,
+                discountMethod: (data.discountMethod as string) ?? null,
+                total: clickData?.total ?? (Number(data.quantity) || 0) * (Number(data.cost) || 0),
+                products: clickData?.products ?? null,
+                productvariants: clickData?.productvariants ?? null,
+            };
+
+            await onSubmit(payload);
             reset();
             onClose(); 
         } catch (error) {
@@ -104,7 +63,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
             <div className="flex items-center justify-center min-h-screen px-4">
                 <div className="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-lg my-8">
                     <div className="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
-                        <h5 className="font-bold text-lg">{ clickData?.products?.name+' - '+clickData?.name }</h5>
+                        <h5 className="font-bold text-lg">{ clickData?.products?.name+' - '+clickData?.productvariants?.name }</h5>
                         <button type="button" className="text-white-dark hover:text-dark" onClick={onClose}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>

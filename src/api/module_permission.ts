@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export interface PermissionData {
     name: string;
@@ -32,15 +32,25 @@ export const upsertModule = async (modulePermissionData: ModulePermissionData): 
     return response.json();
 };
 
-export const getModules = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
+export const getAllModulesWithPagination = async (
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
 ): Promise<{ data: ModulePermissionData[], total: number }> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/module_permission?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching Module Permission");
+    }
+    return response.json();
+};
+
+export const getAllModules = async (): Promise<ModulePermissionData[]> => {
+    const response = await fetch(`${API_BASE_URL}/api/module_permission/all`, {
         credentials: "include"
     });
     if (!response.ok) {

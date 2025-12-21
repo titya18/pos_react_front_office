@@ -1,11 +1,7 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+import { PaymentMethodType } from "../data_types/types";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-export interface PaymentMethodData {
-    id?: number;
-    name: string;
-}
-
-export const upsertPaymentMethod = async (unitData: PaymentMethodData): Promise<PaymentMethodData> => {
+export const upsertPaymentMethod = async (unitData: PaymentMethodType): Promise<PaymentMethodType> => {
     const { id, ...data } =  unitData;
     const method = id ? "PUT" : "POST";
     const url = id ? `${API_BASE_URL}/api/paymentmethod/${id}` : `${API_BASE_URL}/api/paymentmethod`;
@@ -26,13 +22,13 @@ export const upsertPaymentMethod = async (unitData: PaymentMethodData): Promise<
     return response.json();
 };
 
-export const getAllPaymentMethods = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
+export const getAllPaymentMethodsWithPagination = async (
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
-): Promise<{ data: PaymentMethodData[], total: number }> => {
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
+): Promise<{ data: PaymentMethodType[], total: number }> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/paymentmethod?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
         credentials: "include"
@@ -43,7 +39,17 @@ export const getAllPaymentMethods = async (
     return response.json();
 };
 
-export const getPaymentMethodById = async (id: number): Promise<PaymentMethodData> => {
+export const getAllPaymentMethods = async (): Promise<PaymentMethodType[]> => {
+    const response = await fetch(`${API_BASE_URL}/api/paymentmethod/all`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching payment methods");
+    }
+    return response.json();
+};
+
+export const getPaymentMethodById = async (id: number): Promise<PaymentMethodType> => {
     const response = await fetch(`${API_BASE_URL}/api/paymentmethod/${id}`, {
         credentials: "include"
     });
@@ -53,7 +59,7 @@ export const getPaymentMethodById = async (id: number): Promise<PaymentMethodDat
     return response.json();
 };
 
-export const deletePaymentMethod = async (id: number): Promise<PaymentMethodData> => {
+export const deletePaymentMethod = async (id: number): Promise<PaymentMethodType> => {
     const response = await fetch(`${API_BASE_URL}/api/paymentmethod/${id}`, {
         credentials: "include",
         method: "DELETE",

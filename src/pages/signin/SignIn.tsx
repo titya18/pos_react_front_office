@@ -77,7 +77,7 @@ const SignIn: React.FC = () => {
                                 className="absolute inset-y-0 w-8 from-primary/10 via-transparent to-transparent ltr:-right-10 ltr:bg-gradient-to-r rtl:-left-10 rtl:bg-gradient-to-l xl:w-16 ltr:xl:-right-20 rtl:xl:-left-20"
                             ></div>
                             <div className="ltr:xl:-skew-x-[14deg] rtl:xl:skew-x-[14deg]">
-                                <a href="index-2.html" className="block w-48 lg:w-72 ms-10">
+                                <a href="" className="block w-48 lg:w-72 ms-10">
                                     <img src="/admin_assets/images/auth/logo-white.svg" alt="Company logo" className="w-full" />
                                 </a>
                                 <div className="mt-24 hidden w-full max-w-[430px] lg:block">

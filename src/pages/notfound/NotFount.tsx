@@ -12,7 +12,7 @@ const NotFound: React.FC = () => {
                         <div className="relative">
                             <h1 style={{ fontSize: '40px', fontWeight: 'bolder' }}>Not Found!</h1>
                             <p className="mt-5 text-base dark:text-white">The page you requested was not found!</p>
-                            <NavLink to="/admin/signIn" className="btn btn-gradient mx-auto !mt-7 w-max border-0 uppercase shadow-none">Home</NavLink>
+                            <NavLink to="/dashboard" className="btn btn-gradient mx-auto !mt-7 w-max border-0 uppercase shadow-none">Home</NavLink>
                         </div>
                     </div>
                 </div>

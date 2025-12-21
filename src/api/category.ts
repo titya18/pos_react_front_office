@@ -1,14 +1,9 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+import { CategoryType } from "@/data_types/types";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-export interface CategoryData {
-    id?: number;
-    code: string;
-    name: string;
-}
-
-export const upsertCategory = async (categoryData: CategoryData): Promise<CategoryData> => {
+export const upsertCategory = async (categoryData: CategoryType): Promise<CategoryType> => {
     const { id, ...data } = categoryData;
-    const method = id ? "PUT" : "POSt";
+    const method = id ? "PUT" : "POST";
     const url = id ? `${API_BASE_URL}/api/category/${id}` : `${API_BASE_URL}/api/category`;
 
     const response = await fetch(url, {
@@ -20,20 +15,20 @@ export const upsertCategory = async (categoryData: CategoryData): Promise<Catego
         body: JSON.stringify(data)
     });
     if (!response.ok) {
-        const custom_error = id ? "Error updating Role" : "Error adding category";
+        const custom_error = id ? "Error updating Category" : "Error adding Category";
         const errorResponse = await response.json();
         throw new Error(errorResponse.message || custom_error);
     }
     return response.json();
 };
 
-export const getAllCategories = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
+export const getAllCategoriesWithPagination = async (
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
-): Promise<{ data: CategoryData[], total: number }> => {
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
+): Promise<{ data: CategoryType[], total: number }> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/category?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
         credentials: "include"
@@ -44,7 +39,17 @@ export const getAllCategories = async (
     return response.json();
 };
 
-export const getCategoryByid = async (id: number): Promise<CategoryData> => {
+export const getAllCategories = async (): Promise<CategoryType[]> => {
+    const response = await fetch(`${API_BASE_URL}/api/category/all`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching categories");
+    }
+    return response.json();
+};
+
+export const getCategoryByid = async (id: number): Promise<CategoryType> => {
     const response = await fetch(`${API_BASE_URL}/api/category/${id}`, {
         credentials: "include"
     });
@@ -55,7 +60,7 @@ export const getCategoryByid = async (id: number): Promise<CategoryData> => {
     return response.json();
 };
 
-export const deleteCategory = async (id: number): Promise<CategoryData> => {
+export const deleteCategory = async (id: number): Promise<CategoryType> => {
     const response = await fetch(`${API_BASE_URL}/api/category/${id}`, {
         credentials: "include",
         method: "DELETE",

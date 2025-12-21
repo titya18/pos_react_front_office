@@ -37,7 +37,7 @@ interface AppContextType {
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // socket io connect to backend index.ts
-const socket = io(process.env.REACT_APP_API_URL || 'wss://151.106.120.94', {
+const socket = io(import.meta.env.VITE_API_URL || 'wss://151.106.120.94', {
     transports: ['websocket'],
 });
 // end socket io connect to backend index.ts

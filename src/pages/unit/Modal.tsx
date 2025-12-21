@@ -7,12 +7,13 @@ import { useAppContext } from "../../hooks/useAppContext";
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (id: number | null, name: string) => void;
-    unit?: { id: number | undefined, name: string } | null;
+    onSubmit: (id: number | null, name: string, type: string) => void;
+    unit?: { id: number | undefined, name: string, type: string } | null;
 };
 
 export interface FormData {
-    name: string
+    name: string,
+    type: string;
 };
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, unit }) => {
@@ -24,9 +25,10 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, unit }) => {
     useEffect(() => {
         if (unit) {
             setValue('name', unit.name);
-            reset({ name: unit.name });
+            setValue('type', unit.type);
+            reset({ name: unit.name, type: unit.type });
         } else {
-            reset({ name: '' });
+            reset({ name: '', type: '' });
         }
     }, [unit, setValue, reset]);
 
@@ -34,7 +36,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, unit }) => {
         setIsLoading(true);
         try {
             // Call the onSubmit function, making sure it recieve the correct format
-            await onSubmit(unit?.id || null, data.name);
+            await onSubmit(unit?.id || null, data.name, data.type);
             reset();
             onClose();
         } catch (error) {
@@ -61,6 +63,26 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, unit }) => {
                     </div>
                     <form onSubmit={handleSubmit(handleFormSubmit)}>
                         <div className="p-5">
+                            <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937] mb-4">
+
+                                <label htmlFor="module">Unit's Type <span className="text-danger text-md">*</span></label>
+                                <select 
+                                    className="form-input"
+                                    {...register("type", { required: "This field is required" })}
+                                >
+                                    <option value="">Select Type</option>
+                                    <option value="WEIGHT">Weight (kg, g, mg)</option>
+                                    <option value="LENGTH">Length (m, cm, mm)</option>
+                                    <option value="QUANTITY">Quantity (pcs, box, bundle)</option>
+                                    <option value="COLOR">Color (red, blue, black, white)</option>
+                                    <option value="SIZE">Size (S, M, L, XL)</option>
+                                    <option value="VOLUME">Volume (L, mL)</option>
+                                    <option value="AREA">Area (m2, cm2, mm2)</option>
+                                    <option value="CAPACITY">Capacity (GB, TB)</option>
+                                </select>
+                                {errors.type && <p className='error_validate'>{errors.type.message}</p>}
+                            </div>
+
                             <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937]">
                                 <label htmlFor="module">Unit's Name <span className="text-danger text-md">*</span></label>
                                 <input 

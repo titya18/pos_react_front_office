@@ -3,32 +3,70 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import * as apiClient from "../api/supplier";
 import ShowDeleteConfirmation from "../pages/components/ShowDeleteConfirmation";
+import { SupplierType } from "../data_types/types";
+import { useSearchParams } from "react-router-dom";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 
-export interface SupplierData {
-    id?: number;
-    name: string;
-    phone: string;
-    email: string;
-    address: string;
-}
+// Extend Day.js with plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const columns = [
+    "No",
+    "Name",
+    "Phone",
+    "Email",
+    "Address",
+    "Created At",
+    "Created By",
+    "Updated At",
+    "Updated By",
+    "Actions"
+];
+
+const sortFields: Record<string, string> = {
+    "No": "id",
+    "Name": "name",
+    "Phone": "phone",
+    "Email": "email",
+    "Address": "address",
+    "Created At": "createdAt",
+    "Created By": "createdBy",
+    "Updated At": "updatedAt",
+    "Updated By": "updatedBy"
+};
 
 export const useSuppliers = () => {
-    const [currentPage, setCurrentPage] = useState(1);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [sortField, setSortField] = useState<string | null>(null);
-    const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalItems, setTotalItems] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
-    const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
-    const [allSuppliers, setAllSuppliers] = useState<SupplierData[]>([]);
-    const [selectedSupplier, setSelectedSupplier] = useState<SupplierData | null>(null);
+    const [suppliers, setSuppliers] = useState<SupplierType[]>([]);
+    const [allSuppliers, setAllSuppliers] = useState<SupplierType[]>([]);
+    const [selectedSupplier, setSelectedSupplier] = useState<SupplierType | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const [searchParams, setSearchParams] = useSearchParams();
+    const search = searchParams.get("search") || "";
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
+    const sortField = searchParams.get("sortField") || "name";
+    const rawSortOrder = searchParams.get("sortOrder");
+    const sortOrder: "asc" | "desc" = rawSortOrder === "desc" ? "desc" : "asc";
+    const [total, setTotal] = useState(0);
+    const [selected, setSelected] = useState<number[]>([]);
+    const [visibleCols, setVisibleCols] = useState(columns);
+
+    const updateParams = (params: Record<string, unknown>) => {
+        const newParams = new URLSearchParams(searchParams.toString());
+        Object.entries(params).forEach(([key, value]) => {
+            newParams.set(key, String(value));
+        });
+        setSearchParams(newParams);
+    };
     
     const queryClient = useQueryClient();
 
-    const handleAddOrEditSupplier = async (supplierData: SupplierData) => {
+    const handleAddOrEditSupplier = async (supplierData: SupplierType) => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
 
@@ -52,10 +90,16 @@ export const useSuppliers = () => {
     const fetchSuppliers = async () => {
         setIsLoading(true);
         try {
-            const { data, total } = await apiClient.getAllSuppliers(currentPage, searchTerm, itemsPerPage, sortField, sortOrder);
-            setSuppliers(data);
-            setTotalItems(total);
-            setTotalPages(Math.ceil(total / itemsPerPage));
+            const { data, total } = await apiClient.getAllSuppliersWithPagination(
+                sortField,
+                sortOrder,
+                page,
+                search,
+                pageSize
+            );
+            setSuppliers(data || []);
+            setTotal(total || 0);
+            setSelected([]);
         } catch (error) {
             console.error("Error fetching suppliers:", error);
         } finally {
@@ -66,7 +110,7 @@ export const useSuppliers = () => {
     const fetchAllSuppliers = async () => {
         setIsLoading(true);
         try {
-            const { data } = await apiClient.getAllSuppliers(1, "", 100, null, null);
+            const data  = await apiClient.getAllSuppliers();
             setAllSuppliers(data);
         } catch (error) {
             console.error("Error fetching suppliers:", error);
@@ -78,30 +122,45 @@ export const useSuppliers = () => {
     useEffect(() => {
         fetchSuppliers();
         fetchAllSuppliers();
-    }, [currentPage, searchTerm, itemsPerPage, sortField, sortOrder]);
+    }, [search, page, sortField, sortOrder, pageSize]);
 
-    const handleSortChange = (field: string) => {
-        setSortField(field);
-        setSortOrder(sortField === field && sortOrder === "desc" ? "asc" : "desc");
+    const toggleCol = (col: string) => {
+        setVisibleCols((prev) =>
+            prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
+        );
     };
 
-    const handlePageChange = (pageNumber: number) => {
-        if (pageNumber >= 1 && pageNumber <= totalPages) {
-            setCurrentPage(pageNumber);
+    const toggleSelectRow = (index: number) => {
+        setSelected((prev) =>
+            prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+        );
+    };
+
+    const handleSort = (col: string) => {
+        const field = sortFields[col];
+        if (!field) return;
+
+        if (sortField === field) {
+            updateParams({ sortOrder: sortOrder === "asc" ? "desc" : "asc" });
+        } else {
+            updateParams({ sortField: field, sortOrder: "asc" });
         }
     };
 
-    const handleItemsPerPageChange = (value: number) => {
-        setItemsPerPage(value);
-        setCurrentPage(1); // Reset to first page when items per page changes
-    };
+    const exportData = suppliers.map((supplier, index) => ({
+        "No": (page - 1) * pageSize + index + 1,
+        "Name": supplier.name,
+        "Phone": supplier.phone,
+        "Email": supplier.email,
+        "Address": supplier.address,
+        "Created At": supplier.createdAt ? dayjs.tz(supplier.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Created By": `${supplier.creator?.lastName || ''} ${supplier.creator?.firstName || ''}`,
+        "Updated At": supplier.updatedAt ? dayjs.tz(supplier.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Updated By": `${supplier.updater?.lastName || ''} ${supplier.updater?.firstName || ''}`,
+    }));
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-    const handleSearchInputChange = (value: string) => {
-        setSearchTerm(value);
-        setCurrentPage(1); // Reset to first page on new search
-    };
-
-    const handleEditClick = (supplier: SupplierData) => {
+    const handleEditClick = (supplier: SupplierType) => {
         setSelectedSupplier(supplier);
         setIsModalOpen(true);
     };
@@ -128,18 +187,23 @@ export const useSuppliers = () => {
         allSuppliers,
         isLoading,
         totalPages,
-        totalItems,
-        currentPage,
-        itemsPerPage,
-        searchTerm,
         sortField,
+        sortFields,
+        page,
+        pageSize,
         sortOrder,
         isModalOpen,
         selectedSupplier,
-        handleSortChange,
-        handlePageChange,
-        handleItemsPerPageChange,
-        handleSearchInputChange,
+        columns,
+        visibleCols,
+        selected,
+        search,
+        total,
+        updateParams,
+        toggleCol,
+        toggleSelectRow,
+        handleSort,
+        exportData,
         fetchAllSuppliers,
         handleAddOrEditSupplier,
         handleEditClick,

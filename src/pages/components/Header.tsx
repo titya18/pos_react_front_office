@@ -1,11 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useAppContext } from '../../hooks/useAppContext';
 import SignOutButton from "./SignOutbutton";
 
 type ActiveDiv = 'div1' | 'div2' | null;
 const Header: React.FC = () => {
     // const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    const { t } = useTranslation();
+    const { language, setLanguage } = useLanguage();
 
     const { toggleSidebar, isLoggedIn, user } = useAppContext();
 
@@ -54,8 +59,8 @@ const Header: React.FC = () => {
                     <div className="relative flex w-full items-center bg-white px-5 py-2.5 dark:bg-[#0e1726]">
                         <div className="horizontal-logo flex items-center justify-between ltr:mr-2 rtl:ml-2 lg:hidden">
                             <Link to="/dashboard" className="main-logo flex shrink-0 items-center">
-                                <img className="inline w-8 ltr:-ml-1 rtl:-mr-1" src="/../admin_assets/images/logo.svg" alt="Company logo" />
-                                <span className="hidden align-middle text-2xl font-semibold transition-all duration-300 ltr:ml-1.5 rtl:mr-1.5 dark:text-white-light md:inline">Lorn Titya</span>
+                                <img style={{ width: "4rem" }} className="inline ltr:-ml-1 rtl:-mr-1" src="/../admin_assets/images/izoom-logo.png" alt="Company logo" />
+                                {/* <span className="hidden align-middle text-2xl font-semibold transition-all duration-300 ltr:ml-1.5 rtl:mr-1.5 dark:text-white-light md:inline">Lorn Titya</span> */}
                             </Link>
 
                             <button
@@ -152,9 +157,30 @@ const Header: React.FC = () => {
                                 </button> */}
                             </div>
                             {/* End Search Option */}
+
+
+
+                            {/* <div>
+                                <label>{t('language')}:</label>
+                                <button onClick={() => setLanguage('en')}>{t('english')}</button>
+                                <button onClick={() => setLanguage('kh')}>{t('khmer')}</button> */}
+                                {/* <a href="javascript:;" x-show="$store.app.theme === 'light'" className="flex items-center rounded-full bg-white-light/40 p-2 hover:bg-white-light/90 hover:text-primary dark:bg-dark/40 dark:hover:bg-dark/60">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.5"></circle>
+                                        <path d="M12 2V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                                        <path d="M12 20V22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                                        <path d="M4 12L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                                        <path d="M22 12L20 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                                        <path opacity="0.5" d="M19.7778 4.22266L17.5558 6.25424" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                                        <path opacity="0.5" d="M4.22217 4.22266L6.44418 6.25424" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                                        <path opacity="0.5" d="M6.44434 17.5557L4.22211 19.7779" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                                        <path opacity="0.5" d="M19.7778 19.7773L17.5558 17.5551" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+                                    </svg>
+                                </a> */}
+                            {/* </div> */}
                             
                             {/* Start Flag Option */}
-                            <div className="dropdown shrink-0" x-data="dropdown">
+                            {/* <div className="dropdown shrink-0" x-data="dropdown">
                                 <button
                                     className="block rounded-full bg-white-light/40 p-2 hover:bg-white-light/90 hover:text-primary dark:bg-dark/40 dark:hover:bg-dark/60"
                                     onClick={() => toggleActiveDiv('div1')}
@@ -184,7 +210,7 @@ const Header: React.FC = () => {
                                             </li>
                                     </ul>
                                 }
-                            </div>
+                            </div> */}
                             {/* End Flag Option */}
                             
                             {/* Start Profile Option */}
@@ -193,7 +219,7 @@ const Header: React.FC = () => {
                                     <span>
                                         <img
                                             className="h-9 w-9 rounded-full object-cover saturate-50 group-hover:saturate-100"
-                                            src="/../admin_assets/images/user-profile.jpeg"
+                                            src="/../admin_assets/images/user-profile.jpg"
                                             alt="Company logo" />
                                     </span>
                                 </button>
@@ -205,7 +231,7 @@ const Header: React.FC = () => {
                                     <li>
                                         <div className="flex items-center px-4 py-4">
                                             <div className="flex-none">
-                                                <img className="h-10 w-10 rounded-md object-cover" src="/../admin_assets/images/user-profile.jpeg" alt="Company logo" />
+                                                <img className="h-10 w-10 rounded-md object-cover" src="/../admin_assets/images/user-profile.jpg" alt="Company logo" />
                                             </div>
                                             <div className="truncate ltr:pl-4 rtl:pr-4">
                                                 {isLoggedIn ? (

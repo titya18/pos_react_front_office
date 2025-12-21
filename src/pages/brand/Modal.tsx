@@ -3,32 +3,32 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faClose } from '@fortawesome/free-solid-svg-icons';
 import { useAppContext } from "../../hooks/useAppContext";
 import { useForm } from "react-hook-form";
+import { BrandType } from "@/data_types/types";
 
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (id: number | null, name: string, description: string, image: File | null) => void;
-    brand?: { id: number | undefined, name: string, description: string, image: File | null } | null;
-};
-
-export interface BrandFormData {
-    name: string;
-    description: string;
-    image: File | null;
+    onSubmit: (payload: {
+        id: number | null;
+        data: BrandType;
+    }) => Promise<void>;
+    brand?: BrandType | null;
 };
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, brand }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<BrandFormData>();
+    const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<BrandType>();
 
     const { hasPermission } = useAppContext();
-    const API_BASE_URL = process.env.API_URL || "";
+    const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
     useEffect(() => {
         if (brand) {
-            setValue('name', brand.name);
-            setValue("description", brand.description);
+            setValue("id", brand.id ?? 0);
+            setValue('en_name', brand.en_name ?? "");
+            // setValue('kh_name', brand.kh_name);
+            setValue("description", brand.description ?? "");
     
             // If there is an image, convert it to a preview URL or set it to null
             if (brand.image) {
@@ -42,9 +42,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, brand }) => {
                 setImagePreview(null);
             }
     
-            reset({ name: brand.name, description: brand.description, image: brand.image });
+            reset({ id: brand.id, en_name: brand.en_name, kh_name: brand.kh_name, description: brand.description, image: brand.image });
         } else {
-            reset({ name: "", description: "", image: null });
+            reset({ en_name: "", kh_name: "", description: "", image: null });
             setImagePreview(null); // Clear the image preview when creating a new brand
         }
     }, [brand, setValue, reset]);
@@ -57,7 +57,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, brand }) => {
         }
     };
 
-    const handleFormSubmit = async(data: BrandFormData) => {
+    const handleFormSubmit = async(data: BrandType) => {
         setIsLoading(true);
         try {
             // // Prepare form data
@@ -66,7 +66,13 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, brand }) => {
             // formData.append("description", data.description);
             // if (data.image) formData.append("image", data.image); // Append image file if it exists
 
-            await onSubmit(brand?.id || null, data.name, data.description, data.image);
+            await onSubmit({
+                id: brand?.id || null,
+                data: {
+                    ...data,
+                },
+            });
+
             setImagePreview(null); 
             reset();
             onClose();
@@ -95,15 +101,26 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, brand }) => {
                     <form onSubmit={handleSubmit(handleFormSubmit)}>
                         <div className="p-5">
                             <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937]">
-                                <label htmlFor="module">Brand's Name <span className="text-danger text-md">*</span></label>
+                                <label htmlFor="module">Brand's Name(EN) <span className="text-danger text-md">*</span></label>
                                 <input 
                                     type="text" 
-                                    placeholder="Enter Brand's name" 
+                                    placeholder="Enter Brand's name(EN)" 
                                     className="form-input"
-                                    {...register("name", { required: "This field is required" })} 
+                                    {...register("en_name", { required: "This field is required" })} 
                                 />
-                                {errors.name && <p className='error_validate'>{errors.name.message}</p>}
+                                {errors.en_name && <p className='error_validate'>{errors.en_name.message}</p>}
                             </div>
+
+                            {/* <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937]">
+                                <label htmlFor="module">Brand's Name(KH) <span className="text-danger text-md">*</span></label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Enter Brand's name(KH)" 
+                                    className="form-input"
+                                    {...register("kh_name", { required: "This field is required" })} 
+                                />
+                                {errors.kh_name && <p className='error_validate'>{errors.kh_name.message}</p>}
+                            </div> */}
 
                             <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937] mt-5">
                                 <label htmlFor="module">Description</label>

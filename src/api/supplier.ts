@@ -1,20 +1,13 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+import { SupplierType } from "../data_types/types";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-export interface SupplierData {
-    id?: number;
-    name: string;
-    phone: string;
-    email: string;
-    address: string;
-};
-
-export const getAllSuppliers = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
+export const getAllSuppliersWithPagination = async (
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
-): Promise<{ data: SupplierData[], total: number }> => {
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
+): Promise<{ data: SupplierType[], total: number }> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/supplier?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
         credentials: "include"
@@ -25,7 +18,17 @@ export const getAllSuppliers = async (
     return response.json();
 };
 
-export const upsertSupplier = async (supplierdata: SupplierData): Promise<SupplierData> => {
+export const getAllSuppliers = async (): Promise<SupplierType[]> => {
+    const response = await fetch(`${API_BASE_URL}/api/supplier/all`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching suppliers");
+    }
+    return response.json();
+};
+
+export const upsertSupplier = async (supplierdata: SupplierType): Promise<SupplierType> => {
     const { id, ...data } = supplierdata;
     const method = id ? "PUT" : "POST";
     const url = id ? `${API_BASE_URL}/api/supplier/${id}` : `${API_BASE_URL}/api/supplier`;
@@ -46,7 +49,7 @@ export const upsertSupplier = async (supplierdata: SupplierData): Promise<Suppli
     return response.json();
 };
 
-export const getSupplierById = async (id: number): Promise<SupplierData> => {
+export const getSupplierById = async (id: number): Promise<SupplierType> => {
     const response = await fetch(`${API_BASE_URL}/api/supplier/${id}`, {
         credentials: "include"
     });
@@ -56,7 +59,7 @@ export const getSupplierById = async (id: number): Promise<SupplierData> => {
     return response.json();
 };
 
-export const deleteSupplier = async (id: number): Promise<SupplierData> => {
+export const deleteSupplier = async (id: number): Promise<SupplierType> => {
     const response = await fetch(`${API_BASE_URL}/api/supplier/${id}`, {
         credentials: "include",
         method: "DELETE",

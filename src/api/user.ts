@@ -1,32 +1,13 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
-
-interface RoleType {
-    id: number;
-    name: string;
-}
-
-interface UserData {
-    id?: number;
-    branchId: number | null;
-    email: string;
-    phoneNumber: string;
-    password: string;
-    confirmPassword: string;
-    firstName: string;
-    lastName: string;
-    status: string;
-    roleType: string;
-    branch: { id: number, name: string } | null; // Define branch as an object with a name
-    roles: RoleType[]; // Change roles to be an array of RoleType objects
-};
+import { UserType, RoleType } from "@/data_types/types";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export const getAllUsers = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
-): Promise<{ data: UserData[], total: number }> => {
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
+): Promise<{ data: UserType[], total: number }> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/user?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
         credentials: "include"
@@ -37,7 +18,7 @@ export const getAllUsers = async (
     return response.json();
 };
 
-export const getUserById = async(id: number): Promise<UserData> => {
+export const getUserById = async(id: number): Promise<UserType> => {
     const response = await fetch(`${API_BASE_URL}/api/user/${id}`, {
         credentials: "include"
     });
@@ -47,7 +28,7 @@ export const getUserById = async(id: number): Promise<UserData> => {
     return response.json();
 };
 
-export const statusUser = async (id: number): Promise<UserData> => {
+export const statusUser = async (id: number): Promise<UserType> => {
     const response = await fetch(`${API_BASE_URL}/api/user/status/${id}`, {
         credentials: "include"
     });
@@ -57,7 +38,7 @@ export const statusUser = async (id: number): Promise<UserData> => {
     return response.json();
 };
 
-export const createUser = async(user: UserData): Promise<UserData> => {
+export const createUser = async(user: UserType): Promise<UserType> => {
     const response = await fetch(`${API_BASE_URL}/api/user/`, {
         method: "POST",
         credentials: "include",
@@ -73,7 +54,7 @@ export const createUser = async(user: UserData): Promise<UserData> => {
     return response.json();
 };
 
-export const updateUser = async(id: number, user: UserData): Promise<UserData> => {
+export const updateUser = async(id: number, user: UserType): Promise<UserType> => {
     const response = await fetch(`${API_BASE_URL}/api/user/${id}`, {
         credentials: "include",
         method: "PUT",
@@ -89,7 +70,7 @@ export const updateUser = async(id: number, user: UserData): Promise<UserData> =
     return response.json();
 };
 
-export const deleteUser = async(id: number): Promise<UserData> => {
+export const deleteUser = async(id: number): Promise<UserType> => {
     const response = await fetch(`${API_BASE_URL}/api/user/${id}`, {
         credentials: "include",
         method: "DELETE",

@@ -5,28 +5,41 @@ import Pagination from "../components/Pagination";
 import Modal from "./Modal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowUpZA, faArrowDownAZ } from "@fortawesome/free-solid-svg-icons";
+import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
+import ExportDropdown from "@/components/ExportDropdown";
+import { Pencil, Trash2 } from "lucide-react";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+// Extend Day.js with plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 const Supplier: React.FC = () => {
     const {
+        columns,
+        visibleCols,
+        sortField,
+        sortFields,
         suppliers,
+        page,
+        pageSize,
+        toggleCol,
+        handleSort,
+        total,
         isLoading,
-        totalPages,
-        totalItems,
-        currentPage,
-        itemsPerPage,
-        searchTerm,
         sortOrder,
+        search,
         isModalOpen,
         selectedSupplier,
-        handleSortChange,
-        handlePageChange,
-        handleItemsPerPageChange,
-        handleSearchInputChange,
+        exportData,
         handleAddOrEditSupplier,
         handleEditClick,
         handleDeleteSupplier,
         setIsModalOpen,
-        setSelectedSupplier
+        setSelectedSupplier,
+        updateParams
     } = useSuppliers();
 
     const { hasPermission } = useAppContext();
@@ -40,7 +53,7 @@ const Supplier: React.FC = () => {
                             <div className="px-0">
                                 <div className="md:absolute md:top-0 ltr:md:left-0 rtl:md:right-0">
                                     <div className="mb-5 flex items-center gap-2">
-                                        {hasPermission('Category-Create') &&
+                                        {hasPermission('Supplier-Create') &&
                                             <button className="btn btn-primary gap-2" onClick={() => { setIsModalOpen(true); setSelectedSupplier(null) }}>
                                                 <svg
                                                     xmlns="http://www.w3.org/2000/svg"
@@ -71,10 +84,16 @@ const Supplier: React.FC = () => {
                                             className="dataTable-input"
                                             type="text"
                                             placeholder="Search..."
-                                            value={searchTerm}
-                                            onChange={(e) => handleSearchInputChange(e.target.value)}
+                                            value={search}
+                                            onChange={(e) => updateParams({ search: e.target.value, page: 1 })}
                                         />
                                     </div>
+                                    <VisibleColumnsSelector
+                                        allColumns={columns}
+                                        visibleColumns={visibleCols}
+                                        onToggleColumn={toggleCol}
+                                    />
+                                    <ExportDropdown data={exportData} prefix="suppliers" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (
@@ -83,86 +102,78 @@ const Supplier: React.FC = () => {
                                         <table id="myTable1" className="whitespace-nowrap dataTable-table">
                                             <thead>
                                                 <tr>
-                                                    <th onClick={() => handleSortChange("no")}>
-                                                        No {/* No <span>{sortOrder === "desc" ? <FontAwesomeIcon icon={faArrowDownAZ} /> :<FontAwesomeIcon icon={faArrowUpZA} />}</span> */}
-                                                    </th>
-                                                    <th onClick={() => handleSortChange("name")}>
-                                                        Name <span className="cursor-pointer">{sortOrder === "desc" ? <FontAwesomeIcon icon={faArrowDownAZ} /> :<FontAwesomeIcon icon={faArrowUpZA} />}</span>
-                                                    </th>
-                                                    <th onClick={() => handleSortChange("phone")}>
-                                                        Phone <span className="cursor-pointer">{sortOrder === "desc" ? <FontAwesomeIcon icon={faArrowDownAZ} /> :<FontAwesomeIcon icon={faArrowUpZA} />}</span>
-                                                    </th>
-                                                    <th onClick={() => handleSortChange("email")}>
-                                                        Email <span className="cursor-pointer">{sortOrder === "desc" ? <FontAwesomeIcon icon={faArrowDownAZ} /> :<FontAwesomeIcon icon={faArrowUpZA} />}</span>
-                                                    </th>
-                                                    <th className="!text-center">Actions</th>
+                                                    {columns.map(
+                                                        (col) =>
+                                                        visibleCols.includes(col) && (
+                                                            <th
+                                                                key={col}
+                                                                className="px-4 py-2 font-medium cursor-pointer select-none whitespace-normal break-words max-w-xs"
+                                                                onClick={() => handleSort(col)}
+                                                            >
+                                                                <div className="flex items-center gap-1">
+                                                                    {col}
+                                                                    {sortField === sortFields[col] ? (
+                                                                        sortOrder === "asc" ? (
+                                                                            <FontAwesomeIcon icon={faArrowDownAZ} />
+                                                                        ) : (
+                                                                            <FontAwesomeIcon icon={faArrowUpZA} />
+                                                                        )
+                                                                    ) : (
+                                                                        <FontAwesomeIcon icon={faArrowDownAZ} />
+                                                                    )}
+                                                                </div>
+                                                            </th>
+                                                        )
+                                                    )}
                                                 </tr>
                                             </thead>
                                             <tbody>
                                             {suppliers && suppliers.length > 0 ? (
                                                     suppliers.map((rows, index) => (
                                                         <tr key={index}>
-                                                            <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                                                            <td>{rows.name}</td>
-                                                            <td>{rows.phone}</td>
-                                                            <td>{rows.email}</td>
-                                                            <td className="text-center">
-                                                                <div className="flex items-center justify-center gap-2">
-                                                                    {hasPermission('Supplier-Update') &&
-                                                                        <button type="button" className="hover:text-warning" onClick={() => handleEditClick(rows)} title="Edit">
-                                                                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-success">
-                                                                                <path d="M15.2869 3.15178L14.3601 4.07866L5.83882 12.5999L5.83881 12.5999C5.26166 13.1771 4.97308 13.4656 4.7249 13.7838C4.43213 14.1592 4.18114 14.5653 3.97634 14.995C3.80273 15.3593 3.67368 15.7465 3.41556 16.5208L2.32181 19.8021L2.05445 20.6042C1.92743 20.9852 2.0266 21.4053 2.31063 21.6894C2.59466 21.9734 3.01478 22.0726 3.39584 21.9456L4.19792 21.6782L7.47918 20.5844L7.47919 20.5844C8.25353 20.3263 8.6407 20.1973 9.00498 20.0237C9.43469 19.8189 9.84082 19.5679 10.2162 19.2751C10.5344 19.0269 10.8229 18.7383 11.4001 18.1612L11.4001 18.1612L19.9213 9.63993L20.8482 8.71306C22.3839 7.17735 22.3839 4.68748 20.8482 3.15178C19.3125 1.61607 16.8226 1.61607 15.2869 3.15178Z" stroke="currentColor" strokeWidth="1.5"></path>
-                                                                                <path opacity="0.5" d="M14.36 4.07812C14.36 4.07812 14.4759 6.04774 16.2138 7.78564C17.9517 9.52354 19.9213 9.6394 19.9213 9.6394M4.19789 21.6777L2.32178 19.8015" stroke="currentColor" strokeWidth="1.5"></path>
-                                                                            </svg>
-                                                                        </button>
-                                                                    }
-                                                                    {hasPermission('Supplier-Delete') &&
-                                                                        <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteSupplier(rows.id)} title="Delete">
-                                                                            <svg
-                                                                                width="24"
-                                                                                height="24"
-                                                                                viewBox="0 0 24 24"
-                                                                                fill="none"
-                                                                                xmlns="http://www.w3.org/2000/svg"
-                                                                                className="w-5 h-5 text-danger"
-                                                                            >
-                                                                                <path
-                                                                                    d="M20.5001 6H3.5"
-                                                                                    stroke="currentColor"
-                                                                                    strokeWidth="1.5"
-                                                                                    strokeLinecap="round"
-                                                                                ></path>
-                                                                                <path
-                                                                                    d="M18.8334 8.5L18.3735 15.3991C18.1965 18.054 18.108 19.3815 17.243 20.1907C16.378 21 15.0476 21 12.3868 21H11.6134C8.9526 21 7.6222 21 6.75719 20.1907C5.89218 19.3815 5.80368 18.054 5.62669 15.3991L5.16675 8.5"
-                                                                                    stroke="currentColor"
-                                                                                    strokeWidth="1.5"
-                                                                                    strokeLinecap="round"
-                                                                                ></path>
-                                                                                <path
-                                                                                    opacity="0.5"
-                                                                                    d="M9.5 11L10 16"
-                                                                                    stroke="currentColor"
-                                                                                    strokeWidth="1.5"
-                                                                                    strokeLinecap="round"
-                                                                                ></path>
-                                                                                <path
-                                                                                    opacity="0.5"
-                                                                                    d="M14.5 11L14 16"
-                                                                                    stroke="currentColor"
-                                                                                    strokeWidth="1.5"
-                                                                                    strokeLinecap="round"
-                                                                                ></path>
-                                                                                <path
-                                                                                    opacity="0.5"
-                                                                                    d="M6.5 6C6.55588 6 6.58382 6 6.60915 5.99936C7.43259 5.97849 8.15902 5.45491 8.43922 4.68032C8.44784 4.65649 8.45667 4.62999 8.47434 4.57697L8.57143 4.28571C8.65431 4.03708 8.69575 3.91276 8.75071 3.8072C8.97001 3.38607 9.37574 3.09364 9.84461 3.01877C9.96213 3 10.0932 3 10.3553 3H13.6447C13.9068 3 14.0379 3 14.1554 3.01877C14.6243 3.09364 15.03 3.38607 15.2493 3.8072C15.3043 3.91276 15.3457 4.03708 15.4286 4.28571L15.5257 4.57697C15.5433 4.62992 15.5522 4.65651 15.5608 4.68032C15.841 5.45491 16.5674 5.97849 17.3909 5.99936C17.4162 6 17.4441 6 17.5 6"
-                                                                                    stroke="currentColor"
-                                                                                    strokeWidth="1.5"
-                                                                                ></path>
-                                                                            </svg>
-                                                                        </button>
-                                                                    }
-                                                                </div>
-                                                            </td>
+                                                            {visibleCols.includes("No") && (
+                                                                <td>{(page - 1) * pageSize + index + 1}</td>
+                                                            )}
+                                                            {visibleCols.includes("Name") && (
+                                                                <td>{rows.name}</td>
+                                                            )}
+                                                            {visibleCols.includes("Phone") && (
+                                                                <td>{rows.phone}</td>
+                                                            )}
+                                                            {visibleCols.includes("Email") && (
+                                                                <td>{rows.email}</td>
+                                                            )}
+                                                            {visibleCols.includes("Address") && (
+                                                                <td>{rows.address}</td>
+                                                            )}
+                                                            {visibleCols.includes("Created At") && (
+                                                                <td>{dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss")}</td>
+                                                            )}
+                                                            {visibleCols.includes("Created By") && (
+                                                                <td>{rows.creator?.lastName} {rows.creator?.firstName}</td>
+                                                            )}
+                                                            {visibleCols.includes("Updated At") && (
+                                                                <td>{dayjs.tz(rows.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss")}</td>
+                                                            )}
+                                                            {visibleCols.includes("Updated By") && (
+                                                                <td>{rows.updater?.lastName} {rows.updater?.firstName}</td>
+                                                            )}
+                                                            {visibleCols.includes("Actions") && (
+                                                                <td className="text-center">
+                                                                    <div className="flex gap-2">
+                                                                        {hasPermission('Supplier-Edit') &&
+                                                                            <button type="button" className="hover:text-warning" onClick={() => handleEditClick(rows)} title="Edit">
+                                                                                <Pencil color="green" />
+                                                                            </button>
+                                                                        }
+                                                                        {hasPermission('Supplier-Delete') &&
+                                                                            <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteSupplier(rows.id)} title="Delete">
+                                                                                <Trash2 color="red" />
+                                                                            </button>
+                                                                        }
+                                                                    </div>
+                                                                </td>
+                                                            )}
                                                         </tr>
                                                     ))
                                                 ) : (
@@ -175,12 +186,11 @@ const Supplier: React.FC = () => {
                                     )}
                                 </div>
                                 <Pagination
-                                    currentPage={currentPage}
-                                    totalPages={totalPages}
-                                    onPageChange={handlePageChange}
-                                    itemsPerPage={itemsPerPage}
-                                    handleItemsPerPageChange={(e) => handleItemsPerPageChange(parseInt(e.target.value, 10))}
-                                    totalItems={totalItems}
+                                    page={page}
+                                    pageSize={pageSize}
+                                    total={total}
+                                    onPageChange={(newPage) => updateParams({ page: newPage })}
+                                    onPageSizeChange={(newSize) => updateParams({ pageSize: newSize, page: 1 })}
                                 />
                             </div>
                         </div>

@@ -6,6 +6,13 @@ import { format } from "date-fns";
 import { useAppContext } from "../../hooks/useAppContext";
 import { getAllPaymentMethods } from "../../api/paymentMethod";
 import { getPurchasePaymentById } from "../../api/purchase";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+// Extend Day.js with plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 interface PaymentMethodData {
     id: number;
@@ -25,7 +32,7 @@ export interface PaymentData {
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (brandId: number | null, purchaseId: number | null, paymentMethodId: number | null, paidAmount: number | null, amount: number, createdAt: string | null) => void;
+    onSubmit: (brandId: number | null, purchaseId: number | null, paymentMethodId: number | null, paidAmount: number | null, amount: number, due_balance: number, createdAt: string | null) => void;
     amountPurchase?: {branchId: number | null, purchaseId: number | null, paidAmount: number | null, amount: number | null, createdAt: string | null} | null;
 };
 
@@ -47,7 +54,7 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountPurchase, o
         const fetchPaymentMethods = async () => {
             setIsLoading(true);
             try {
-                const { data } = await getAllPaymentMethods(1, "", 100, null, null);
+                const data = await getAllPaymentMethods();
                 setPaymentMethod(data as PaymentMethodData[]);
             } catch (error) {
                 console.error("Error fetching payment method:", error);
@@ -61,7 +68,6 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountPurchase, o
             try {
                 const payments = await getPurchasePaymentById(amountPurchase?.purchaseId ?? 0);
                 setPurchasePayments(payments);
-                console.log("payment:", payments);
             } catch (error) {
                 console.error("Error fetching purchase payment:", error);
             } finally {
@@ -92,7 +98,7 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountPurchase, o
         setIsLoading(true);
         try {
             // Call the onSubmit function, making sure it recieve the correct format
-            await onSubmit(amountPurchase?.branchId || null, amountPurchase?.purchaseId || null, amountPurchase?.paidAmount || null, data.paymentMethodId, data.amount, amountPurchase?.createdAt || null);
+            await onSubmit(amountPurchase?.branchId || null, amountPurchase?.purchaseId || null, amountPurchase?.paidAmount || null, data.paymentMethodId, data.amount, data.due_balance, amountPurchase?.createdAt || null);
             reset();
             onClose();
         } catch (error) {
@@ -157,7 +163,7 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountPurchase, o
                                                                 { rows.paymentMethods?.name }
                                                             </p>
                                                             <p className="text-white-dark text-xs font-bold self-center min-w-[100px] max-w-[100px]">
-                                                                {rows.createdAt ? format(new Date(rows.createdAt), "yyyy-MM-dd") : "N/A"}
+                                                                {rows.createdAt ? dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}
                                                                 {/* {rows.createdAt ? format(new Date(rows.createdAt), "yyyy-MM-dd HH:mm:ss") : "N/A"} */}
                                                             </p>
                                                         </div>
@@ -199,10 +205,27 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountPurchase, o
                                                 </label>
                                                 <input
                                                     type="text"
-                                                    placeholder="Enter Supplier's name"
+                                                    placeholder="Enter amount to paid"
                                                     className="form-input w-full"
-                                                    disabled={Number(amountPurchase?.amount ?? 0) === Number(amountPurchase?.paidAmount ?? 0)}
-                                                    {...register("amount", { required: "Amount is required" })}
+                                                    disabled={
+                                                        Number(amountPurchase?.amount ?? 0) ===
+                                                        Number(amountPurchase?.paidAmount ?? 0)
+                                                    }
+                                                    {...register("amount", {
+                                                        required: "Amount is required",
+                                                    })}
+                                                    onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                                        const target = e.currentTarget;
+
+                                                        // Allow numbers + decimal
+                                                        target.value = target.value.replace(/[^0-9.]/g, "");
+
+                                                        // Prevent multiple dots
+                                                        const parts = target.value.split(".");
+                                                        if (parts.length > 2) {
+                                                            target.value = parts[0] + "." + parts.slice(1).join("");
+                                                        }
+                                                    }}
                                                     onChange={(e) => handlePaidAmount(e)}
                                                 />
                                                 {errors.amount && <p className="error_validate">{errors.amount.message}</p>}

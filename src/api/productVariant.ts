@@ -1,29 +1,14 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
-
-export interface ProductVariantData {
-    id?: number,
-    productId: number,
-    unitId: number,
-    products: { id: number, name: string } | null,
-    units: { id: number, name: string } | null,
-    code: string,
-    name: string,
-    purchasePrice: number | string,
-    retailPrice: number | string,
-    wholeSalePrice: number | string,
-    isActive: string,
-    image: File[] | null,
-    imagesToDelete: string[]
-};
+import { ProductVariantType } from "../data_types/types";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export const getAllProductVariants = async (
     id: number,
-    page: number,
-    searchTerm: string,
-    pageSize: number,
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
-): Promise<{ data: ProductVariantData[], total: number}> => {
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
+): Promise<{ data: ProductVariantType[], total: number}> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/productvariant/${id}?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
         credentials: "include"
@@ -34,7 +19,7 @@ export const getAllProductVariants = async (
     return response.json();
 };
 
-export const getProductVariantById = async (id: number): Promise<ProductVariantData> => {
+export const getProductVariantById = async (id: number): Promise<ProductVariantType> => {
     const response = await fetch(`${API_BASE_URL}/api/productvariant/${id}`, {
         credentials: "include"
     });
@@ -44,33 +29,39 @@ export const getProductVariantById = async (id: number): Promise<ProductVariantD
     return response.json();
 }
 
-export const upsertProductVariant = async (productVariantData: ProductVariantData): Promise<ProductVariantData> => {
+export const upsertProductVariant = async (productVariantData: ProductVariantType): Promise<ProductVariantType> => {
     const { id, image, imagesToDelete, ...data } = productVariantData;
     const method = id ? "PUT" : "POST";
     const url = id ?    `${API_BASE_URL}/api/productvariant/${id}` : `${API_BASE_URL}/api/productvariant`;
 
     const formData = new FormData();
-    formData.append("productId", data.productId.toString());
-    formData.append("unitId", data.unitId.toString());
-    formData.append("code", data.code);
+    formData.append("productId", (data.productId ?? 0).toString());
+    formData.append("unitId", (data.unitId ?? 0).toString());
+    formData.append("barcode", data.barcode ?? "");
+    formData.append("sku", data.sku);
     formData.append("name", data.name);
     formData.append("purchasePrice", data.purchasePrice.toString());
     formData.append("retailPrice", data.retailPrice.toString());
     formData.append("wholeSalePrice", data.wholeSalePrice.toString());
+    formData.append("variantValueIds", JSON.stringify(data.variantValueIds));
     
     // Append images if they exist
     if (image) {
-        image.forEach((image) => {
-            formData.append("images[]", image); // Append each image in the array
-        });
+        if (Array.isArray(image)) {
+            image.forEach((img) => {
+                formData.append("images[]", img);
+            });
+        } else if (image instanceof File) {
+            formData.append("images[]", image);
+        } else if (typeof image === "string") {
+            formData.append("existingImage", image); 
+        }
     }
 
     // Add imagesToDelete as a JSON string
     if (imagesToDelete && imagesToDelete.length > 0) {
         formData.append("imagesToDelete", JSON.stringify(imagesToDelete));
     }
-
-    console.log("API Data:", formData);
 
     const response = await fetch(url, {
         method,
@@ -86,7 +77,7 @@ export const upsertProductVariant = async (productVariantData: ProductVariantDat
     return response.json();
 };
 
-export const deleteProductVaraint = async (id: number): Promise<ProductVariantData> => {
+export const deleteProductVaraint = async (id: number): Promise<ProductVariantType> => {
     const response = await fetch(`${API_BASE_URL}/api/productvaraint/${id}`, {
         credentials: "include",
         method: "DELETE",
@@ -94,7 +85,6 @@ export const deleteProductVaraint = async (id: number): Promise<ProductVariantDa
             "Content-Type": "application/json"
         }
     });
-    console.log("dlete api:", id);
     if (!response.ok) {
         const errorResponse = await response.json();
         throw new Error(errorResponse.message || "Error deleting product's variant");
@@ -102,7 +92,7 @@ export const deleteProductVaraint = async (id: number): Promise<ProductVariantDa
     return response.json();
 };
 
-export const statusProductVariant = async (id: number): Promise<ProductVariantData> => {
+export const statusProductVariant = async (id: number): Promise<ProductVariantType> => {
     const response = await fetch(`${API_BASE_URL}/api/productvariant/status/${id}`, {
         credentials: "include"
     });

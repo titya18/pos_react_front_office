@@ -1,55 +1,7 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+import { ProductType, PurchaseType, PurchaseDetailType, PaymentType } from "../data_types/types";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
-interface Product {
-    id: number;
-    name: string;
-}
-
-interface PurchaseDetail {
-    id: number;
-    productId: number;
-    productVariantId: number;
-    name: string;
-    code: string;
-    products: Product | null;
-    quantity: number;
-    cost: number;
-    taxNet: number;
-    taxMethod: string | null;
-    discount: number;
-    discountMethod: string | null;
-    total: number;
-}
-
-export interface PurchaseData {
-    id?: number;
-    branchId: number;
-    supplierId: number;
-    branch: { id: number, name: string } | null;
-    suppliers: { id: number, name: string } | null;
-    ref: string;
-    date?: string | null; // Format: YYYY-MM-DD
-    taxRate?: string | null;
-    taxNet: number | null;
-    discount?: string | null;
-    shipping?: string | null;
-    grandTotal: number;
-    paidAmount: number | null;
-    status: string;
-    note: string;
-    purchaseDetails: PurchaseDetail[];
-}
-
-export interface PaymentData {
-    branchId: number | null;
-    purchaseId: number | null;
-    paymentMethodId: number | null;
-    amount: number | null;
-    createdAt: string | null;
-    paymentMethods: { name: string } | null;
-}
-
-export const upsertPurchase = async (purchaseData: PurchaseData): Promise<PurchaseData> => {
+export const upsertPurchase = async (purchaseData: PurchaseType): Promise<PurchaseType> => {
     const { id, ...data } = purchaseData;
     const method = id ? "PUT" : "POST";
     const url = id ? `${API_BASE_URL}/api/purchase/${id}` : `${API_BASE_URL}/api/purchase`;
@@ -72,8 +24,7 @@ export const upsertPurchase = async (purchaseData: PurchaseData): Promise<Purcha
     return response.json();
 };
 
-export const insertPurchasePayment = async (paymentData: PaymentData): Promise<PaymentData> => {
-    console.log("API DAta:", paymentData);
+export const insertPurchasePayment = async (paymentData: PaymentType): Promise<PaymentType> => {
     // const { ...data } = paymentData;
     const response = await fetch(`${API_BASE_URL}/api/purchase/payment`, {
         credentials: "include",
@@ -83,7 +34,7 @@ export const insertPurchasePayment = async (paymentData: PaymentData): Promise<P
         },
         body: JSON.stringify(paymentData)
     });
-    console.log("response:", response);
+
     if (!response.ok) {
         const errorResponse = await response.json();
         const customError = "Error inserting purchase payment";
@@ -93,7 +44,7 @@ export const insertPurchasePayment = async (paymentData: PaymentData): Promise<P
     return response.json();
 };
 
-export const getPurchasePaymentById = async (id: number): Promise<PaymentData[]> => {
+export const getPurchasePaymentById = async (id: number): Promise<PaymentType[]> => {
     const response = await fetch(`${API_BASE_URL}/api/purchase/payment/${id}`, {
         credentials: "include"
     });
@@ -105,23 +56,38 @@ export const getPurchasePaymentById = async (id: number): Promise<PaymentData[]>
 };
 
 export const getAllPurchases = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
-): Promise<{ data: PurchaseData[], total: number }> => {
-    const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
-    const response = await fetch(`${API_BASE_URL}/api/purchase?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
-        credentials: "include"
+    sortOrder: 'desc' | 'asc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
+): Promise<{ data: PurchaseType[], total: number }> => {
+    const sortParam =
+        sortField && sortOrder
+        ? `&sortField=${sortField}&sortOrder=${sortOrder}`
+        : '';
+
+    const url = `${API_BASE_URL}/api/purchase?page=${page}&searchTerm=${
+        searchTerm || ''
+    }&pageSize=${pageSize}${sortParam}`;
+
+    const response = await fetch(url, {
+        credentials: 'include',
     });
+
     if (!response.ok) {
-        throw new Error("Error fetching purchase");
+        throw new Error('Failed to fetch purchases');
     }
-    return response.json();
+
+    const result = await response.json();
+
+    return {
+        data: result.data || [],
+        total: result.total || 0,
+    };
 };
 
-export const getPurchaseByid = async (id: number): Promise<PurchaseData> => {
+export const getPurchaseByid = async (id: number): Promise<PurchaseType> => {
     const response = await fetch(`${API_BASE_URL}/api/purchase/${id}`, {
         credentials: "include"
     });
@@ -132,13 +98,14 @@ export const getPurchaseByid = async (id: number): Promise<PurchaseData> => {
     return response.json();
 };
 
-export const deletePurchase = async (id: number): Promise<PurchaseData> => {
+export const deletePurchase = async (id: number, delReason: string): Promise<PurchaseType> => {
     const response = await fetch(`${API_BASE_URL}/api/purchase/${id}`, {
         credentials: "include",
         method: "DELETE",
         headers: {
             "Content-Type": "application/json"
-        }
+        },
+        body: JSON.stringify({ delReason })
     });
     if (!response.ok) {
         const errorResponse = await response.json();

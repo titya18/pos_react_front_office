@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export interface RoleData {
     id?: number;
@@ -29,15 +29,25 @@ export const upsertRole = async (roleData: RoleData): Promise<RoleData> => {
     return response.json();
 };
 
-export const getRoles = async (
-    page: number,
-    searchTerm: string,
-    pageSize: number,
+export const getRolesWithPagination = async (
     sortField: string | null,
-    sortOrder: "asc" | "desc" | null
+    sortOrder: 'asc' | 'desc' | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number
 ): Promise<{ data: RoleData[], total: number }> => {
     const sortParams = sortField && sortOrder ? `&sortField=${sortField}&sortOrder=${sortOrder}` : "";
     const response = await fetch(`${API_BASE_URL}/api/role?page=${page}&searchTerm=${searchTerm}&pageSize=${pageSize}${sortParams}`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching Role Permission");
+    }
+    return response.json();
+};
+
+export const getAllRoles = async (): Promise<RoleData[]> => {
+    const response = await fetch(`${API_BASE_URL}/api/role/all`, {
         credentials: "include"
     });
     if (!response.ok) {

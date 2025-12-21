@@ -30,7 +30,8 @@ export interface CategoryData {
 
 export interface BrandData {
     id: number;
-    name: string;
+    en_name: string;
+    kh_name: string;
 };
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => {
@@ -46,13 +47,13 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
     const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<ProductFormData>();
 
     const { hasPermission } = useAppContext();
-    const API_BASE_URL = process.env.REACT_APP_API_URL || "";
+    const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
     useEffect(() => {
         const fetchCategories = async () => {
             setIsLoading(true);
             try {
-                const { data } = await getAllCategories(1, "", 100, null, null);
+                const data = await getAllCategories();
                 setCategories(data as CategoryData[]);
             } catch (error) {
                 console.error("Error fetching category:", error);
@@ -64,7 +65,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         const fetchBrands = async () => {
             setIsLoading(true);
             try {
-                const { data } = await getAllBrands(1, "", 100, null, null);
+                const data = await getAllBrands();
                 setBrands(data as BrandData[]);
             } catch (error) {
                 console.error("Error fetching brand:", error);
@@ -263,7 +264,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                                         <option value="">Select a brand...</option>
                                         {brands.map((option) => (
                                         <option key={option.id} value={option.id}>
-                                            {option.name}
+                                            {option.en_name}
                                         </option>
                                         ))}
                                     </select>
