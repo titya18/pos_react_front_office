@@ -18,7 +18,9 @@ import {
     FilePenLine, 
     Layers,
     Layers2,
-    FolderSync
+    FolderSync,
+    HandHelping,
+    HandCoins
 } from 'lucide-react';
 
 // Define a type for the state
@@ -558,7 +560,9 @@ const Sidebar: React.FC = () => {
                         {(
                             hasPermission('Check-Stock') ||
                             hasPermission('Adjust-Stock-View') ||
-                            hasPermission('Stock-Movement-View')
+                            hasPermission('Stock-Movement-View') ||
+                            hasPermission('Stock-Request-View') ||
+                            hasPermission('Stock-Return-View')
                         ) && (
                             <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
                                 <svg
@@ -623,6 +627,42 @@ const Sidebar: React.FC = () => {
                                             <div className="flex items-center">
                                                 <FolderSync />
                                                 <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Movement</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Stock-Request-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/stockrequest"
+                                            className={['stockrequest','addrequeststock','editrequeststock'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <HandHelping />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Request</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Stock-Return-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/stockreturn"
+                                            className={['stockreturn','addreturnstock','editreturnstock'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <HandCoins />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Return</span>
                                             </div>
                                         </NavLink>
                                     </li>

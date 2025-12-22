@@ -1,6 +1,6 @@
 // src/components/MainCategory.tsx
 import React, { useState, useEffect } from "react";
-import * as apiClient from "@/api/quotation";
+import * as apiClient from "@/api/stockTransfer";
 import Pagination from "../components/Pagination"; // Import the Pagination component
 import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -10,15 +10,14 @@ import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAppContext } from "@/hooks/useAppContext";
 import { format } from 'date-fns';
-import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, NotebookText, MessageCircleOff } from 'lucide-react';
-import { QuotationType } from "@/data_types/types";
+import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, MessageCircleOff, NotebookText } from 'lucide-react';
+import { StockTransferType } from "@/data_types/types";
 import { useSearchParams } from "react-router-dom";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
 import ExportDropdown from "@/components/ExportDropdown";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import ShowConfirmationMessage from "../components/ShowConfirmationMessage";
 
 // Extend Day.js with plugins
 dayjs.extend(utc);
@@ -26,17 +25,12 @@ dayjs.extend(timezone);
 
 const columns = [
     "No",
-    "Quotation Date",
-    "Reference",
-    "Quotation Type",
-    "Customer",
+    "Transfer Date",
     "Branch",
+    "To Branch",
     "Status",
-    "Grand Total",
-    "Sent At",
-    "Sent By",
-    "INV At",
-    "INV By",
+    "Approved At",
+    "Approved By",
     "Created At",
     "Created By",
     "Updated At",
@@ -46,27 +40,21 @@ const columns = [
 
 const sortFields: Record<string, string> = {
     "No": "id",
-    "Quotation Date": "quotationDate",
-    "Reference": "ref",
-    "Quotation Type": "QuoteSaleType",
-    "Customer": "customerId",
+    "Adjustment Date": "adjustDate",
     "Branch": "branchId",
-    "Status": "status",
-    "Grand Total": "grandTotal",
-    "Sent At": "sentAt",
-    "Sent By": "sentBy",
-    "INV At": "invoicedAt",
-    "INV By": "invoicedBy",
+    "To Branch": "toBranchId",
+    "Status": "StatusType",
+    "Approved At": "approvedAt",
+    "Approved By": "approvedBy",
     "Created At": "createdAt",
     "Created By": "createdBy",
     "Updated At": "updatedAt",
     "Updated By": "updatedBy"
 };
 
-const Quotation: React.FC = () => {
-    const [quotationData, setQuotationData] = useState<QuotationType[]>([]);
+const StockTransfer: React.FC = () => {
+    const [transferData, setTransferData] = useState<StockTransferType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoadingConvert, setIsLoadingConvert] = useState(false);
 
     const [searchParams, setSearchParams] = useSearchParams();
     const search = searchParams.get("search") || "";
@@ -94,28 +82,28 @@ const Quotation: React.FC = () => {
 
     const { hasPermission } = useAppContext();
 
-    const fetchQuotation = async () => {
+    const fetchTransfer = async () => {
         setIsLoading(true);
         try {
-            const { data, total } = await apiClient.getAllQuotations(
+            const { data, total } = await apiClient.getAllStockTransfers(
                 sortField,
                 sortOrder,
                 page,
                 search,
                 pageSize
             );
-            setQuotationData(data || []);
+            setTransferData(data || []);
             setTotal(total || 0);
             setSelected([]);
         } catch (error) {
-            console.error("Error fetching quotation:", error);
+            console.error("Error fetching stock transfer:", error);
         } finally {
             setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchQuotation();
+        fetchTransfer();
     }, [search, page, sortField, sortOrder, pageSize]);
 
     const toggleCol = (col: string) => {
@@ -141,55 +129,31 @@ const Quotation: React.FC = () => {
         }
     };
 
-    const exportData = quotationData.map((quote, index) => ({
+    const exportData = transferData.map((transfer, index) => ({
         "No": (page - 1) * pageSize + index + 1,
-        "Quotation Date": quote.quotationDate,
-        "Reference": quote.ref,
-        "Quotation Type": quote.QuoteSaleType,
-        "Customer": quote.customers ? quote.customers.name : "N/A",
-        "Branch": quote.branch ? quote.branch.name : "",
-        "Status": quote.status,
-        "Grand Total": quote.grandTotal,
-        "Sent At": quote.sentAt ? dayjs.tz(quote.sentAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Sent By": `${quote.sender?.lastName || ''} ${quote.sender?.firstName || ''}`,
-        "INV At": quote.invoicedAt ? dayjs.tz(quote.invoicedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "INV By": `${quote.invoicer?.lastName || ''} ${quote.invoicer?.firstName || ''}`,
-        "Created At": quote.createdAt ? dayjs.tz(quote.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Created By": `${quote.creator?.lastName || ''} ${quote.creator?.firstName || ''}`,
-        "Updated At": quote.updatedAt ? dayjs.tz(quote.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Updated By": `${quote.updater?.lastName || ''} ${quote.updater?.firstName || ''}`,
+        "Transfer Date": transfer.transferDate,
+        "Branch": transfer.branch ? transfer.branch.name : "",
+        "To Branch": transfer.toBranch ? transfer.toBranch.name : "",
+        "Status": transfer.StatusType,
+        "Approved At": transfer.approvedAt ? dayjs.tz(transfer.approvedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : 'N/A',
+        "Approved By": `${transfer.approver?.lastName || ''} ${transfer.approver?.firstName || 'N/A'}`,
+        "Created At": transfer.createdAt ? dayjs.tz(transfer.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Created By": `${transfer.creator?.lastName || ''} ${transfer.creator?.firstName || ''}`,
+        "Updated At": transfer.updatedAt ? dayjs.tz(transfer.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Updated By": `${transfer.updater?.lastName || ''} ${transfer.updater?.firstName || ''}`,
     }));
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     const queryClient = useQueryClient();
 
-    const handleDeleteQuotation = async (id: number) => {
+    const handleDeleteTransfer = async (id: number) => {
         const confirmed = await ShowDeleteConfirmation();
-        if (!confirmed) {
-            return;
-        }
+        if (!confirmed) return;
 
         setDeleteInvoiceId(id);
         setDeleteMessage("");
         setShowDeleteModal(true);
-
-        // try {
-        //     await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
-        //     await apiClient.deleteQuotation(id);
-        //     toast.success("Quotation deleted successfully", {
-        //         position: "top-right",
-        //         autoClose: 4000
-        //     })
-
-        //     fetchQuotation();
-        // } catch (err: any) {
-        //     console.error("Error deleting quotation:", err);
-        //     toast.error(err.message || "Error deleting quotation", {
-        //         position: 'top-right',
-        //         autoClose: 4000
-        //     });
-        // }
     };
 
     const submitDeleteInvoice = async () => {
@@ -201,9 +165,9 @@ const Quotation: React.FC = () => {
         }
 
         try {
-            await apiClient.deleteQuotation(deleteInvoiceId, deleteMessage);
+            await apiClient.deleteTransfer(deleteInvoiceId, deleteMessage);
 
-            toast.success("Quotation deleted successfully", {
+            toast.success("Transfer deleted successfully", {
                 position: "top-right",
                 autoClose: 4000,
             });
@@ -211,38 +175,11 @@ const Quotation: React.FC = () => {
             setShowDeleteModal(false);
             setDeleteInvoiceId(null);
 
-            fetchQuotation();
+            fetchTransfer();
         } catch (err: any) {
-            toast.error(err.message || "Error deleting quotation");
+            toast.error(err.message || "Error deleting stock transfer");
         }
     };
-
-    const ConvertQuotationToInvoice = async (id: number) => {
-        setIsLoadingConvert(true);
-        try {
-            const ok = await ShowConfirmationMessage("convert");
-
-            if (!ok) {
-                return;
-            }
-
-            await apiClient.convertQuotationToOrder(id);
-            toast.success("Quotation converted to invoice successfully", {
-                position: "top-right",
-                autoClose: 4000
-            })
-
-            fetchQuotation();
-        } catch (err: any) {
-            console.error("Error converting quotation to invoice:", err);
-            toast.error(err.message || "Error converting quotation to invoice", {
-                position: 'top-right',
-                autoClose: 4000
-            });
-        } finally {
-            setIsLoadingConvert(false);
-        }
-    }
 
     const handleViewNote = (note: string) => {
         setViewNote(note);
@@ -258,8 +195,8 @@ const Quotation: React.FC = () => {
                             <div className="px-0">
                                 <div className="md:absolute md:top-0 ltr:md:left-0 rtl:md:right-0">
                                     <div className="mb-5 flex items-center gap-2">
-                                        {hasPermission('Quotation-Create') &&
-                                            <NavLink to="/addquotation" className="btn btn-primary gap-2" >
+                                        {hasPermission('Stock-Movement-Create') &&
+                                            <NavLink to="/addmovestock" className="btn btn-primary gap-2" >
                                                 <Plus />
                                                 Add New
                                             </NavLink>
@@ -319,80 +256,33 @@ const Quotation: React.FC = () => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {quotationData && quotationData.length > 0 ? (
-                                                    quotationData.map((rows, index) => (
+                                                {transferData && transferData.length > 0 ? (
+                                                    transferData.map((rows, index) => (
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
                                                             )}
-                                                            {visibleCols.includes("Quotation Date") && (
-                                                                <td>{rows.quotationDate ? format(new Date(rows.quotationDate), 'dd-MMM-yyyy') : ''}</td>
-                                                            )}
-                                                            {visibleCols.includes("Reference") && (
-                                                                <td>{rows.ref}</td>
-                                                            )}
-                                                            {visibleCols.includes("Quotation Type") && (
-                                                                <td>
-                                                                    <span
-                                                                        className={`badge rounded-full px-3 py-1 font-medium cursor-default text-white`}
-                                                                        style={{ backgroundColor: rows.QuoteSaleType === "WHOLESALE" ? "#F39EB6" : "#a855f7" }}
-                                                                    >
-                                                                        {rows.QuoteSaleType}
-                                                                    </span>
-                                                                </td>
-                                                            )}
-                                                            {visibleCols.includes("Customer") && (
-                                                                <td>{rows.customer?.name || "N/A"}</td>
+                                                            {visibleCols.includes("Transfer Date") && (
+                                                                <td>{rows.transferDate ? format(new Date(rows.transferDate), 'dd-MMM-yyyy') : ''}</td>
                                                             )}
                                                             {visibleCols.includes("Branch") && (
                                                                 <td>{rows.branch ? rows.branch.name : ""}</td>
                                                             )}
+                                                            {visibleCols.includes("To Branch") && (
+                                                                <td>{rows.toBranch ? rows.toBranch?.name : ""}</td>
+                                                            )}
                                                             {visibleCols.includes("Status") && (
                                                                 <td>
-                                                                    {rows.status === 'PENDING' ? (
-                                                                        <span className="badge rounded-full bg-warning">
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    ) : rows.status === 'SENT' ? (
-                                                                        hasPermission('Convert-QTT-to-INV') ? (
-                                                                            <span
-                                                                                className="badge rounded-full bg-primary cursor-pointer"
-                                                                                aria-disabled={isLoadingConvert}
-                                                                                onClick={() => ConvertQuotationToInvoice(Number(rows.id))}
-                                                                                title="Convert quotation to invoice"
-                                                                            >
-                                                                                {isLoadingConvert ? `${rows.status}...` : rows.status}
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="badge rounded-full bg-primary">
-                                                                                {rows.status}
-                                                                            </span>
-                                                                        )
-                                                                    ) : rows.status === 'CANCELLED' ? (
-                                                                        <span className="badge rounded-full bg-danger" title={rows.delReason}>
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="badge rounded-full bg-success">
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    )}
+                                                                    <span className={`badge rounded-full ${rows.StatusType === 'PENDING' ? 'bg-warning' : rows.StatusType === 'APPROVED' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>
+                                                                        {rows.StatusType}
+                                                                    </span>
                                                                 </td>
                                                             )}
-                                                            {visibleCols.includes("Grand Total") && (
-                                                                <td style={{color: "blue"}}>$ { Number(rows.grandTotal).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
+                                                            {visibleCols.includes("Approved At") && (
+                                                                <td>{rows.approvedAt ? dayjs.tz(rows.approvedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
                                                             )}
-                                                            {visibleCols.includes("Sent At") && (
-                                                                <td>{rows.sentAt ? dayjs.tz(rows.sentAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
-                                                            )}
-                                                            {visibleCols.includes("Sent By") && (
-                                                                <td>{rows.sentAt ? `${rows.sender?.lastName} ${rows.sender?.firstName}` : "N/A"}</td>
-                                                            )}
-                                                            {visibleCols.includes("INV At") && (
-                                                                <td>{rows.invoicedAt ? dayjs.tz(rows.invoicedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
-                                                            )}
-                                                            {visibleCols.includes("INV By") && (
-                                                                <td>{rows.invoicedAt ? `${rows.invoicer?.lastName} ${rows.invoicer?.firstName}` : "N/A"}</td>
+                                                            {visibleCols.includes("Approved By") && (
+                                                                <td>{rows.approvedAt ? `${rows.approver?.lastName} ${rows.approver?.firstName}` : "N/A"}</td>
                                                             )}
                                                             {visibleCols.includes("Created At") && (
                                                                 <td>{dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss")}</td>
@@ -414,19 +304,14 @@ const Quotation: React.FC = () => {
                                                                                 <NotebookText color="pink" />
                                                                             </button>
                                                                         }
-                                                                        {hasPermission('Quotation-Print') && (rows.status === 'SENT' || rows.status === 'INVOICED') && (
-                                                                            <NavLink to={`/printquotation/${rows.id}`} className="hover:text-warning" title="Print Quotation">
-                                                                                <PrinterCheck color="purple" />
-                                                                            </NavLink>
-                                                                        )}
-                                                                        {hasPermission('Quotation-Edit') &&
-                                                                                <NavLink to={`/editquotation/${rows.id}`} className="hover:text-warning" title="Edit">
+                                                                        {hasPermission('Stock-Movement-Edit') &&
+                                                                                <NavLink to={`/editmovestock/${rows.id}`} className="hover:text-warning" title="Edit">
                                                                                     <Pencil color="green" />
                                                                                 </NavLink>
                                                                         }
-                                                                        {rows.status === 'PENDING' &&
-                                                                            hasPermission('Quotation-Delete') &&
-                                                                                <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteQuotation(rows.id)} title="Delete">
+                                                                        {rows.StatusType === 'PENDING' &&
+                                                                            hasPermission('Stock-Movement-Delete') &&
+                                                                                <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteTransfer(rows.id)} title="Delete">
                                                                                     <Trash2 color="red" />
                                                                                 </button>
                                                                             
@@ -438,7 +323,7 @@ const Quotation: React.FC = () => {
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={3}>No Quotation Found!</td>
+                                                        <td colSpan={3}>No Stock Transfer Found!</td>
                                                     </tr>
                                                 )}
                                             </tbody>
@@ -464,7 +349,7 @@ const Quotation: React.FC = () => {
                         <div className="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-lg my-8">
                             <div className="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
                                 <h5 className="flex font-bold text-lg">
-                                    <MessageCircleOff /> Delete Quotation
+                                    <MessageCircleOff /> Delete Stock Adjustment
                                 </h5>
                                 <button type="button" className="text-white-dark hover:text-dark" onClick={() => setShowDeleteModal(false)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
@@ -479,7 +364,7 @@ const Quotation: React.FC = () => {
                                         <textarea
                                             className="form-textarea w-full"
                                             rows={4}
-                                            placeholder="Enter reason for deleting this quotation"
+                                            placeholder="Enter reason for deleting this purchase"
                                             value={deleteMessage}
                                             onChange={(e) => setDeleteMessage(e.target.value)}
                                         />
@@ -537,4 +422,4 @@ const Quotation: React.FC = () => {
     );
 };
 
-export default Quotation;
+export default StockTransfer;

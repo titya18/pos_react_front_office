@@ -8,7 +8,7 @@ import { getAllCustomers } from "@/api/customer";
 import { searchProduct } from "@/api/searchProduct";
 import { searchService } from "@/api/searchService";
 import { upsertInvoice, getInvoiceByid } from "@/api/invoice";
-import { SubmitHandler, useForm } from "react-hook-form";
+import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { useAppContext } from '@/hooks/useAppContext';
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -66,7 +66,7 @@ const InvoiceForm: React.FC = () => {
 
     // const navigate = useNavigate()
 
-    const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<InvoiceType> ();
+    const { control, register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<InvoiceType> ();
 
     const fetchBranches = useCallback(async () => {
         setIsLoading(true);
@@ -103,9 +103,10 @@ const InvoiceForm: React.FC = () => {
                     setValue("OrderSaleType", invoiceData.OrderSaleType);
                     setValue("branchId", invoiceData.branchId);
                     setValue("customerId", invoiceData.customerId);
-                    if (invoiceData.orderDate) {
-                        setSelectedDate(new Date(invoiceData.orderDate));
-                    }
+                    setValue("orderDate", invoiceData.orderDate
+                        ? new Date(invoiceData.orderDate).toISOString()
+                        : null
+                    );
                     setValue("taxRate", invoiceData.taxRate);
                     setValue("shipping", invoiceData.shipping);
                     setValue("discount", invoiceData.discount);
@@ -456,9 +457,7 @@ const InvoiceForm: React.FC = () => {
                 customers: { id: formData.customerId ?? 0, name: "Default Customer", address: "Default Address"},
                 ref: "",
                 OrderSaleType: formData.OrderSaleType,
-                orderDate: selectedDate
-                        ? selectedDate.toLocaleDateString("en-CA") // Outputs YYYY-MM-DD in local time
-                        : null,
+                orderDate: formData.orderDate,
                 taxRate: formData.taxRate ? formData.taxRate : null,
                 taxNet: formData.taxNet ? formData.taxNet : null,
                 discount: formData.discount ? formData.discount : null,
@@ -615,17 +614,23 @@ const InvoiceForm: React.FC = () => {
                                 <div style={wrapperStyle}>
                                     <label htmlFor="date-picker">Select a Date: <span className="text-danger text-md">*</span></label>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                        <DatePicker
-                                            // label="Select Date"
-                                            value={selectedDate}
-                                            onChange={(date) => setSelectedDate(date)}
-                                            minDate={new Date()} // disables all past dates
-                                            slotProps={{
-                                                textField: {
-                                                    fullWidth: true,
-                                                    // helperText: "Pick a date",
-                                                },
-                                            }}
+                                        <Controller
+                                            name="orderDate"
+                                            control={control}
+                                            rules={{ required: "Order date is required" }}
+                                            render={({ field }) => (
+                                                <DatePicker
+                                                    value={field.value ? new Date(field.value as string) : null}
+                                                    onChange={(date) => field.onChange(date)}
+                                                    minDate={new Date()}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            error: !!errors.orderDate,
+                                                        },
+                                                    }}
+                                                />
+                                            )}
                                         />
                                     </LocalizationProvider>
                                     {errors.orderDate && <span className="error_validate">{errors.orderDate.message}</span>}
@@ -969,12 +974,12 @@ const InvoiceForm: React.FC = () => {
                                 Go Back
                             </NavLink>
                             {statusValue === 'PENDING' &&
-                                hasPermission('Invoice-Create') &&
-                                <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
-                                    <FontAwesomeIcon icon={faSave} className='mr-1' />
-                                    {isLoading ? 'Saving...' : 'Save'}
-                                </button>
-                            }
+                                (hasPermission('Invoice-Create') || hasPermission('Invoice-Edit')) && (
+                                    <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
+                                        <FontAwesomeIcon icon={faSave} className='mr-1' />
+                                        {isLoading ? 'Saving...' : 'Save'}
+                                    </button>
+                            )}
                         </div>
                     </form>
                 </div>

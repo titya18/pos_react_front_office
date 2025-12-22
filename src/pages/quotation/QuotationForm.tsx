@@ -8,7 +8,7 @@ import { getAllCustomers } from "@/api/customer";
 import { searchProduct } from "@/api/searchProduct";
 import { searchService } from "@/api/searchService";
 import { upsertQuotation, getQuotationByid } from "@/api/quotation";
-import { SubmitHandler, useForm } from "react-hook-form";
+import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { useAppContext } from '@/hooks/useAppContext';
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -65,7 +65,7 @@ const QuotationForm: React.FC = () => {
 
     // const navigate = useNavigate()
 
-    const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<QuotationType> ();
+    const { control, register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<QuotationType> ();
 
     const fetchBranches = useCallback(async () => {
         setIsLoading(true);
@@ -102,9 +102,10 @@ const QuotationForm: React.FC = () => {
                     setValue("QuoteSaleType", quotationData.QuoteSaleType);
                     setValue("branchId", quotationData.branchId);
                     setValue("customerId", quotationData.customerId);
-                    if (quotationData.quotationDate) {
-                        setSelectedDate(new Date(quotationData.quotationDate));
-                    }
+                    setValue("quotationDate", quotationData.quotationDate
+                        ? new Date(quotationData.quotationDate).toISOString()
+                        : null
+                    );
                     setValue("taxRate", quotationData.taxRate);
                     setValue("shipping", quotationData.shipping);
                     setValue("discount", quotationData.discount);
@@ -455,9 +456,7 @@ const QuotationForm: React.FC = () => {
                 customers: { id: formData.customerId ?? 0, name: "Default Customer", address: "Default Address"},
                 ref: "",
                 QuoteSaleType: formData.QuoteSaleType,
-                quotationDate: selectedDate
-                        ? selectedDate.toLocaleDateString("en-CA") // Outputs YYYY-MM-DD in local time
-                        : null,
+                quotationDate: formData.quotationDate,
                 taxRate: formData.taxRate ? formData.taxRate : null,
                 taxNet: formData.taxNet ? formData.taxNet : null,
                 discount: formData.discount ? formData.discount : null,
@@ -613,17 +612,23 @@ const QuotationForm: React.FC = () => {
                                 <div style={wrapperStyle}>
                                     <label htmlFor="date-picker">Select a Date: <span className="text-danger text-md">*</span></label>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                        <DatePicker
-                                            // label="Select Date"
-                                            value={selectedDate}
-                                            onChange={(date) => setSelectedDate(date)}
-                                            minDate={new Date()} // disables all past dates
-                                            slotProps={{
-                                                textField: {
-                                                    fullWidth: true,
-                                                    // helperText: "Pick a date",
-                                                },
-                                            }}
+                                        <Controller
+                                            name="quotationDate"
+                                            control={control}
+                                            rules={{ required: "Quotation date is required" }}
+                                            render={({ field }) => (
+                                                <DatePicker
+                                                    value={field.value ? new Date(field.value as string) : null}
+                                                    onChange={(date) => field.onChange(date)}
+                                                    minDate={new Date()}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            error: !!errors.quotationDate,
+                                                        },
+                                                    }}
+                                                />
+                                            )}
                                         />
                                     </LocalizationProvider>
                                     {errors.quotationDate && <span className="error_validate">{errors.quotationDate.message}</span>}
@@ -956,12 +961,12 @@ const QuotationForm: React.FC = () => {
                                 Go Back
                             </NavLink>
                             {statusValue === 'PENDING' &&
-                                hasPermission('Quotation-Create') &&
+                                (hasPermission('Quotation-Create') || hasPermission('Quotation-Edit')) && (
                                 <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                                     <FontAwesomeIcon icon={faSave} className='mr-1' />
                                     {isLoading ? 'Saving...' : 'Save'}
                                 </button>
-                            }
+                            )}
                         </div>
                     </form>
                 </div>

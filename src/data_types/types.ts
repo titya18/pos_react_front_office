@@ -482,3 +482,136 @@ export interface InvoiceDetailType {
     services?: ServiceType | null;
 }
 
+export interface StockAdjustmentType {
+    id?: number;
+    branchId: number;
+    adjustDate?: string | null; // Format: YYYY-MM-DD
+    AdjustMentType: string;
+    StatusType: string;
+    note: string;
+    delReason: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+    deletedAt?: Date;
+    approvedAt?: Date;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+    deleter?: UserType | null;
+    approver?: UserType | null;
+
+    branch: BranchType | null;
+    adjustmentDetails: StockAdjustmentDetailType[];
+}
+
+export interface StockAdjustmentDetailType {
+    id: number;
+    productId: number;
+    productVariantId: number;
+    quantity: number;
+
+    products: ProductType | null;
+    productvariants: ProductVariantType | null;
+}
+
+export interface StockTransferType {
+    id?: number;
+    branchId: number;
+    fromBranchId: number;
+    toBranchId: number;
+    transferDate?: string | null; // Format: YYYY-MM-DD
+    StatusType: string;
+    note: string;
+    delReason: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+    deletedAt?: Date;
+    approvedAt?: Date;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+    deleter?: UserType | null;
+    approver?: UserType | null;
+
+    fromBranch: BranchType | null;
+    toBranch: BranchType | null;
+    branch: BranchType | null;
+
+    transferDetails: StockTransferDetailType[];
+}
+
+export interface StockTransferDetailType {
+    id: number;
+    productId: number;
+    productVariantId: number;
+    quantity: number;
+
+    products: ProductType | null;
+    productvariants: ProductVariantType | null;
+}
+
+export interface StockRequestType {
+    id?: number;
+    branchId: number;
+    requestBy: number;
+    requestDate?: string | null; // Format: YYYY-MM-DD
+    StatusType: string;
+    note: string;
+    delReason: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+    deletedAt?: Date;
+    approvedAt?: Date;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+    deleter?: UserType | null;
+    approver?: UserType | null;
+    requester?: UserType | null;
+
+    branch: BranchType | null;
+    requestDetails: StockRequestDetailType[];
+}
+
+export interface StockRequestDetailType {
+    id: number;
+    productId: number;
+    productVariantId: number;
+    quantity: number;
+
+    products: ProductType | null;
+    productvariants: ProductVariantType | null;
+}
+
+export interface StockReturnType {
+    id?: number;
+    branchId: number;
+    returnBy: number;
+    returnDate?: string | null; // Format: YYYY-MM-DD
+    StatusType: string;
+    note: string;
+    delReason: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+    deletedAt?: Date;
+    approvedAt?: Date;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+    deleter?: UserType | null;
+    approver?: UserType | null;
+    returner?: UserType | null;
+
+    branch: BranchType | null;
+    returnDetails: StockReturnDetailType[];
+}
+
+export interface StockReturnDetailType {
+    id: number;
+    productId: number;
+    productVariantId: number;
+    quantity: number;
+
+    products: ProductType | null;
+    productvariants: ProductVariantType | null;
+}

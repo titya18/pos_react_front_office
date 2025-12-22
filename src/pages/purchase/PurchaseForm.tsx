@@ -6,7 +6,7 @@ import { BranchType, SupplierType, ProductVariantType, ProductType, PurchaseType
 import { getAllBranches } from "@/api/branch";
 import { searchProduct } from "@/api/searchProduct";
 import { upsertPurchase, getPurchaseByid } from "@/api/purchase";
-import { SubmitHandler, useForm } from "react-hook-form";
+import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { useAppContext } from '@/hooks/useAppContext';
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -48,7 +48,7 @@ const PurchaseForm: React.FC = () => {
 
     // const navigate = useNavigate()
 
-    const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<PurchaseType> ();
+    const { control, register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<PurchaseType> ();
 
     const fetchBranches = useCallback(async () => {
         setIsLoading(true);
@@ -72,9 +72,10 @@ const PurchaseForm: React.FC = () => {
                     // await fetchSuppliers();
                     setValue("branchId", purchaseData.branchId);
                     setValue("supplierId", purchaseData.supplierId);
-                    if (purchaseData.purchaseDate) {
-                        setSelectedDate(new Date(purchaseData.purchaseDate));
-                    }
+                    setValue("purchaseDate", purchaseData.purchaseDate
+                        ? new Date(purchaseData.purchaseDate).toISOString()
+                        : null
+                    );
                     setValue("taxRate", purchaseData.taxRate);
                     setValue("shipping", purchaseData.shipping);
                     setValue("discount", purchaseData.discount);
@@ -88,7 +89,6 @@ const PurchaseForm: React.FC = () => {
                     // }
                     // console.log("purchaseData:", purchaseData.purchaseDetails);
                     setStatusValue(purchaseData.status);
-                    console.log("purchaseData fetched:", purchaseData.status);
                 }
             } catch (error) {
                 console.error("Error fetching purchase:", error);
@@ -367,9 +367,7 @@ const PurchaseForm: React.FC = () => {
                 branch: { id: formData.branchId ?? 0, name: "Default Branch", address: "Default Address"},
                 suppliers: selectedSupplier ?? null,
                 ref: "",
-                purchaseDate: selectedDate
-                        ? selectedDate.toLocaleDateString("en-CA") // Outputs YYYY-MM-DD in local time
-                        : null,
+                purchaseDate: formData.purchaseDate,
                 taxRate: formData.taxRate ? formData.taxRate : null,
                 taxNet: formData.taxNet ? formData.taxNet : null,
                 discount: formData.discount ? formData.discount : null,
@@ -497,17 +495,23 @@ const PurchaseForm: React.FC = () => {
                                 <div style={wrapperStyle}>
                                     <label htmlFor="date-picker">Select a Date: <span className="text-danger text-md">*</span></label>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                        <DatePicker
-                                            // label="Select Date"
-                                            value={selectedDate}
-                                            onChange={(date) => setSelectedDate(date)}
-                                            minDate={new Date()} // disables all past dates
-                                            slotProps={{
-                                                textField: {
-                                                    fullWidth: true,
-                                                    // helperText: "Pick a date",
-                                                },
-                                            }}
+                                        <Controller
+                                            name="purchaseDate"
+                                            control={control}
+                                            rules={{ required: "Purchase date is required" }}
+                                            render={({ field }) => (
+                                                <DatePicker
+                                                    value={field.value ? new Date(field.value as string) : null}
+                                                    onChange={(date) => field.onChange(date)}
+                                                    minDate={new Date()}
+                                                    slotProps={{
+                                                        textField: {
+                                                            fullWidth: true,
+                                                            error: !!errors.purchaseDate,
+                                                        },
+                                                    }}
+                                                />
+                                            )}
                                         />
                                     </LocalizationProvider>
                                     {errors.purchaseDate && <span className="error_validate">{errors.purchaseDate.message}</span>}
@@ -761,12 +765,12 @@ const PurchaseForm: React.FC = () => {
                                 Go Back
                             </NavLink>
                             {statusValue === 'PENDING' &&
-                                hasPermission('Purchase-Create') &&
+                                (hasPermission('Purchase-Create') || hasPermission('Purchase-Edit')) && (
                                 <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                                     <FontAwesomeIcon icon={faSave} className='mr-1' />
                                     {isLoading ? 'Saving...' : 'Save'}
                                 </button>
-                            }
+                            )}
                         </div>
                     </form>
                 </div>

@@ -33,6 +33,14 @@ import Invoice from "./pages/invoice/Invoice";
 import InvoiceForm from "./pages/invoice/InvoiceForm";
 import PrintInvoice from "./pages/invoice/PrintInvoice";
 import StockSummary from "./pages/stock/StockSummary";
+import StockAdjustment from "./pages/stockadjustment/StockAdjustment";
+import StockAdjustmentForm from "./pages/stockadjustment/StockAdjustmentForm";
+import StockTransfer from "./pages/stocktransfer/StockTransfer";
+import StockTransferForm from "./pages/stocktransfer/StockTransferForm";
+import StockRequest from "./pages/stockrequest/StockRequest";
+import StockRequestForm from "./pages/stockrequest/StockRequestForm";
+import StockReturn from "./pages/stockreturn/StockReturn";
+import StockReturnForm from "./pages/stockreturn/StockReturnForm";
 import { Customer } from "./pages/customer/Customer";
 import NotFound from "./pages/notfound/NotFount";
 
@@ -101,6 +109,22 @@ const App: React.FC = () => {
                         <Route path="/printinvoice/:id" element={<PrivateRoute element={<Layout><PrintInvoice /></Layout>} />} />
                         {/* Stock Summary */}
                         <Route path="/stocksummary" element={<PrivateRoute element={<Layout><StockSummary /></Layout>} />} />
+                        {/* Stock Adjustment */}
+                        <Route path="/adjuststock" element={<PrivateRoute element={<Layout><StockAdjustment /></Layout>} />} />
+                        <Route path="/addadjuststock" element={<PrivateRoute element={<Layout><StockAdjustmentForm /></Layout>} />} />
+                        <Route path="/editadjuststock/:id" element={<PrivateRoute element={<Layout><StockAdjustmentForm /></Layout>} />} />
+                        {/* Stock Transfer */}
+                        <Route path="/movestock" element={<PrivateRoute element={<Layout><StockTransfer /></Layout>} />} />
+                        <Route path="/addmovestock" element={<PrivateRoute element={<Layout><StockTransferForm /></Layout>} />} />
+                        <Route path="/editmovestock/:id" element={<PrivateRoute element={<Layout><StockTransferForm /></Layout>} />} />
+                        {/* Stock Request */}
+                        <Route path="/stockrequest" element={<PrivateRoute element={<Layout><StockRequest /></Layout>} />} />
+                        <Route path="/addrequeststock" element={<PrivateRoute element={<Layout><StockRequestForm /></Layout>} />} />
+                        <Route path="/editrequeststock/:id" element={<PrivateRoute element={<Layout><StockRequestForm /></Layout>} />} />
+                        {/* Stock Transfer */}
+                        <Route path="/stockreturn" element={<PrivateRoute element={<Layout><StockReturn /></Layout>} />} />
+                        <Route path="/addreturnstock" element={<PrivateRoute element={<Layout><StockReturnForm /></Layout>} />} />
+                        <Route path="/editreturnstock/:id" element={<PrivateRoute element={<Layout><StockReturnForm /></Layout>} />} />
 
                         {/* Catch-all route for undefined paths */}
                         <Route path="*" element={<NotFound />} />
