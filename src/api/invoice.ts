@@ -98,6 +98,22 @@ export const getInvoiceByid = async (id: number): Promise<InvoiceType> => {
     return response.json();
 };
 
+export const delPaymentInvoice = async (id: number, delReason: string): Promise<InvoiceType> => {
+    const response = await fetch(`${API_BASE_URL}/api/invoice/delpayment/${id}`, {
+        credentials: "include",
+        method: "DELETE",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ delReason })
+    });
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        throw new Error(errorResponse.message || "Error deleting invoice payment");
+    }
+    return response.json();
+};
+
 export const deleteInvoice = async (id: number, delReason: string): Promise<InvoiceType> => {
     const response = await fetch(`${API_BASE_URL}/api/invoice/${id}`, {
         credentials: "include",

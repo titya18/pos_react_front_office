@@ -1,0 +1,310 @@
+// src/components/ReportPaymentInvoice.tsx
+import React, { useState, useEffect, useCallback } from "react";
+import * as apiClient from "@/api/report";
+import { getAllBranches } from "@/api/branch";
+import Pagination from "../components/Pagination";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "react-toastify";
+import { useAppContext } from "@/hooks/useAppContext";
+import { format } from "date-fns";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import { BranchType, OrderOnPaymentType } from "@/data_types/types";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowUpZA, faArrowDownAZ, faClose, faFileInvoice, faDollarSign } from '@fortawesome/free-solid-svg-icons';
+import { PrinterCheck, RefreshCw } from 'lucide-react';
+import SummaryCard from "./SummaryInvoiceCard";
+import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
+import ExportDropdown from "@/components/ExportDropdown";
+
+// Day.js plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+const columns = [
+    "No", "Payment Date", "Invoice's ID", "Customer", "Branch",
+    "Payment Method", "Amount Paid", "Created At", "Created By"
+];
+
+const sortFields: Record<string, string> = {
+    "No": "id",
+    "Payment Date": "paymentDate",
+    "Invoice's ID": "ref",
+    "Customer": "customerId",
+    "Branch": "branchId",
+    "Payment Method": "paymentMethodId",
+    "Amount Paid": "totalPaid",
+    "Created At": "createdAt",
+    "Created By": "createdBy"
+};
+
+const ReportPaymentInvoice: React.FC = () => {
+    const [branches, setBranches] = useState<BranchType[]>([]);
+    const [invoiceData, setInvoiceData] = useState<OrderOnPaymentType[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [selected, setSelected] = useState<number[]>([]);
+    const [visibleCols, setVisibleCols] = useState(columns);
+    const [total, setTotal] = useState(0);
+    const { user, hasPermission } = useAppContext();
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const today = dayjs().format("YYYY-MM-DD");
+
+    // FILTER STATES
+    const startDate = searchParams.get("startDate") || today;
+    const endDate = searchParams.get("endDate") || today;
+    const branchId = searchParams.get("branchId") ? parseInt(searchParams.get("branchId")!, 10) : undefined;
+    const search = searchParams.get("search") || "";
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
+    const sortField = searchParams.get("sortField") || "createdAt";
+    const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
+
+    const [summary, setSummary] = useState<{
+        totalPayments: number;
+        totalPaid: number;
+    }>({ totalPayments: 0, totalPaid: 0 });
+
+    // Fetch branches (once)
+    const fetchBranches = useCallback(async () => {
+        try {
+            const data = await getAllBranches();
+            setBranches(data as BranchType[]);
+        } catch (error) {
+            console.error("Error fetching branches:", error);
+        }
+    }, []);
+
+    // Fetch payment invoices
+    const fetchInvoices = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const params = {
+                sortField,
+                sortOrder: sortOrder as "desc" | "asc",
+                page,
+                pageSize,
+                searchTerm: search || undefined,
+                startDate,
+                endDate,
+                branchId
+            };
+
+            const { data, total: totalResult, summary } = await apiClient.getAllPaymentReportInvoices(params);
+            setInvoiceData(data || []);
+            setTotal(totalResult || 0);
+            setSelected([]);
+            setSummary(summary || { totalPayments: 0, totalPaid: 0 });
+        } catch (error) {
+            console.error("Error fetching payment invoices:", error);
+            toast.error("Failed to fetch payment invoices");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [sortField, sortOrder, page, pageSize, search, startDate, endDate, branchId]);
+
+    useEffect(() => {
+        fetchBranches();
+    }, [fetchBranches]);
+
+    useEffect(() => {
+        fetchInvoices();
+    }, [fetchInvoices]);
+
+    // Update URL params
+    const updateParams = (params: Record<string, unknown>) => {
+        const newParams = new URLSearchParams(searchParams.toString());
+        Object.entries(params).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === "") {
+                newParams.delete(key);
+            } else {
+                newParams.set(key, String(value));
+            }
+        });
+        setSearchParams(newParams);
+    };
+
+    const handleClearAllFilter = () => navigate("/reportPayment");
+
+    const toggleCol = (col: string) => {
+        setVisibleCols(prev =>
+            prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
+        );
+    };
+
+    const handleSort = (col: string) => {
+        const field = sortFields[col];
+        if (!field) return;
+        if (sortField === field) {
+            updateParams({ sortOrder: sortOrder === "asc" ? "desc" : "asc" });
+        } else {
+            updateParams({ sortField: field, sortOrder: "asc" });
+        }
+    };
+
+    const exportData = invoiceData.map((inv, index) => ({
+        "No": (page - 1) * pageSize + index + 1,
+        "Payment Date": inv.paymentDate,
+        "Invoice's ID": inv.order?.ref,
+        "Customer": inv.order?.customer?.name || "N/A",
+        "Branch": inv.branch?.name || "",
+        "Payment Method": inv.PaymentMethods?.name || "",
+        "Amount Paid": inv.totalPaid,
+        "Created At": inv.createdAt ? dayjs.tz(inv.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Created By": `${inv.creator?.lastName || ''} ${inv.creator?.firstName || ''}`,
+    }));
+
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    return (
+        <>
+            <div className="pt-0">
+                <div className="space-y-6">
+                    <div className="panel">
+                        <div className="relative">
+                            {/* ---------------- FILTERS ---------------- */}
+                            <div className="flex gap-2 mb-4 flex-wrap items-end">
+                                <div>
+                                    <label>Start Date</label>
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => updateParams({ startDate: e.target.value, page: 1 })}
+                                        className="form-input"
+                                    />
+                                </div>
+                                <div>
+                                    <label>End Date</label>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        min={startDate}
+                                        onChange={(e) => updateParams({ endDate: e.target.value, page: 1 })}
+                                        className="form-input"
+                                    />
+                                </div>
+                                {(user?.roleType === "ADMIN" || user?.roleType === "USER") &&
+                                    <div>
+                                        <label>Branch</label>
+                                        <select value={branchId} onChange={(e) => updateParams({ branchId: Number(e.target.value) || undefined, page: 1 })} className="form-select">
+                                            <option value="">All Branches</option>
+                                            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                        </select>
+                                    </div>
+                                }
+                                <div>
+                                    <button className="btn btn-primary" onClick={handleClearAllFilter}><RefreshCw /> Clear All Filter</button>
+                                </div>
+                            </div>
+
+                            {/* ---------------- SUMMARY ---------------- */}
+                            <div className="mt-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
+                                <SummaryCard
+                                    title="Total Payments"
+                                    value={summary.totalPayments}
+                                    icon={faFileInvoice}
+                                    color="indigo"
+                                />
+                                <SummaryCard
+                                    title="Total Paid"
+                                    value={summary.totalPaid}
+                                    icon={faDollarSign}
+                                    color="green"
+                                    isCurrency
+                                />
+                            </div>
+
+                            {/* ---------------- TABLE ---------------- */}
+                            <div className="dataTable-wrapper dataTable-loading no-footer sortable searchable">
+                                <div className="dataTable-top">
+                                    <div className="dataTable-search">
+                                        <input
+                                            className="dataTable-input"
+                                            type="text"
+                                            placeholder="Search..."
+                                            value={search}
+                                            onChange={(e) => updateParams({ search: e.target.value, page: 1 })}
+                                        />
+                                    </div>
+                                    <VisibleColumnsSelector
+                                        allColumns={columns}
+                                        visibleColumns={visibleCols}
+                                        onToggleColumn={toggleCol}
+                                    />
+                                    <ExportDropdown data={exportData} prefix="Report_Payment" />
+                                </div>
+
+                                <div className="dataTable-container">
+                                    {isLoading ? (
+                                        <p>Loading...</p>
+                                    ) : (
+                                        <table className="whitespace-nowrap dataTable-table">
+                                            <thead>
+                                                <tr>
+                                                    {columns.map(col =>
+                                                        visibleCols.includes(col) && (
+                                                            <th key={col} onClick={() => handleSort(col)} className="px-4 py-2 cursor-pointer">
+                                                                <div className="flex items-center gap-1">
+                                                                    {col}
+                                                                    {sortField === sortFields[col] ? (
+                                                                        sortOrder === "asc" ? (
+                                                                            <FontAwesomeIcon icon={faArrowDownAZ} />
+                                                                        ) : (
+                                                                            <FontAwesomeIcon icon={faArrowUpZA} />
+                                                                        )
+                                                                    ) : null}
+                                                                </div>
+                                                            </th>
+                                                        )
+                                                    )}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {invoiceData.length > 0 ? invoiceData.map((rows, index) => (
+                                                    <tr key={index}>
+                                                        {visibleCols.includes("No") && <td>{(page - 1) * pageSize + index + 1}</td>}
+                                                        {visibleCols.includes("Payment Date") && <td>{rows.paymentDate ? format(new Date(rows.paymentDate), 'dd-MMM-yyyy') : ''}</td>}
+                                                        {visibleCols.includes("Invoice's ID") && <td>{rows.order?.ref || ''}</td>}
+                                                        {visibleCols.includes("Customer") && <td>{rows.order?.customer?.name || "N/A"}</td>}
+                                                        {visibleCols.includes("Branch") && <td>{rows.branch?.name || ''}</td>}
+                                                        {visibleCols.includes("Payment Method") && <td>{rows.PaymentMethods?.name || ''}</td>}
+                                                        {visibleCols.includes("Amount Paid") && <td style={{color: 'green'}}>$ {Number(rows.totalPaid).toFixed(2)}</td>}
+                                                        {visibleCols.includes("Created At") && <td>{rows.createdAt ? dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format('DD / MMM / YYYY HH:mm:ss') : ''}</td>}
+                                                        {visibleCols.includes("Created By") && <td>{rows.creator?.lastName} {rows.creator?.firstName}</td>}
+                                                        {/* {visibleCols.includes("Actions") && (
+                                                            <td>
+                                                                {hasPermission('Invoice-Print') && (
+                                                                    <NavLink to={`/printinvoice/${rows.orderId}`} className="hover:text-warning">
+                                                                        <PrinterCheck color="purple" />
+                                                                    </NavLink>
+                                                                )}
+                                                            </td>
+                                                        )} */}
+                                                    </tr>
+                                                )) : (
+                                                    <tr><td colSpan={columns.length}>No Payment Invoices Found!</td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+
+                                <Pagination
+                                    page={page}
+                                    pageSize={pageSize}
+                                    total={total}
+                                    onPageChange={(newPage) => updateParams({ page: newPage })}
+                                    onPageSizeChange={(newSize) => updateParams({ pageSize: newSize, page: 1 })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+};
+
+export default ReportPaymentInvoice;

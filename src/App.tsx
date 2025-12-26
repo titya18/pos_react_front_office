@@ -41,6 +41,14 @@ import StockRequest from "./pages/stockrequest/StockRequest";
 import StockRequestForm from "./pages/stockrequest/StockRequestForm";
 import StockReturn from "./pages/stockreturn/StockReturn";
 import StockReturnForm from "./pages/stockreturn/StockReturnForm";
+import Expense from "./pages/expense/Expense";
+import Income from "./pages/income/Income";
+import ReportInvoice from "./pages/report/ReportInvoice";
+import ReportCancelInvoice from "./pages/report/ReportCancelInvoice";
+import ReportPayment from "./pages/report/ReportPayment";
+import ReportQuotation from "./pages/report/ReportQuotation";
+import ReportPurchase from "./pages/report/ReportPurchase";
+
 import { Customer } from "./pages/customer/Customer";
 import NotFound from "./pages/notfound/NotFount";
 
@@ -125,6 +133,16 @@ const App: React.FC = () => {
                         <Route path="/stockreturn" element={<PrivateRoute element={<Layout><StockReturn /></Layout>} />} />
                         <Route path="/addreturnstock" element={<PrivateRoute element={<Layout><StockReturnForm /></Layout>} />} />
                         <Route path="/editreturnstock/:id" element={<PrivateRoute element={<Layout><StockReturnForm /></Layout>} />} />
+                        {/* Expense */}
+                        <Route path="/expense" element={<PrivateRoute element={<Layout><Expense /></Layout>} />} />
+                        {/* Income */}
+                        <Route path="/income" element={<PrivateRoute element={<Layout><Income /></Layout>} />} />
+                        {/* Report */}
+                        <Route path="/reportInvoice" element={<PrivateRoute element={<Layout><ReportInvoice /></Layout>} />} />
+                        <Route path="/reportCancelInvoice" element={<PrivateRoute element={<Layout><ReportCancelInvoice /></Layout>} />} />
+                        <Route path="/reportPayment" element={<PrivateRoute element={<Layout><ReportPayment /></Layout>} />} />
+                        <Route path="/reportQuotation" element={<PrivateRoute element={<Layout><ReportQuotation /></Layout>} />} />
+                        <Route path="/reportPurchase" element={<PrivateRoute element={<Layout><ReportPurchase /></Layout>} />} />
 
                         {/* Catch-all route for undefined paths */}
                         <Route path="*" element={<NotFound />} />

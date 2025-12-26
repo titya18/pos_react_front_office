@@ -284,10 +284,12 @@ export interface PurchaseType {
     createdAt?: Date;
     updatedAt?: Date;
     deletedAt?: Date;
+    receivedAt?: Date;
 
     creator?: UserType | null;
     updater?: UserType | null;
     deleter?: UserType | null;
+    receiver?: UserType | null;
 
     branch: BranchType | null;
     supplier?: SupplierType | null;
@@ -460,6 +462,8 @@ export interface InvoiceType {
     customer?: CustomerType | null;
     customers: CustomerType | null;
     items: InvoiceDetailType[];
+
+    totalProfit?: number | null;
 }
 
 export interface InvoiceDetailType {
@@ -614,4 +618,63 @@ export interface StockReturnDetailType {
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
+}
+
+export interface ExpenseType {
+    id: number;
+    branchId: number;
+    expenseDate?: string | null; // Format: YYYY-MM-DD
+    name: string;
+    amount: number;
+    description: string;
+    delReason: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+    deletedAt?: Date;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+    deleter?: UserType | null;
+
+    branch?: BranchType | null;
+}
+
+export interface IncomeType {
+    id: number;
+    branchId: number;
+    incomeDate?: string | null; // Format: YYYY-MM-DD
+    name: string;
+    amount: number;
+    description: string;
+    delReason: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+    deletedAt?: Date;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+    deleter?: UserType | null;
+
+    branch: BranchType | null;
+}
+
+export interface OrderOnPaymentType {
+    branchId: number | null;
+    orderId: number | null;
+    paymentDate?: Date;
+    paymentMethodId: number | null;
+    totalPaid: number | null;
+    createdAt: string | null;
+    PaymentMethods: { name: string } | null;
+    delReason: string;
+    createdDat?: Date;
+    updatedDat?: Date;
+    deletedAt?: Date;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+    deleter?: UserType | null;  
+
+    order?: InvoiceType | null;
+    branch?: BranchType | null;
 }

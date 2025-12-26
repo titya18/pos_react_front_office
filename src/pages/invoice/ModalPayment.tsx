@@ -5,10 +5,13 @@ import { useForm } from "react-hook-form";
 import { format } from "date-fns";
 import { useAppContext } from "../../hooks/useAppContext";
 import { getAllPaymentMethods } from "../../api/paymentMethod";
-import { getInvoicePaymentById } from "../../api/invoice";
+import { getInvoicePaymentById, delPaymentInvoice } from "../../api/invoice";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import { MessageCircleOff, Trash2 } from "lucide-react";
+import { toast } from "react-toastify";
+import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
 
 // Extend Day.js with plugins
 dayjs.extend(utc);
@@ -45,36 +48,56 @@ export interface FormData {
 const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, onSubmit }) => {
     const [paymentMethods, setPaymentMethod] = useState<PaymentMethodData[]>([]);
     const [invoicePayments, setInvoicePayments] = useState<InvoicePaymentData[]>([]);
+    const [deletePayId, setDeletePayId] = useState<number | null>(null);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
+    const [deleteMessage, setDeleteMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<FormData>();
 
     const { hasPermission } = useAppContext();
     
+    const fetchPaymentMethods = async () => {
+        setIsLoading(true);
+        try {
+            const data = await getAllPaymentMethods();
+            setPaymentMethod(data as PaymentMethodData[]);
+        } catch (error) {
+            console.error("Error fetching payment method:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const refreshDueBalance = (payments: InvoicePaymentData[]) => {
+        const totalPaid = payments.reduce(
+            (sum, p) => sum + Number(p.totalPaid ?? 0),
+            0
+        );
+
+        const invoiceTotal = Number(amountInvoice?.totalPaid ?? 0);
+        const dueBalance = invoiceTotal - totalPaid;
+
+        setValue("due_balance", dueBalance);
+    };
+
+
+    const fetchInvoicePayments = async () => {
+        setIsLoading(true);
+        try {
+            const payments = await getInvoicePaymentById(amountInvoice?.orderId ?? 0);
+            setInvoicePayments(payments);
+
+            // refresh due balance here
+            refreshDueBalance(payments);
+        } catch (error) {
+            console.error("Error fetching purchase payment:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     useEffect(() => {
-        const fetchPaymentMethods = async () => {
-            setIsLoading(true);
-            try {
-                const data = await getAllPaymentMethods();
-                setPaymentMethod(data as PaymentMethodData[]);
-            } catch (error) {
-                console.error("Error fetching payment method:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-
-        const fetchInvoicePayments = async () => {
-            setIsLoading(true);
-            try {
-                const payments = await getInvoicePaymentById(amountInvoice?.orderId ?? 0);
-                setInvoicePayments(payments);
-            } catch (error) {
-                console.error("Error fetching purchase payment:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-
         fetchPaymentMethods();
         fetchInvoicePayments();
 
@@ -90,9 +113,22 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
         }
     }, [amountInvoice, setValue, reset]);
 
-    const handlePaidAmount = (e: any) => {
-        setValue("due_balance", (Number(amountInvoice?.totalPaid) - Number(amountInvoice?.paidAmount)) - Number(e.target.value));
-    }
+    const handlePaidAmount = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const inputPaid = Number(e.target.value || 0);
+
+        // Sum of all existing payments
+        const totalPaidSoFar = invoicePayments.reduce(
+            (sum, p) => sum + Number(p.totalPaid ?? 0),
+            0
+        );
+
+        const invoiceTotal = Number(amountInvoice?.totalPaid ?? 0);
+
+        // due balance = invoice total - total already paid - the current input
+        const dueBalance = invoiceTotal - totalPaidSoFar - inputPaid;
+
+        setValue("due_balance", dueBalance);
+    };
 
     const handleFormSubmit = async (data: FormData) => {
         setIsLoading(true);
@@ -108,8 +144,45 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
         }
     };
 
+    const handleDeletePayment = async (id: number) => {
+        const confirmed = await ShowDeleteConfirmation();
+        if (!confirmed) return;
+
+        setDeletePayId(id);
+        setDeleteMessage("");
+        setShowDeleteModal(true);
+    };
+
+    const submitDeletePayment = async () => {
+        if (!deletePayId) return;
+        
+        if (!deleteMessage.trim()) {
+            toast.error("Please enter delete reason");
+            return;
+        }
+
+        try {
+            await delPaymentInvoice(Number(deletePayId), deleteMessage);
+
+            toast.success("Payment deleted successfully", {
+                position: "top-right",
+                autoClose: 4000,
+            });
+
+            setShowDeleteModal(false);
+            setDeletePayId(null);
+
+            // this triggers refresh + recalculation
+            fetchInvoicePayments();
+        } catch (err: any) {
+            toast.error(err.message || "Error deleting payment");
+        }
+    };
+
+
     if (!isOpen) return null;
     return (
+        <>
             <div className="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto">
                 <div className="flex items-center justify-center min-h-screen px-4">
                     <div className="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-3xl my-8">
@@ -143,6 +216,7 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
                                                 const isSingleRecord = invoicePayments.length === 1;
                                                 // const isFirstRecord = index === 0 && !isSingleRecord;
                                                 const isLastRecord = index === invoicePayments.length - 1 && !isSingleRecord;
+                                                const LastRecord = index === 0;
                                                 
                                                 return (
                                                     <div className="flex" key={index}>
@@ -167,7 +241,19 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
                                                                 {/* {rows.createdAt ? format(new Date(rows.createdAt), "yyyy-MM-dd HH:mm:ss") : "N/A"} */}
                                                             </p>
                                                         </div>
-                                                    </div>
+
+                                                        {LastRecord && (
+                                                            hasPermission("Delete-Payment-Invoice") && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => rows.id && handleDeletePayment(rows.id)}
+                                                                    className="ml-3 px-3 py-1 text-xs font-bold rounded bg-red-500 text-white hover:bg-red-600"
+                                                                >
+                                                                    <Trash2 color="red" />
+                                                                </button>
+                                                            )
+                                                        )}
+                                                    </div> 
                                                 );
                                             })
                                         ) : (
@@ -235,7 +321,6 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
                                                 <label htmlFor="module">Due Balance</label>
                                                 <input
                                                     type="text"
-                                                    placeholder="Enter Supplier's name"
                                                     className="form-input w-full"
                                                     readOnly
                                                     {...register("due_balance")}
@@ -266,7 +351,52 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
                     </div>
                 </div>
             </div>
-        );
+
+            {showDeleteModal && (
+                <div className="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto">
+                    <div className="flex items-center justify-center min-h-screen px-4">
+                        <div className="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-lg my-8">
+                            <div className="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
+                                <h5 className="flex font-bold text-lg">
+                                    <MessageCircleOff /> Delete Payment
+                                </h5>
+                                <button type="button" className="text-white-dark hover:text-dark" onClick={() => setShowDeleteModal(false)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="p-5">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 mb-5">
+                                    <div>
+                                        <textarea
+                                            className="form-textarea w-full"
+                                            rows={4}
+                                            placeholder="Enter reason for deleting this purchase"
+                                            value={deleteMessage}
+                                            onChange={(e) => setDeleteMessage(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div className="flex justify-end items-center mt-8">
+                                    <button type="button" className="btn btn-outline-danger" onClick={() => setShowDeleteModal(false)}>
+                                        <FontAwesomeIcon icon={faClose} className='mr-1' />
+                                        Discard
+                                    </button>
+                                    <button type="submit" onClick={submitDeletePayment} className="btn btn-primary ltr:ml-4 rtl:mr-4">
+                                        <FontAwesomeIcon icon={faSave} className='mr-1' />
+                                        {isLoading ? 'Saving...' : 'Save'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 }
 
 export default ModalPayment;

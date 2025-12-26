@@ -247,7 +247,7 @@ const PaymentMethod: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="users" />
+                                    <ExportDropdown data={exportData} prefix="Payment_Method" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (

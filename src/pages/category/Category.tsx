@@ -253,7 +253,7 @@ const Category: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="users" />
+                                    <ExportDropdown data={exportData} prefix="Category" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (

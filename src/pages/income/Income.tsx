@@ -1,39 +1,44 @@
-// src/components/MainCategory.tsx
-import React, { useState, useEffect } from "react";
-import * as apiClient from "@/api/purchase";
-import Pagination from "../components/Pagination"; // Import the Pagination component
-import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
-import { useQueryClient } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
+import * as apiClient from "../../api/income";
+import { useAppContext } from "../../hooks/useAppContext";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowUpZA, faArrowDownAZ, faPrint, faClose, faSave } from '@fortawesome/free-solid-svg-icons';
-import { NavLink } from "react-router-dom";
+import { faArrowUpZA, faArrowDownAZ, faClose, faSave } from '@fortawesome/free-solid-svg-icons';
+import Pagination from "../components/Pagination";
+import Modal from "./Modal";
+import { IncomeType, BranchType } from "@/data_types/types";
 import { toast } from "react-toastify";
-import { useAppContext } from "@/hooks/useAppContext";
-import ModalPayment from "./ModalPayment";
-import { format } from 'date-fns';
-import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, MessageCircleOff, NotebookText } from 'lucide-react';
-import { PurchaseType, PaymentType } from "@/data_types/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
 import ExportDropdown from "@/components/ExportDropdown";
+import { MessageCircleOff, NotebookText, Pencil, Trash2 } from "lucide-react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
+import { format } from 'date-fns';
+import { set } from "date-fns";
 
 // Extend Day.js with plugins
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+type ViewNotePayload = {
+    delReason: string | null;
+    createdBy?: {
+        id: number | undefined;
+        name: string;
+    };
+    createdAt?: Date;
+};
+
 const columns = [
     "No",
-    "Purchase Date",
-    "Reference",
-    "Supplier",
+    "Income Date",
     "Branch",
-    "Status",
-    "Grand Total",
-    "Paid",
-    "Due",
+    "Income Name",
+    "Amount",
+    "Description",
     "Created At",
     "Created By",
     "Updated At",
@@ -43,41 +48,38 @@ const columns = [
 
 const sortFields: Record<string, string> = {
     "No": "id",
-    "Purchase Date": "purchaseDate",
-    "Reference": "ref",
-    "Supplier": "supplierId",
+    "Income Date": "incomeDate",
     "Branch": "branchId",
-    "Status": "status",
-    "Grand Total": "grandTotal",
-    "Paid": "paidAmount",
-    "Due": "due",
+    "Income Name": "name",
+    "Amount": "amount",
+    "Description": "description",
     "Created At": "createdAt",
     "Created By": "createdBy",
     "Updated At": "updatedAt",
     "Updated By": "updatedBy"
 };
 
-const Purchase: React.FC = () => {
-    const [purchaseData, setPurchaseData] = useState<PurchaseType[]>([]);
+const Income: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
-    const [isModalPaymentOpen, setIsModalPaymentOpen] = useState(false);
-    const [amountPurchase, setAmountPurchase] = useState<PaymentType | null>(null);
+    const [incomes, setIncomes] = useState<IncomeType[]>([]);
+    const [selectIncome, setSelectIncome] = useState<IncomeType | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
+    const [deleteMessage, setDeleteMessage] = useState("");
+    const [showNoteModal, setShowNoteModal] = useState(false);
+    const [viewNote, setViewNote] = useState<ViewNotePayload | null>(null);
 
     const [searchParams, setSearchParams] = useSearchParams();
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
     const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
-    const sortField = searchParams.get("sortField") || "createdAt";
+    const sortField = searchParams.get("sortField") || "name";
     const rawSortOrder = searchParams.get("sortOrder");
-    const sortOrder: "desc" | "asc" = rawSortOrder === "desc" ? "desc" : "asc";
+    const sortOrder: "asc" | "desc" = rawSortOrder === "desc" ? "desc" : "asc";
     const [total, setTotal] = useState(0);
     const [selected, setSelected] = useState<number[]>([]);
     const [visibleCols, setVisibleCols] = useState(columns);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
-    const [deleteMessage, setDeleteMessage] = useState("");
-    const [showNoteModal, setShowNoteModal] = useState(false);
-    const [viewNote, setViewNote] = useState<string | null>(null);
 
     const updateParams = (params: Record<string, unknown>) => {
         const newParams = new URLSearchParams(searchParams.toString());
@@ -89,28 +91,28 @@ const Purchase: React.FC = () => {
 
     const { hasPermission } = useAppContext();
 
-    const fetchPurchase = async () => {
+    const fetchIncomes = async () => {
         setIsLoading(true);
         try {
-            const { data, total } = await apiClient.getAllPurchases(
+            const { data, total } = await apiClient.getAllIncomesWithPagination(
                 sortField,
                 sortOrder,
                 page,
                 search,
                 pageSize
             );
-            setPurchaseData(data || []);
+            setIncomes(data || []);
             setTotal(total || 0);
             setSelected([]);
         } catch (error) {
-            console.error("Error fetching purchase:", error);
+            console.error("Error fetch incomes:", error);
         } finally {
             setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchPurchase();
+        fetchIncomes();
     }, [search, page, sortField, sortOrder, pageSize]);
 
     const toggleCol = (col: string) => {
@@ -136,27 +138,63 @@ const Purchase: React.FC = () => {
         }
     };
 
-    const exportData = purchaseData.map((purchase, index) => ({
+    const incomeData = incomes.map((inc, index) => ({
         "No": (page - 1) * pageSize + index + 1,
-        "Purchase Date": purchase.purchaseDate,
-        "Reference": purchase.ref,
-        "Supplier": purchase.suppliers ? purchase.suppliers.name : "",
-        "Branch": purchase.branch ? purchase.branch.name : "",
-        "Status": purchase.status,
-        "Grand Total": purchase.grandTotal,
-        "Paid": purchase.paidAmount,
-        "Due": Number(purchase.grandTotal - (purchase.paidAmount ?? 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','),
-        "Created At": purchase.createdAt ? dayjs.tz(purchase.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Created By": `${purchase.creator?.lastName || ''} ${purchase.creator?.firstName || ''}`,
-        "Updated At": purchase.updatedAt ? dayjs.tz(purchase.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Updated By": `${purchase.updater?.lastName || ''} ${purchase.updater?.firstName || ''}`,
+        "Income Date": inc.incomeDate,
+        "Branch": inc.branch ? inc.branch.name : "",
+        "Income Name": inc.name,
+        "Amount": `$ ${inc.amount}`,
+        "Description": inc.description,
+        "Created At": inc.createdAt ? dayjs.tz(inc.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Created By": `${inc.creator?.lastName || ''} ${inc.creator?.firstName || ''}`,
+        "Updated At": inc.updatedAt ? dayjs.tz(inc.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Updated By": `${inc.updater?.lastName || ''} ${inc.updater?.firstName || ''}`,
     }));
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     const queryClient = useQueryClient();
 
-    const handleDeletePurchase = async (id: number) => {
+    const handleAddorEditIncome = async (payload: {
+        data: IncomeType;
+    }): Promise<void> => {
+        try {
+            await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
+            const { data } = payload;
+            const incomeData: IncomeType = {
+                ...data,
+                id: data.id || 0
+            };
+
+            await apiClient.upsertIncome(incomeData);
+            toast.success(data.id ? "Income updated successfully" : "Income created successfully", {
+                position: "top-right",
+                autoClose: 3000,
+            });
+            fetchIncomes();
+            setIsModalOpen(false);
+        } catch (error: any) {
+            // Check if error.message is set by your API function
+            if (error.message) {
+                toast.error(error.message, {
+                    position: "top-right",
+                    autoClose: 5000
+                });
+            } else {
+                toast.error("Error adding/editting income", {
+                    position: "top-right",
+                    autoClose: 5000
+                });
+            }
+        }
+    }
+
+    const handleEditClick = (incomeData: IncomeType) => {
+        setSelectIncome(incomeData);
+        setIsModalOpen(true);
+    };
+
+    const handleDeleteIncome = async (id: number) => {
         const confirmed = await ShowDeleteConfirmation();
         if (!confirmed) return;
 
@@ -165,7 +203,7 @@ const Purchase: React.FC = () => {
         setShowDeleteModal(true);
     };
 
-    const submitDeleteInvoice = async () => {
+    const submitDeleteIncome = async () => {
         if (!deleteInvoiceId) return;
 
         if (!deleteMessage.trim()) {
@@ -174,9 +212,9 @@ const Purchase: React.FC = () => {
         }
 
         try {
-            await apiClient.deletePurchase(deleteInvoiceId, deleteMessage);
+            await apiClient.deleteIncome(deleteInvoiceId, deleteMessage);
 
-            toast.success("Purchase deleted successfully", {
+            toast.success("Income deleted successfully", {
                 position: "top-right",
                 autoClose: 4000,
             });
@@ -184,46 +222,14 @@ const Purchase: React.FC = () => {
             setShowDeleteModal(false);
             setDeleteInvoiceId(null);
 
-            fetchPurchase();
+            fetchIncomes();
         } catch (err: any) {
-            toast.error(err.message || "Error deleting purchasing");
+            toast.error(err.message || "Error deleting income");
         }
     };
 
-    const addPaymentPurchase = (paymentData: PaymentType) => {
-        setAmountPurchase(paymentData);
-        setIsModalPaymentOpen(true);
-    };
-
-    const handleOnSubmitPayment = async (branchId: number | null, purchaseId: number | null, paidAmount: number | null, paymentMethodId: number | null, amount: number, due_balance: number) => {
-        try {
-            await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
-            const paymentData: PaymentType = {
-                branchId: branchId,
-                purchaseId: purchaseId,
-                paymentMethodId: paymentMethodId,
-                paidAmount: paidAmount,
-                amount: amount,
-                due_balance: due_balance,
-                createdAt: null,
-                paymentMethods: null,
-            }
-            await apiClient.insertPurchasePayment(paymentData);
-            toast.success("Purchase payment insert successfully", {
-                position: "top-right",
-                autoClose: 2000
-            });
-            fetchPurchase();
-        } catch (error: any) {
-            toast.error(error.message || "Error adding payment", {
-                position: "top-right",
-                autoClose: 2000
-            });
-        }
-    };
-
-    const handleViewNote = (note: string) => {
-        setViewNote(note);
+    const handleViewNote = (payload: ViewNotePayload) => {
+        setViewNote(payload);
         setShowNoteModal(true);
     };
 
@@ -236,11 +242,25 @@ const Purchase: React.FC = () => {
                             <div className="px-0">
                                 <div className="md:absolute md:top-0 ltr:md:left-0 rtl:md:right-0">
                                     <div className="mb-5 flex items-center gap-2">
-                                        {hasPermission('Purchase-Create') &&
-                                            <NavLink to="/addpurchase" className="btn btn-primary gap-2" >
-                                                <Plus />
+                                        {hasPermission('Income-Create') &&
+                                            <button className="btn btn-primary gap-2" onClick={() => { setIsModalOpen(true); setSelectIncome(null) }}>
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    width="24px"
+                                                    height="24px"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="1.5"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="h-5 w-5"
+                                                >
+                                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                                </svg>
                                                 Add New
-                                            </NavLink>
+                                            </button>
                                         }
                                     </div>
                                 </div>
@@ -262,7 +282,7 @@ const Purchase: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="Purchase" />
+                                    <ExportDropdown data={incomeData} prefix="Expense" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (
@@ -297,39 +317,26 @@ const Purchase: React.FC = () => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {purchaseData && purchaseData.length > 0 ? (
-                                                    purchaseData.map((rows, index) => (
+                                            {incomes && incomes.length > 0 ? (
+                                                    incomes.map((rows, index) => (
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
                                                             )}
-                                                            {visibleCols.includes("Purchase Date") && (
-                                                                <td>{rows.purchaseDate ? format(new Date(rows.purchaseDate), 'dd-MMM-yyyy') : ''}</td>
+                                                            {visibleCols.includes("Income Date") && (
+                                                                <td>{rows.incomeDate ? format(new Date(rows.incomeDate), 'dd-MMM-yyyy') : ''}</td>
                                                             )}
-                                                            {visibleCols.includes("Reference") && (
-                                                                <td>{rows.ref}</td>
-                                                            )}
-                                                            {visibleCols.includes("Supplier") && (
-                                                                <td>{rows.supplier ? rows.supplier.name : ""}</td>
+                                                            {visibleCols.includes("Income Name") && (
+                                                                <td>{rows.name}</td>
                                                             )}
                                                             {visibleCols.includes("Branch") && (
-                                                                <td>{rows.branch ? rows.branch.name : ""}</td>
+                                                                <td>{rows.branch ? rows.branch.name : ''}</td>
                                                             )}
-                                                            {visibleCols.includes("Status") && (
-                                                            <td>
-                                                                <span className={`badge rounded-full ${rows.status === 'PENDING' ? 'bg-warning' : rows.status === 'RECEIVED' ? 'bg-primary' : rows.status === 'COMPLETED' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>
-                                                                    {rows.status}
-                                                                </span>
-                                                            </td>
+                                                            {visibleCols.includes("Amount") && (
+                                                                <td>$ {rows.amount}</td>
                                                             )}
-                                                            {visibleCols.includes("Grand Total") && (
-                                                                <td style={{color: "blue"}}>$ { Number(rows.grandTotal).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
-                                                            )}
-                                                            {visibleCols.includes("Paid") && (
-                                                                <td style={{color: (rows.grandTotal - (rows.paidAmount ?? 0)) > 0 ? "red" : "green"}}>$ { Number(rows.paidAmount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
-                                                            )}
-                                                            {visibleCols.includes("Due") && (
-                                                                <td style={{color: (rows.grandTotal - (rows.paidAmount ?? 0)) > 0 ? "red" : "black"}}>$ { Number(rows.grandTotal - (rows.paidAmount ?? 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
+                                                            {visibleCols.includes("Description") && (
+                                                                <td>{rows.description}</td>
                                                             )}
                                                             {visibleCols.includes("Created At") && (
                                                                 <td>{dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss")}</td>
@@ -345,47 +352,51 @@ const Purchase: React.FC = () => {
                                                             )}
                                                             {visibleCols.includes("Actions") && (
                                                                 <td className="text-center">
-                                                                    <div className="flex items-center justify-center gap-2">
-                                                                        {rows.note !== null &&
-                                                                            <button type="button" className="hover:text-danger" onClick={() => handleViewNote(rows.note)} title="View Note">
+                                                                    <div className="flex gap-2">
+                                                                        {rows.deletedAt !== null && (
+                                                                            <button
+                                                                                type="button"
+                                                                                className="hover:text-danger"
+                                                                                onClick={() =>
+                                                                                    handleViewNote({
+                                                                                        delReason: rows.delReason,
+                                                                                        createdBy: {
+                                                                                            id: rows.creator?.id,
+                                                                                            name: `${rows.creator?.lastName} ${rows.creator?.firstName}`,
+                                                                                        },
+                                                                                        createdAt: rows.deletedAt,
+                                                                                    })
+                                                                                }
+                                                                                title="View Note"
+                                                                            >
                                                                                 <NotebookText color="pink" />
                                                                             </button>
-                                                                        }
-                                                                        {hasPermission('Purchase-Print') &&
-                                                                            <NavLink to={`/printpurchase/${rows.id}`} className="hover:text-warning" title="Print Purchase">
-                                                                                <PrinterCheck color="purple" />
-                                                                            </NavLink>
-                                                                        }
-                                                                        {(rows.status === 'RECEIVED' || rows.status === 'COMPLETED') &&
-                                                                            hasPermission('Purchase-Payment') &&
-                                                                                <button type="button" 
-                                                                                    className="hover:text-primary" 
-                                                                                    onClick={() => addPaymentPurchase({ 
-                                                                                        branchId: rows.branchId, 
-                                                                                        purchaseId: Number(rows.id), 
-                                                                                        paymentMethodId: 0, 
-                                                                                        paidAmount: rows.paidAmount,
-                                                                                        amount: rows.grandTotal,
-                                                                                        createdAt: null,
-                                                                                        paymentMethods: null, 
-                                                                                    })} 
-                                                                                    title="Payment Purchase"
-                                                                                >
-                                                                                    <BanknoteArrowUp color="blue" />
-                                                                                </button>
-                                                                        }
-                                                                        {hasPermission('Purchase-Edit') &&
-                                                                                <NavLink to={`/editpurchase/${rows.id}`} className="hover:text-warning" title="Edit">
-                                                                                    <Pencil color="green" />
-                                                                                </NavLink>
-                                                                        }
-                                                                        {rows.status === 'PENDING' &&
-                                                                            hasPermission('Purchase-Delete') &&
-                                                                                <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeletePurchase(rows.id)} title="Delete">
-                                                                                    <Trash2 color="red" />
-                                                                                </button>
-                                                                            
-                                                                        }
+                                                                        )}
+                                                                        {rows.deletedAt === null && (
+                                                                            <>
+                                                                                {hasPermission('Income-Edit') && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className="hover:text-warning"
+                                                                                        onClick={() => handleEditClick(rows)}
+                                                                                        title="Edit"
+                                                                                    >
+                                                                                        <Pencil color="green" />
+                                                                                    </button>
+                                                                                )}
+
+                                                                                {hasPermission('Income-Delete') && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className="hover:text-danger"
+                                                                                        onClick={() => rows.id && handleDeleteIncome(rows.id)}
+                                                                                        title="Delete"
+                                                                                    >
+                                                                                        <Trash2 color="red" />
+                                                                                    </button>
+                                                                                )}
+                                                                            </>
+                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             )}
@@ -393,7 +404,7 @@ const Purchase: React.FC = () => {
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={3}>No Purchase Found!</td>
+                                                        <td colSpan={3}>No Income Found!</td>
                                                     </tr>
                                                 )}
                                             </tbody>
@@ -413,11 +424,11 @@ const Purchase: React.FC = () => {
                 </div>
             </div>
 
-            <ModalPayment 
-                isOpen={isModalPaymentOpen}
-                onClose={() => setIsModalPaymentOpen(false)}
-                onSubmit={handleOnSubmitPayment}
-                amountPurchase={amountPurchase}
+            <Modal 
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSubmit={handleAddorEditIncome}
+                income={selectIncome}
             />
 
             {showDeleteModal && (
@@ -426,7 +437,7 @@ const Purchase: React.FC = () => {
                         <div className="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-lg my-8">
                             <div className="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
                                 <h5 className="flex font-bold text-lg">
-                                    <MessageCircleOff /> Delete Purchase
+                                    <MessageCircleOff /> Delete Income
                                 </h5>
                                 <button type="button" className="text-white-dark hover:text-dark" onClick={() => setShowDeleteModal(false)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
@@ -453,7 +464,7 @@ const Purchase: React.FC = () => {
                                         <FontAwesomeIcon icon={faClose} className='mr-1' />
                                         Discard
                                     </button>
-                                    <button type="submit" onClick={submitDeleteInvoice} className="btn btn-primary ltr:ml-4 rtl:mr-4">
+                                    <button type="submit" onClick={submitDeleteIncome} className="btn btn-primary ltr:ml-4 rtl:mr-4">
                                         <FontAwesomeIcon icon={faSave} className='mr-1' />
                                         {isLoading ? 'Saving...' : 'Save'}
                                     </button>
@@ -470,7 +481,7 @@ const Purchase: React.FC = () => {
                         <div className="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-lg my-8">
                             <div className="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
                                 <h5 className="flex font-bold text-lg">
-                                    <NotebookText color="pink" /> View note
+                                    <NotebookText color="pink" /> View delete message
                                 </h5>
                                 <button type="button" className="text-white-dark hover:text-dark" onClick={() => setShowNoteModal(false)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
@@ -480,9 +491,35 @@ const Purchase: React.FC = () => {
                                 </button>
                             </div>
                             <div className="p-5">
-                                <div className="mb-5">
-                                    {viewNote || "No note available"}
+                                <div className="mb-6">
+                                    {/* Message */}
+                                    <div className="rounded-md bg-gray-100 dark:bg-[#1e293b] p-4">
+                                        <p className="text-sm text-gray-800 dark:text-gray-100 leading-relaxed whitespace-pre-line">
+                                            {viewNote?.delReason || "No delete reason provided."}
+                                        </p>
+                                    </div>
+
+                                    {/* Meta info */}
+                                    <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+
+                                        {viewNote?.createdBy && (
+                                            <div>
+                                                Deleted by{" "}
+                                                <span className="font-medium text-gray-700 dark:text-gray-300">
+                                                    {viewNote.createdBy.name}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {viewNote?.createdAt && (
+                                            <div>
+                                                {dayjs(viewNote.createdAt).format("DD MMM YYYY • HH:mm")}
+                                            </div>
+                                        )}
+
+                                    </div>
                                 </div>
+
                                 
                                 <div className="flex justify-end items-center mt-8">
                                     <button type="button" className="btn btn-outline-danger" onClick={() => setShowNoteModal(false)}>
@@ -499,4 +536,4 @@ const Purchase: React.FC = () => {
     );
 };
 
-export default Purchase;
+export default Income;

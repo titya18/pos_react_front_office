@@ -221,7 +221,7 @@ const StockTransfer: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="users" />
+                                    <ExportDropdown data={exportData} prefix="Stock_Transfer" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (

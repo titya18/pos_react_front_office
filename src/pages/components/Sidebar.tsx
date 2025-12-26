@@ -20,7 +20,11 @@ import {
     Layers2,
     FolderSync,
     HandHelping,
-    HandCoins
+    HandCoins,
+    BanknoteArrowDown,
+    BanknoteArrowUp,
+    CircleOff,
+    CircleDollarSign
 } from 'lucide-react';
 
 // Define a type for the state
@@ -112,7 +116,9 @@ const Sidebar: React.FC = () => {
                         {/* Start I comment this blog for example use later on */}
                             {(
                                 hasPermission('Branch-View') || 
-                                canViewUser 
+                                canViewUser ||
+                                hasPermission('Customer-View') ||
+                                hasPermission('Supplier-View')
                             ) && (
                                 <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
                                     <svg
@@ -626,7 +632,7 @@ const Sidebar: React.FC = () => {
                                         >
                                             <div className="flex items-center">
                                                 <FolderSync />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Movement</span>
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Transfer</span>
                                             </div>
                                         </NavLink>
                                     </li>
@@ -663,6 +669,184 @@ const Sidebar: React.FC = () => {
                                             <div className="flex items-center">
                                                 <HandCoins />
                                                 <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Return</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {(
+                            hasPermission('Expense-View') ||
+                            hasPermission('Income-View')
+                        ) && (
+                            <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                <svg
+                                    className="hidden h-5 w-4 flex-none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>Expense / Income</span>
+                            </h2>
+                        )}
+
+                        {hasPermission('Expense-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/expense"
+                                            className={['expense','addexpense','editexpense'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <BanknoteArrowDown />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Expenses</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Income-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/income"
+                                            className={['income','addincome','editincome'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <BanknoteArrowUp />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Incomes</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {(
+                            hasPermission('Invoice-Report') ||
+                            hasPermission('Cancel-Invoice') ||
+                            hasPermission('Purchase-Report') ||
+                            hasPermission('Cancel-Purchase-Report') ||
+                            hasPermission('Quotation-Report') ||
+                            hasPermission('Cancel-Quotation-Report') ||
+                            hasPermission('Stock-Report') ||
+                            hasPermission('Adjustment-Report') ||
+                            hasPermission('Expense-Report') ||
+                            hasPermission('Income-Report') ||
+                            hasPermission('Payment-Report') ||
+                            hasPermission('Stock-Request-Report') ||
+                            hasPermission('Stock-Return-Report') ||
+                            hasPermission('Stock-Transfer-Report')
+                        ) && (
+                            <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                <svg
+                                    className="hidden h-5 w-4 flex-none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>Report</span>
+                            </h2>
+                        )}
+
+                        {hasPermission('Invoice-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/reportInvoice"
+                                            className={['reportInvoice'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <FilePenLine />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Invoice Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Cancel-Invoice') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/reportCancelInvoice"
+                                            className={['reportCancelInvoice'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <CircleOff />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Cancel Invoice Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Payment-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/reportPayment"
+                                            className={['reportPayment'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <CircleDollarSign />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Payment Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Quotation-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/reportQuotation"
+                                            className={['reportQuotation'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <TextQuote />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Quotation Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Purchase-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/reportPurchase"
+                                            className={['reportPurchase'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <ShoppingCart />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase Report</span>
                                             </div>
                                         </NavLink>
                                     </li>

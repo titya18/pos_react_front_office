@@ -226,7 +226,7 @@ const Branch: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="users" />
+                                    <ExportDropdown data={exportData} prefix="Branch" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (

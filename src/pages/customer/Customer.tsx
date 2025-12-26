@@ -199,7 +199,7 @@ export const Customer = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="users" />
+                                    <ExportDropdown data={exportData} prefix="Customer" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (

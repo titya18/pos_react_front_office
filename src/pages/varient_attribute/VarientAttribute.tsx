@@ -254,7 +254,7 @@ const VarientAttribute: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="users" />
+                                    <ExportDropdown data={exportData} prefix="VarientAttribute" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (

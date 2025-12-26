@@ -1,48 +1,35 @@
-// src/components/MainCategory.tsx
-import React, { useState, useEffect } from "react";
-import * as apiClient from "@/api/invoice";
-import Pagination from "../components/Pagination"; // Import the Pagination component
-import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
-import { useQueryClient } from "@tanstack/react-query";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowUpZA, faArrowDownAZ, faPrint, faClose, faSave } from '@fortawesome/free-solid-svg-icons';
-import { NavLink } from "react-router-dom";
+// src/components/ReportInvoice.tsx
+import React, { useState, useEffect, useCallback } from "react";
+import * as apiClient from "@/api/report";
+import { getAllBranches } from "@/api/branch";
+import Pagination from "../components/Pagination";
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAppContext } from "@/hooks/useAppContext";
-import { format } from 'date-fns';
-import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, NotebookText, MessageCircleOff } from 'lucide-react';
-import { InvoicePaymentType, InvoiceType } from "@/data_types/types";
-import { useSearchParams } from "react-router-dom";
+import { format } from "date-fns";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
 import ExportDropdown from "@/components/ExportDropdown";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import ShowConfirmationMessage from "../components/ShowConfirmationMessage";
-import ModalPayment from "./ModalPayment";
+import { BranchType, InvoiceType } from "@/data_types/types";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowUpZA, faArrowDownAZ, faClose, faFileInvoice,
+  faDollarSign,
+  faCircleCheck,
+  faClockRotateLeft,
+  faChartLine } from '@fortawesome/free-solid-svg-icons';
+import { NotebookText, PrinterCheck, RefreshCw } from 'lucide-react';
+import SummaryCard from "./SummaryInvoiceCard";
 
-// Extend Day.js with plugins
+// Extend Day.js
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const columns = [
-    "No",
-    "Invoice Date",
-    "Reference",
-    "Invoice Type",
-    "Customer",
-    "Branch",
-    "Status",
-    "Grand Total",
-    "Paid",
-    "Due",
-    "Approved At",
-    "Approved By",
-    "Created At",
-    "Created By",
-    "Updated At",
-    "Updated By",
-    "Actions"
+    "No", "Invoice Date", "Reference", "Invoice Type", "Customer", "Branch",
+    "Status", "Grand Total", "Paid", "Due", "Approved At", "Approved By",
+    "Created At", "Created By", "Updated At", "Updated By", "Actions"
 ];
 
 const sortFields: Record<string, string> = {
@@ -64,79 +51,137 @@ const sortFields: Record<string, string> = {
     "Updated By": "updatedBy"
 };
 
-const Invoice: React.FC = () => {
+const ReportInvoice: React.FC = () => {
+    const [branches, setBranches] = useState<BranchType[]>([]);
     const [invoiceData, setInvoiceData] = useState<InvoiceType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoadingApprove, setIsLoadingApprove] = useState(false);
-    const [isModalPaymentOpen, setIsModalPaymentOpen] = useState(false);
-    const [amountInvoice, setAmountInvoice] = useState<InvoicePaymentType | null>(null);
+    const [selected, setSelected] = useState<number[]>([]);
+    const [visibleCols, setVisibleCols] = useState(columns);
+    const [showNoteModal, setShowNoteModal] = useState(false);
+    const [viewNote, setViewNote] = useState<string | null>(null);
+    const [total, setTotal] = useState(0);
 
+    const { user, hasPermission } = useAppContext();
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
+
+    const today = dayjs().format("YYYY-MM-DD");
+
+    // FILTER STATES
+    const startDate = searchParams.get("startDate") || today;
+    const endDate = searchParams.get("endDate") || today;
+    const saleType = searchParams.get("saleType") || "ALL";
+    const status = searchParams.get("status") || "";
+    const branchId = searchParams.get("branchId") ? parseInt(searchParams.get("branchId")!, 10) : undefined;
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
     const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
     const sortField = searchParams.get("sortField") || "createdAt";
-    const rawSortOrder = searchParams.get("sortOrder");
-    const sortOrder: "desc" | "asc" = rawSortOrder === "desc" ? "desc" : "asc";
-    const [total, setTotal] = useState(0);
-    const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(columns);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
-    const [deleteMessage, setDeleteMessage] = useState("");
-    const [showNoteModal, setShowNoteModal] = useState(false);
-    const [viewNote, setViewNote] = useState<string | null>(null);
+    const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
 
+    const [summary, setSummary] = useState<{
+        totalInvoice: number;
+        totalAmount: number;
+        totalReceivedAmount: number;
+        totalRemainAmount: number;
+        totalProfit: number;
+    }>({
+        totalInvoice: 0,
+        totalAmount: 0,
+        totalReceivedAmount: 0,
+        totalRemainAmount: 0,
+        totalProfit: 0,
+    });
+
+
+    // Fetch branches (once)
+    const fetchBranches = useCallback(async () => {
+        try {
+            const data = await getAllBranches();
+            setBranches(data as BranchType[]);
+        } catch (error) {
+            console.error("Error fetching branches:", error);
+        }
+    }, []);
+
+    // Fetch invoices
+    const fetchInvoices = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const params = {
+                sortField,
+                sortOrder: sortOrder as "desc" | "asc",
+                page,
+                pageSize,
+                searchTerm: search || undefined,
+                startDate: startDate || undefined,
+                endDate: endDate || undefined,
+                saleType: (saleType !== "ALL" ? saleType : undefined) as "RETAIL" | "WHOLESALE" | undefined,
+                status: status || undefined,
+                branchId
+            };
+
+            const { data, total: totalResult, summary } = await apiClient.getAllReportInvoices(params);
+            setInvoiceData(data || []);
+            setTotal(totalResult || 0);
+            setSelected([]);
+
+            setSummary(summary || {
+                totalInvoice: 0,
+                totalAmount: 0,
+                totalReceivedAmount: 0,
+                totalRemainAmount: 0,
+                totalProfit: 0,
+            });
+        } catch (error) {
+            console.error("Error fetching invoices:", error);
+            toast.error("Failed to fetch invoices");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [sortField, sortOrder, page, pageSize, search, startDate, endDate, saleType, status, branchId]);
+
+    useEffect(() => {
+        fetchBranches();
+    }, [fetchBranches]);
+
+    useEffect(() => {
+        fetchInvoices();
+    }, [fetchInvoices]);
+
+    // Update URL params
     const updateParams = (params: Record<string, unknown>) => {
         const newParams = new URLSearchParams(searchParams.toString());
         Object.entries(params).forEach(([key, value]) => {
-            newParams.set(key, String(value));
+            if (value === undefined || value === null || value === "") {
+                newParams.delete(key);
+            } else {
+                newParams.set(key, String(value));
+            }
         });
         setSearchParams(newParams);
     };
 
-    const { hasPermission } = useAppContext();
-
-    const fetchInvoice = async () => {
-        setIsLoading(true);
-        try {
-            const { data, total } = await apiClient.getAllInvoices(
-                sortField,
-                sortOrder,
-                page,
-                search,
-                pageSize
-            );
-            setInvoiceData(data || []);
-            setTotal(total || 0);
-            setSelected([]);
-        } catch (error) {
-            console.error("Error fetching invoices:", error);
-        } finally {
-            setIsLoading(false);
-        }
+    // Filter handler
+    const handleClearAllFilter = () => {
+        navigate("/reportInvoice");
     };
 
-    useEffect(() => {
-        fetchInvoice();
-    }, [search, page, sortField, sortOrder, pageSize]);
-
     const toggleCol = (col: string) => {
-        setVisibleCols((prev) =>
-            prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col]
+        setVisibleCols(prev =>
+            prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
         );
     };
 
     const toggleSelectRow = (index: number) => {
-        setSelected((prev) =>
-            prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+        setSelected(prev =>
+            prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
         );
     };
 
     const handleSort = (col: string) => {
         const field = sortFields[col];
         if (!field) return;
-
         if (sortField === field) {
             updateParams({ sortOrder: sortOrder === "asc" ? "desc" : "asc" });
         } else {
@@ -149,14 +194,14 @@ const Invoice: React.FC = () => {
         "Invoice Date": inv.orderDate,
         "Reference": inv.ref,
         "Invoice Type": inv.OrderSaleType,
-        "Customer": inv.customers ? inv.customers.name : "N/A",
-        "Branch": inv.branch ? inv.branch.name : "",
+        "Customer": inv.customer?.name || "N/A",
+        "Branch": inv.branch?.name || "",
         "Status": inv.status,
         "Grand Total": inv.totalAmount,
         "Paid": inv.paidAmount,
-        "Due": Number(inv.totalAmount - (inv.paidAmount ?? 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','),
+        "Due": Number(inv.totalAmount - (inv.paidAmount ?? 0)).toFixed(2),
         "Approved At": inv.approvedAt ? dayjs.tz(inv.approvedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : 'N/A',
-        "Approved By": `${inv.approver?.lastName || ''} ${inv.approver?.firstName || 'N/A'}`,
+        "Approved By": `${inv.approver?.lastName || ''} ${inv.approver?.firstName || ''}`,
         "Created At": inv.createdAt ? dayjs.tz(inv.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
         "Created By": `${inv.creator?.lastName || ''} ${inv.creator?.firstName || ''}`,
         "Updated At": inv.updatedAt ? dayjs.tz(inv.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
@@ -164,101 +209,6 @@ const Invoice: React.FC = () => {
     }));
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-    const queryClient = useQueryClient();
-
-    const handleDeleteInvoice = async (id: number) => {
-        const confirmed = await ShowDeleteConfirmation();
-        if (!confirmed) return;
-
-        setDeleteInvoiceId(id);
-        setDeleteMessage("");
-        setShowDeleteModal(true);
-    };
-
-    const submitDeleteInvoice = async () => {
-        if (!deleteInvoiceId) return;
-
-        if (!deleteMessage.trim()) {
-            toast.error("Please enter delete reason");
-            return;
-        }
-
-        try {
-            await apiClient.deleteInvoice(deleteInvoiceId, deleteMessage);
-
-            toast.success("Invoice deleted successfully", {
-                position: "top-right",
-                autoClose: 4000,
-            });
-
-            setShowDeleteModal(false);
-            setDeleteInvoiceId(null);
-
-            fetchInvoice();
-        } catch (err: any) {
-            toast.error(err.message || "Error deleting invoice");
-        }
-    };
-
-    const ApprovedInvoice = async (id: number) => {
-        setIsLoadingApprove(true);
-        try {
-            const ok = await ShowConfirmationMessage("approve");
-
-            if (!ok) {
-                return;
-            }
-
-            await apiClient.ApprovedInvoice(id);
-            toast.success("Invoice has approved successfully", {
-                position: "top-right",
-                autoClose: 4000
-            })
-
-            fetchInvoice();
-        } catch (err: any) {
-            console.error("Error approving invoice:", err);
-            toast.error(err.message || "Error approving invoice", {
-                position: 'top-right',
-                autoClose: 6000
-            });
-        } finally {
-            setIsLoadingApprove(false);
-        }
-    }
-
-    const addPaymentInvoice = (paymentData: InvoicePaymentType) => {
-            setAmountInvoice(paymentData);
-            setIsModalPaymentOpen(true);
-    };
-
-    const handleOnSubmitPayment = async (branchId: number | null, orderId: number | null, paidAmount: number | null, paymentMethodId: number | null, totalPaid: number, due_balance: number) => {
-        try {
-            await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
-            const paymentData: InvoicePaymentType = {
-                branchId: branchId,
-                orderId: orderId,
-                paymentMethodId: paymentMethodId,
-                paidAmount: paidAmount,
-                totalPaid: totalPaid,
-                due_balance: due_balance,
-                createdAt: null,
-                paymentMethods: null,
-            }
-            await apiClient.insertInvoicePayment(paymentData);
-            toast.success("Purchase payment insert successfully", {
-                position: "top-right",
-                autoClose: 2000
-            });
-            fetchInvoice();
-        } catch (error: any) {
-            toast.error(error.message || "Error adding payment", {
-                position: "top-right",
-                autoClose: 2000
-            });
-        }
-    };
 
     const handleViewNote = (note: string) => {
         setViewNote(note);
@@ -271,19 +221,116 @@ const Invoice: React.FC = () => {
                 <div className="space-y-6">
                     <div className="panel">
                         <div className="relative">
-                            <div className="px-0">
-                                <div className="md:absolute md:top-0 ltr:md:left-0 rtl:md:right-0">
-                                    <div className="mb-5 flex items-center gap-2">
-                                        {hasPermission('Invoice-Create') &&
-                                            <NavLink to="/addinvoice" className="btn btn-primary gap-2" >
-                                                <Plus />
-                                                Add New
-                                            </NavLink>
-                                        }
+                            {/* ---------------- FILTERS ---------------- */}
+                            <div className="flex gap-2 mb-4 flex-wrap items-end">
+                                <div>
+                                    <label>Start Date</label>
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => {
+                                            const newStart = e.target.value;
+                                            let newEnd = endDate;
+
+                                            // Reset endDate if it's before new startDate
+                                            if (endDate && newEnd < newStart) {
+                                                newEnd = newStart;
+                                            }
+
+                                            updateParams({ startDate: newStart, endDate: newEnd, page: 1 });
+                                        }}
+                                        className="form-input"
+                                    />
+                                </div>
+                                <div>
+                                    <label>End Date</label>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        min={startDate || undefined}
+                                        onChange={(e) => updateParams({ endDate: e.target.value, page: 1 })}
+                                        className="form-input"
+                                    />
+                                </div>
+                                <div>
+                                    <label>Sale Type</label>
+                                    <select value={saleType} onChange={(e) => updateParams({ saleType: e.target.value, page: 1 })} className="form-select">
+                                        <option value="ALL">All</option>
+                                        <option value="RETAIL">Retail</option>
+                                        <option value="WHOLESALE">Wholesale</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Status</label>
+                                    <select value={status} onChange={(e) => updateParams({ status: e.target.value, page: 1 })} className="form-select">
+                                        <option value="">All</option>
+                                        <option value="PENDING">Pending</option>
+                                        <option value="APPROVED">Approved</option>
+                                        <option value="COMPLETED">Completed</option>
+                                    </select>
+                                </div>
+                                {(user?.roleType === "ADMIN" || user?.roleType === "USER") &&
+                                    <div>
+                                        <label>Branch</label>
+                                        <select value={branchId} onChange={(e) => updateParams({ branchId: Number(e.target.value) || undefined, page: 1 })} className="form-select">
+                                            <option value="">All Branches</option>
+                                            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                        </select>
                                     </div>
+                                }
+                                <div>
+                                    <button className="btn btn-primary" onClick={handleClearAllFilter}><RefreshCw /> Clear All Filter</button>
                                 </div>
                             </div>
 
+                            {/* ---------------- MODERN SUMMARY ---------------- */}
+                            <div className="mt-4 mb-4 grid grid-cols-1 sm:grid-cols-5 lg:grid-cols-5 gap-4">
+
+                                <SummaryCard
+                                    title="Total Invoices"
+                                    value={summary.totalInvoice}
+                                    icon={faFileInvoice}
+                                    color="indigo"
+                                    onClick={() => updateParams({ page: 1 })}
+                                />
+
+                                <SummaryCard
+                                    title="Total Amount"
+                                    value={summary.totalAmount}
+                                    icon={faDollarSign}
+                                    color="blue"
+                                    isCurrency
+                                    onClick={() => updateParams({ status: undefined })}
+                                />
+
+                                <SummaryCard
+                                    title="Total Received"
+                                    value={summary.totalReceivedAmount}
+                                    icon={faCircleCheck}
+                                    color="green"
+                                    isCurrency
+                                    onClick={() => updateParams({ status: "COMPLETED", page: 1 })}
+                                />
+
+                                <SummaryCard
+                                    title="Total Remaining"
+                                    value={summary.totalRemainAmount}
+                                    icon={faClockRotateLeft}
+                                    color="red"
+                                    isCurrency
+                                    onClick={() => updateParams({ status: "PENDING", page: 1 })}
+                                />
+
+                                <SummaryCard
+                                    title="Total Profit"
+                                    value={summary.totalProfit}
+                                    icon={faChartLine}
+                                    color={summary.totalProfit >= 0 ? "green" : "red"}
+                                    isCurrency
+                                    onClick={() => updateParams({ saleType: "RETAIL", page: 1 })}
+                                />
+
+                            </div>
                             <div className="dataTable-wrapper dataTable-loading no-footer sortable searchable">
                                 <div className="dataTable-top">
                                     <div className="dataTable-search">
@@ -300,7 +347,7 @@ const Invoice: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="Invoice" />
+                                    <ExportDropdown data={exportData} prefix="Report_Invoice" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (
@@ -366,20 +413,9 @@ const Invoice: React.FC = () => {
                                                             {visibleCols.includes("Status") && (
                                                                 <td>
                                                                     {rows.status === 'PENDING' ? (
-                                                                        hasPermission('Invoice-Approve') ? (
-                                                                            <span
-                                                                                className="badge rounded-full bg-warning cursor-pointer"
-                                                                                aria-disabled={isLoadingApprove}
-                                                                                onClick={() => ApprovedInvoice(Number(rows.id))}
-                                                                                title="Click to approve to invoice"
-                                                                            >
-                                                                                {isLoadingApprove ? `${rows.status}...` : rows.status}
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="badge rounded-full bg-warning">
-                                                                                {rows.status}
-                                                                            </span>
-                                                                        )
+                                                                        <span className="badge rounded-full bg-warning">
+                                                                            {rows.status}
+                                                                        </span>
                                                                     ) : rows.status === 'APPROVED' ? (
                                                                         <span className="badge rounded-full bg-primary">
                                                                             {rows.status}
@@ -435,36 +471,6 @@ const Invoice: React.FC = () => {
                                                                                 <PrinterCheck color="purple" />
                                                                             </NavLink>
                                                                         )}
-                                                                        {(rows.status === 'APPROVED' || rows.status === 'COMPLETED') &&
-                                                                            hasPermission('Invoice-Payment') &&
-                                                                                <button type="button" 
-                                                                                    className="hover:text-primary" 
-                                                                                    onClick={() => addPaymentInvoice({ 
-                                                                                        branchId: rows.branchId, 
-                                                                                        orderId: Number(rows.id), 
-                                                                                        paymentMethodId: 0, 
-                                                                                        paidAmount: rows.paidAmount,
-                                                                                        totalPaid: rows.totalAmount,
-                                                                                        createdAt: null,
-                                                                                        paymentMethods: null, 
-                                                                                    })} 
-                                                                                    title="Payment Invoice"
-                                                                                >
-                                                                                    <BanknoteArrowUp color="blue" />
-                                                                                </button>
-                                                                        }
-                                                                        {hasPermission('Invoice-Edit') &&
-                                                                            <NavLink to={`/editinvoice/${rows.id}`} className="hover:text-warning" title="Edit">
-                                                                                <Pencil color="green" />
-                                                                            </NavLink>
-                                                                        }
-                                                                        {rows.status === 'PENDING' &&
-                                                                            hasPermission('Invoice-Delete') &&
-                                                                                <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteInvoice(rows.id)} title="Delete">
-                                                                                    <Trash2 color="red" />
-                                                                                </button>
-                                                                            
-                                                                        }
                                                                     </div>
                                                                 </td>
                                                             )}
@@ -491,57 +497,6 @@ const Invoice: React.FC = () => {
                     </div>
                 </div>
             </div>
-
-            <ModalPayment 
-                isOpen={isModalPaymentOpen}
-                onClose={() => setIsModalPaymentOpen(false)}
-                onSubmit={handleOnSubmitPayment}
-                amountInvoice={amountInvoice}
-            />
-
-            {showDeleteModal && (
-                <div className="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto">
-                    <div className="flex items-center justify-center min-h-screen px-4">
-                        <div className="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-lg my-8">
-                            <div className="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
-                                <h5 className="flex font-bold text-lg">
-                                    <MessageCircleOff /> Delete Invoice
-                                </h5>
-                                <button type="button" className="text-white-dark hover:text-dark" onClick={() => setShowDeleteModal(false)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div className="p-5">
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 mb-5">
-                                    <div>
-                                        <textarea
-                                            className="form-textarea w-full"
-                                            rows={4}
-                                            placeholder="Enter reason for deleting this invoice"
-                                            value={deleteMessage}
-                                            onChange={(e) => setDeleteMessage(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                                
-                                <div className="flex justify-end items-center mt-8">
-                                    <button type="button" className="btn btn-outline-danger" onClick={() => setShowDeleteModal(false)}>
-                                        <FontAwesomeIcon icon={faClose} className='mr-1' />
-                                        Discard
-                                    </button>
-                                    <button type="submit" onClick={submitDeleteInvoice} className="btn btn-primary ltr:ml-4 rtl:mr-4">
-                                        <FontAwesomeIcon icon={faSave} className='mr-1' />
-                                        {isLoading ? 'Saving...' : 'Save'}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {showNoteModal && (
                 <div className="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto">
@@ -578,4 +533,5 @@ const Invoice: React.FC = () => {
     );
 };
 
-export default Invoice;
+export default ReportInvoice;
+

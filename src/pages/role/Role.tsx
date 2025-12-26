@@ -197,7 +197,7 @@ const Role: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="roles" />
+                                    <ExportDropdown data={exportData} prefix="Reole" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (

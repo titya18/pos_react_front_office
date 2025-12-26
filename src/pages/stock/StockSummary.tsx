@@ -186,7 +186,7 @@ const StockSummary: React.FC = () => {
                               onToggleColumn={toggleCol}
                             />
 
-                            <ExportDropdown data={exportData} prefix="users" />
+                            <ExportDropdown data={exportData} prefix="Stock" />
                         </div>
 
                         <div className="dataTable-container">

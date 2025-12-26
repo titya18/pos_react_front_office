@@ -352,9 +352,9 @@ const StockAdjustmentForm: React.FC = () => {
                                         >
                                             <option value="">Select a branch</option>
                                             {braches.map((option) => (
-                                            <option key={option.id} value={option.id}>
-                                                {option.name}
-                                            </option>
+                                                <option key={option.id} value={option.id}>
+                                                    {option.name}
+                                                </option>
                                             ))}
                                         </select>
                                         {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
-import { NavLink, useParams } from "react-router-dom";
+import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import * as apiClient from "../../api/invoice";
 import "./dateStyle.css";
@@ -502,6 +502,7 @@ const InvoiceFooter: React.FC<{ data: any }> = ({ data }) => {
 const PrintQuotation: React.FC = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   
   const [invoiceData, setInvoiceData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -652,9 +653,9 @@ const PrintQuotation: React.FC = () => {
           justifyContent: 'flex-end', 
           gap: '10px' // space between buttons
       }}>
-        <NavLink to="/invoice"
-          type="button" 
-          className="btn btn-primary"
+        <button
+          type="button"
+          onClick={() => navigate(-1)} // go back in history
           style={{
             padding: '10px 20px',
             backgroundColor: '#f1d866ff',
@@ -668,8 +669,8 @@ const PrintQuotation: React.FC = () => {
             gap: '5px' // space between icon and text
           }}
         >
-          <ArrowLeft /> Go to Invoice
-        </NavLink>
+          <ArrowLeft /> Go Back
+        </button>
 
         <button 
           type="button" 
