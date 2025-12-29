@@ -48,6 +48,12 @@ import ReportCancelInvoice from "./pages/report/ReportCancelInvoice";
 import ReportPayment from "./pages/report/ReportPayment";
 import ReportQuotation from "./pages/report/ReportQuotation";
 import ReportPurchase from "./pages/report/ReportPurchase";
+import ReportAdjustment from "./pages/report/ReportAdjustment";
+import ReportTransfer from "./pages/report/ReportTransfer";
+import ReportRequest from "./pages/report/ReportRequest";
+import ReportReturn from "./pages/report/ReportReturn";
+import ReportExpense from "./pages/report/ReportExpense";
+import ReportIncome from "./pages/report/ReportIncome";
 
 import { Customer } from "./pages/customer/Customer";
 import NotFound from "./pages/notfound/NotFount";
@@ -143,6 +149,12 @@ const App: React.FC = () => {
                         <Route path="/reportPayment" element={<PrivateRoute element={<Layout><ReportPayment /></Layout>} />} />
                         <Route path="/reportQuotation" element={<PrivateRoute element={<Layout><ReportQuotation /></Layout>} />} />
                         <Route path="/reportPurchase" element={<PrivateRoute element={<Layout><ReportPurchase /></Layout>} />} />
+                        <Route path="/reportAdjustment" element={<PrivateRoute element={<Layout><ReportAdjustment /></Layout>} />} />
+                        <Route path="/reportTransfer" element={<PrivateRoute element={<Layout><ReportTransfer /></Layout>} />} />
+                        <Route path="/reportRequest" element={<PrivateRoute element={<Layout><ReportRequest /></Layout>} />} />
+                        <Route path="/reportReturn" element={<PrivateRoute element={<Layout><ReportReturn /></Layout>} />} />
+                        <Route path="/reportExpense" element={<PrivateRoute element={<Layout><ReportExpense /></Layout>} />} />
+                        <Route path="/reportIncome" element={<PrivateRoute element={<Layout><ReportIncome /></Layout>} />} />
 
                         {/* Catch-all route for undefined paths */}
                         <Route path="*" element={<NotFound />} />

@@ -3,15 +3,15 @@ import React, { useState, useEffect, useCallback } from "react";
 import * as apiClient from "@/api/report";
 import { getAllBranches } from "@/api/branch";
 import Pagination from "../components/Pagination"; // Import the Pagination component
+import { useQueryClient } from "@tanstack/react-query";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowUpZA, faArrowDownAZ, faPrint, faClose, faSave, faFileInvoice, faDollarSign } from '@fortawesome/free-solid-svg-icons';
+import { faArrowUpZA, faArrowDownAZ, faPrint, faClose, faSave } from '@fortawesome/free-solid-svg-icons';
+import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAppContext } from "@/hooks/useAppContext";
-import { format } from 'date-fns';
-import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, NotebookText, MessageCircleOff, RefreshCw } from 'lucide-react';
-import { QuotationType, BranchType } from "@/data_types/types";
-import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
-import SummaryCard from "./SummaryInvoiceCard";
+import { format, set } from 'date-fns';
+import { NotebookText, RefreshCw } from 'lucide-react';
+import { StockAdjustmentType, BranchType } from "@/data_types/types";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
 import ExportDropdown from "@/components/ExportDropdown";
 import dayjs from "dayjs";
@@ -24,60 +24,49 @@ dayjs.extend(timezone);
 
 const columns = [
     "No",
-    "Quotation Date",
-    "Reference",
-    "Quotation Type",
-    "Customer",
+    "Rference",
+    "Adjustment Date",
     "Branch",
+    "Adjustment Type",
     "Status",
-    "Grand Total",
-    "Sent At",
-    "Sent By",
-    "INV At",
-    "INV By",
+    "Total QTY",
+    "Approved At",
+    "Approved By",
+    "Cancelled AT",
+    "Cancelled By",
+    "Cancelled Reason",
     "Created At",
     "Created By",
     "Updated At",
     "Updated By",
-    "Cancelled By",
-    "Cancelled At",
-    "Cancelled Reason",
     "Actions"
 ];
 
 const sortFields: Record<string, string> = {
     "No": "id",
-    "Quotation Date": "quotationDate",
-    "Reference": "ref",
-    "Quotation Type": "QuoteSaleType",
-    "Customer": "customerId",
+    "Rference": "ref",
+    "Adjustment Date": "adjustDate",
     "Branch": "branchId",
-    "Status": "status",
-    "Grand Total": "grandTotal",
-    "Sent At": "sentAt",
-    "Sent By": "sentBy",
-    "INV At": "invoicedAt",
-    "INV By": "invoicedBy",
+    "Adjustment Type": "adjustmentType",
+    "Status": "StatusType",
+    "Total QTY": "totalQuantity",
+    "Approved At": "approvedAt",
+    "Approved By": "approvedBy",
+    "Cancelled AT": "deletedAt",
+    "Cancelled By": "deletedBy",
+    "Cancelled Reason": "delReason",
     "Created At": "createdAt",
     "Created By": "createdBy",
     "Updated At": "updatedAt",
-    "Updated By": "updatedBy",
-    "Cancelled By": "cancelledBy",
-    "Cancelled At": "cancelledAt",
-    "Cancelled Reason": "delReason"
+    "Updated By": "updatedBy"
 };
 
-const ReportQuotation: React.FC = () => {
+const ReportAdjustment: React.FC = () => {
     const [branches, setBranches] = useState<BranchType[]>([]);
-    const [quotationData, setQuotationData] = useState<QuotationType[]>([]);
+    const [adjustmentData, setAdjustmentData] = useState<StockAdjustmentType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoadingConvert, setIsLoadingConvert] = useState(false);
-
     const [selected, setSelected] = useState<number[]>([]);
     const [visibleCols, setVisibleCols] = useState(columns);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
-    const [deleteMessage, setDeleteMessage] = useState("");
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [viewNote, setViewNote] = useState<string | null>(null);
 
@@ -87,7 +76,7 @@ const ReportQuotation: React.FC = () => {
     const today = dayjs().format("YYYY-MM-DD");
     const startDate = searchParams.get("startDate") || today;
     const endDate = searchParams.get("endDate") || today;
-    const saleType = searchParams.get("saleType") || "ALL";
+    const adjustType = searchParams.get("adjustType") || "ALL";
     const status = searchParams.get("status") || "";
     const branchId = searchParams.get("branchId") ? parseInt(searchParams.get("branchId")!, 10) : undefined;
     const search = searchParams.get("search") || "";
@@ -95,12 +84,7 @@ const ReportQuotation: React.FC = () => {
     const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
     const sortField = searchParams.get("sortField") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
-
-    const [summary, setSummary] = useState<{
-        totalQuotation: number;
-        totalAmount: number;
-    }>({ totalQuotation: 0, totalAmount: 0 });
-
+    
     const updateParams = (params: Record<string, unknown>) => {
         const newParams = new URLSearchParams(searchParams.toString());
         Object.entries(params).forEach(([key, value]) => {
@@ -122,7 +106,7 @@ const ReportQuotation: React.FC = () => {
         }
     }, []);
 
-    const fetchQuotations = useCallback(async () => {
+    const fetchAdjustments = useCallback(async () => {
         setIsLoading(true);
         try {
             const params = {
@@ -133,32 +117,31 @@ const ReportQuotation: React.FC = () => {
                 searchTerm: search || undefined,
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
-                saleType: (saleType !== "ALL" ? saleType : undefined) as "RETAIL" | "WHOLESALE" | undefined,
+                adjustType: (adjustType !== "ALL" ? adjustType : undefined) as "POSITIVE" | "NEGATIVE" | undefined,
                 status: status || undefined,
                 branchId
             };
 
-            const { data, total: totalResult, summary } = await apiClient.getAllReportQuotations(params);
-            setQuotationData(data || []);
+            const { data, total: totalResult } = await apiClient.getAllReportAdjustments(params);
+            setAdjustmentData(data || []);
             setTotal(totalResult || 0);
             setSelected([]);
-            setSummary(summary || { totalQuotation: 0, totalAmount: 0 });
         } catch (error) {
-            console.error("Error fetching quotations:", error);
-            toast.error("Failed to fetch quotations.");
+            console.error("Error fetching adjustments report:", error);
+            toast.error("Failed to fetch adjustments report.");
         } finally {
             setIsLoading(false);
         }
-    }, [sortField, sortOrder, page, pageSize, search, startDate, endDate, saleType, status, branchId]);
+    }, [sortField, sortOrder, page, pageSize, search, startDate, endDate, adjustType, status, branchId]);
 
     useEffect(() => {
         fetchBranches();
-        fetchQuotations();
-    }, [fetchBranches, fetchQuotations]);
+        fetchAdjustments();
+    }, [fetchBranches, fetchAdjustments]);
 
     // Filter handler
     const handleClearAllFilter = () => {
-        navigate("/reportQuotation");
+        navigate("/reportAdjustment");
     };
 
     const toggleCol = (col: string) => {
@@ -183,29 +166,28 @@ const ReportQuotation: React.FC = () => {
         }
     };
 
-    const exportData = quotationData.map((quote, index) => ({
+    const exportData = adjustmentData.map((adjust, index) => ({
         "No": (page - 1) * pageSize + index + 1,
-        "Quotation Date": quote.quotationDate,
-        "Reference": quote.ref,
-        "Quotation Type": quote.QuoteSaleType,
-        "Customer": quote.customers ? quote.customers.name : "N/A",
-        "Branch": quote.branch ? quote.branch.name : "",
-        "Status": quote.status,
-        "Grand Total": quote.grandTotal,
-        "Sent At": quote.sentAt ? dayjs.tz(quote.sentAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Sent By": quote.sentAt ? `${quote.sender?.lastName || ''} ${quote.sender?.firstName || ''}` : '',
-        "INV At": quote.invoicedAt ? dayjs.tz(quote.invoicedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "INV By": quote.invoicedAt ? `${quote.invoicer?.lastName || ''} ${quote.invoicer?.firstName || ''}` : '',
-        "Created At": quote.createdAt ? dayjs.tz(quote.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Created By": `${quote.creator?.lastName || ''} ${quote.creator?.firstName || ''}`,
-        "Updated At": quote.updatedAt ? dayjs.tz(quote.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Updated By": `${quote.updater?.lastName || ''} ${quote.updater?.firstName || ''}`,
-        "Cancelled At": quote.deletedAt ? dayjs.tz(quote.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Cancelled By": quote.deletedAt ? `${quote.deleter?.lastName || ''} ${quote.deleter?.firstName || ''}` : '',
-        "Cancelled Reason": quote.delReason || ''
+        "Rference": adjust.ref,
+        "Adjustment Date": adjust.adjustDate,
+        "Branch": adjust.branch ? adjust.branch.name : "",
+        "Adjustment Type": adjust.AdjustMentType,
+        "Status": adjust.StatusType,
+        "Total QTY": adjust.totalQuantity,
+        "Approved At": adjust.approvedAt ? dayjs.tz(adjust.approvedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : 'N/A',
+        "Approved By": adjust.approvedAt ? `${adjust.approver?.lastName || ''} ${adjust.approver?.firstName || 'N/A'}` : 'N/A',
+        "Cancelled AT": adjust.deletedAt ? dayjs.tz(adjust.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Cancelled By": adjust.deletedAt ? `${adjust.deleter?.lastName || ''} ${adjust.deleter?.firstName || ''}` : '',
+        "Cancelled Reason": adjust.delReason || '',
+        "Created At": adjust.createdAt ? dayjs.tz(adjust.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Created By": `${adjust.creator?.lastName || ''} ${adjust.creator?.firstName || ''}`,
+        "Updated At": adjust.updatedAt ? dayjs.tz(adjust.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Updated By": `${adjust.updater?.lastName || ''} ${adjust.updater?.firstName || ''}`,
     }));
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+    const queryClient = useQueryClient();
 
     const handleViewNote = (note: string) => {
         setViewNote(note);
@@ -250,11 +232,11 @@ const ReportQuotation: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label>Quotation Type</label>
-                                    <select value={saleType} onChange={(e) => updateParams({ saleType: e.target.value, page: 1 })} className="form-select">
+                                    <label>Adjustment Type</label>
+                                    <select value={adjustType} onChange={(e) => updateParams({ adjustType: e.target.value, page: 1 })} className="form-select">
                                         <option value="ALL">All</option>
-                                        <option value="RETAIL">Retail</option>
-                                        <option value="WHOLESALE">Wholesale</option>
+                                        <option value="POSITIVE">Positive</option>
+                                        <option value="NEGATIVE">Negative</option>
                                     </select>
                                 </div>
                                 <div>
@@ -262,8 +244,7 @@ const ReportQuotation: React.FC = () => {
                                     <select value={status} onChange={(e) => updateParams({ status: e.target.value, page: 1 })} className="form-select">
                                         <option value="">All</option>
                                         <option value="PENDING">Pending</option>
-                                        <option value="SENT">Sent</option>
-                                        <option value="INVOICED">Invoiced</option>
+                                        <option value="APPROVED">Approved</option>
                                         <option value="CANCELLED">Cancelled</option>
                                     </select>
                                 </div>
@@ -279,23 +260,6 @@ const ReportQuotation: React.FC = () => {
                                 <div>
                                     <button className="btn btn-primary" onClick={handleClearAllFilter}><RefreshCw /> Clear All Filter</button>
                                 </div>
-                            </div>
-
-                            {/* ---------------- SUMMARY ---------------- */}
-                            <div className="mt-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-                                <SummaryCard
-                                    title="Total Quotation"
-                                    value={summary.totalQuotation}
-                                    icon={faFileInvoice}
-                                    color="indigo"
-                                />
-                                <SummaryCard
-                                    title="Total Amount"
-                                    value={summary.totalAmount}
-                                    icon={faDollarSign}
-                                    color="green"
-                                    isCurrency
-                                />
                             </div>
 
                             <div className="dataTable-wrapper dataTable-loading no-footer sortable searchable">
@@ -314,7 +278,7 @@ const ReportQuotation: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="Report_Quotation" />
+                                    <ExportDropdown data={exportData} prefix="Stock_Adjustment_report" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (
@@ -349,69 +313,52 @@ const ReportQuotation: React.FC = () => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {quotationData && quotationData.length > 0 ? (
-                                                    quotationData.map((rows, index) => (
+                                                {adjustmentData && adjustmentData.length > 0 ? (
+                                                    adjustmentData.map((rows, index) => (
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
                                                             )}
-                                                            {visibleCols.includes("Quotation Date") && (
-                                                                <td>{rows.quotationDate ? format(new Date(rows.quotationDate), 'dd-MMM-yyyy') : ''}</td>
-                                                            )}
-                                                            {visibleCols.includes("Reference") && (
+                                                            {visibleCols.includes("Rference") && (
                                                                 <td>{rows.ref}</td>
                                                             )}
-                                                            {visibleCols.includes("Quotation Type") && (
-                                                                <td>
-                                                                    <span
-                                                                        className={`badge rounded-full px-3 py-1 font-medium cursor-default text-white`}
-                                                                        style={{ backgroundColor: rows.QuoteSaleType === "WHOLESALE" ? "#F39EB6" : "#a855f7" }}
-                                                                    >
-                                                                        {rows.QuoteSaleType}
-                                                                    </span>
-                                                                </td>
-                                                            )}
-                                                            {visibleCols.includes("Customer") && (
-                                                                <td>{rows.customer?.name || "N/A"}</td>
+                                                            {visibleCols.includes("Adjustment Date") && (
+                                                                <td>{rows.adjustDate ? format(new Date(rows.adjustDate), 'dd-MMM-yyyy') : ''}</td>
                                                             )}
                                                             {visibleCols.includes("Branch") && (
                                                                 <td>{rows.branch ? rows.branch.name : ""}</td>
                                                             )}
-                                                            {visibleCols.includes("Status") && (
+                                                            {visibleCols.includes("Adjustment Type") && (
                                                                 <td>
-                                                                    {rows.status === 'PENDING' ? (
-                                                                        <span className="badge rounded-full bg-warning">
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    ) : rows.status === 'SENT' ? (
-                                                                            <span className="badge rounded-full bg-primary">
-                                                                                {rows.status}
-                                                                            </span>
-                                                                    ) : rows.status === 'CANCELLED' ? (
-                                                                        <span className="badge rounded-full bg-danger" title={rows.delReason}>
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="badge rounded-full bg-success">
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    )}
+                                                                    <span className={`badge rounded-full ${rows.AdjustMentType === 'POSITIVE' ? 'bg-primary' : 'bg-danger'}`} title={rows.delReason}>
+                                                                        {rows.AdjustMentType}
+                                                                    </span>
                                                                 </td>
                                                             )}
-                                                            {visibleCols.includes("Grand Total") && (
-                                                                <td style={{color: "blue"}}>$ { Number(rows.grandTotal).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
+                                                            {visibleCols.includes("Status") && (
+                                                                <td>
+                                                                    <span className={`badge rounded-full ${rows.StatusType === 'PENDING' ? 'bg-warning' : rows.StatusType === 'APPROVED' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>
+                                                                        {rows.StatusType}
+                                                                    </span>
+                                                                </td>
                                                             )}
-                                                            {visibleCols.includes("Sent At") && (
-                                                                <td>{rows.sentAt ? dayjs.tz(rows.sentAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
+                                                            {visibleCols.includes("Total QTY") && (
+                                                                <td>{rows.totalQuantity}</td>
                                                             )}
-                                                            {visibleCols.includes("Sent By") && (
-                                                                <td>{rows.sentAt ? `${rows.sender?.lastName} ${rows.sender?.firstName}` : "N/A"}</td>
+                                                            {visibleCols.includes("Approved At") && (
+                                                                <td>{rows.approvedAt ? dayjs.tz(rows.approvedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
                                                             )}
-                                                            {visibleCols.includes("INV At") && (
-                                                                <td>{rows.invoicedAt ? dayjs.tz(rows.invoicedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
+                                                            {visibleCols.includes("Approved By") && (
+                                                                <td>{rows.approvedAt ? `${rows.approver?.lastName} ${rows.approver?.firstName}` : "N/A"}</td>
                                                             )}
-                                                            {visibleCols.includes("INV By") && (
-                                                                <td>{rows.invoicedAt ? `${rows.invoicer?.lastName} ${rows.invoicer?.firstName}` : "N/A"}</td>
+                                                            {visibleCols.includes("Cancelled AT") && (
+                                                                <td>{rows.deletedAt ? dayjs.tz(rows.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : ''}</td>
+                                                            )}
+                                                            {visibleCols.includes("Cancelled By") && (
+                                                                <td>{rows.deletedAt ? `${rows.deleter?.lastName} ${rows.deleter?.firstName}` : ''}</td>
+                                                            )}
+                                                            {visibleCols.includes("Cancelled Reason") && (
+                                                                <td>{rows.delReason || ''}</td>
                                                             )}
                                                             {visibleCols.includes("Created At") && (
                                                                 <td>{dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss")}</td>
@@ -425,15 +372,6 @@ const ReportQuotation: React.FC = () => {
                                                             {visibleCols.includes("Updated By") && (
                                                                 <td>{rows.updater?.lastName} {rows.updater?.firstName}</td>
                                                             )}
-                                                            {visibleCols.includes("Cancelled At") && (
-                                                                <td>{rows.deletedAt ? dayjs.tz(rows.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
-                                                            )}
-                                                            {visibleCols.includes("Cancelled By") && (
-                                                                <td>{rows.deleter?.lastName} {rows.deleter?.firstName}</td>
-                                                            )}
-                                                            {visibleCols.includes("Cancelled Reason") && (
-                                                                <td>{rows.delReason || "N/A"}</td>
-                                                            )}
                                                             {visibleCols.includes("Actions") && (
                                                                 <td className="text-center">
                                                                     <div className="flex items-center justify-center gap-2">
@@ -442,11 +380,6 @@ const ReportQuotation: React.FC = () => {
                                                                                 <NotebookText color="pink" />
                                                                             </button>
                                                                         }
-                                                                        {hasPermission('Quotation-Print') && (rows.status === 'SENT' || rows.status === 'INVOICED') && (
-                                                                            <NavLink to={`/printquotation/${rows.id}`} className="hover:text-warning" title="Print Quotation">
-                                                                                <PrinterCheck color="purple" />
-                                                                            </NavLink>
-                                                                        )}
                                                                     </div>
                                                                 </td>
                                                             )}
@@ -454,7 +387,7 @@ const ReportQuotation: React.FC = () => {
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={3}>No Quotation Found!</td>
+                                                        <td colSpan={3}>No Stock Adjustment Report Found!</td>
                                                     </tr>
                                                 )}
                                             </tbody>
@@ -509,4 +442,4 @@ const ReportQuotation: React.FC = () => {
     );
 };
 
-export default ReportQuotation;
+export default ReportAdjustment;

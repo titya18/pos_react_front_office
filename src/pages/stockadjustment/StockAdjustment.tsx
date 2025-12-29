@@ -25,6 +25,7 @@ dayjs.extend(timezone);
 
 const columns = [
     "No",
+    "Rference",
     "Adjustment Date",
     "Branch",
     "Adjustment Type",
@@ -40,6 +41,7 @@ const columns = [
 
 const sortFields: Record<string, string> = {
     "No": "id",
+    "Rference": "ref",
     "Adjustment Date": "adjustDate",
     "Branch": "branchId",
     "Adjustment Type": "adjustmentType",
@@ -131,6 +133,7 @@ const StockAdjustment: React.FC = () => {
 
     const exportData = adjustmentData.map((adjust, index) => ({
         "No": (page - 1) * pageSize + index + 1,
+        "Rference": adjust.ref,
         "Adjustment Date": adjust.adjustDate,
         "Branch": adjust.branch ? adjust.branch.name : "",
         "Adjustment Type": adjust.AdjustMentType,
@@ -261,6 +264,9 @@ const StockAdjustment: React.FC = () => {
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
+                                                            )}
+                                                            {visibleCols.includes("Rference") && (
+                                                                <td>{rows.ref}</td>
                                                             )}
                                                             {visibleCols.includes("Adjustment Date") && (
                                                                 <td>{rows.adjustDate ? format(new Date(rows.adjustDate), 'dd-MMM-yyyy') : ''}</td>

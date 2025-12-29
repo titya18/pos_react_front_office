@@ -25,6 +25,7 @@ dayjs.extend(timezone);
 
 const columns = [
     "No",
+    "Rference",
     "Transfer Date",
     "Branch",
     "To Branch",
@@ -40,6 +41,7 @@ const columns = [
 
 const sortFields: Record<string, string> = {
     "No": "id",
+    "Rference": "ref",
     "Adjustment Date": "adjustDate",
     "Branch": "branchId",
     "To Branch": "toBranchId",
@@ -131,6 +133,7 @@ const StockTransfer: React.FC = () => {
 
     const exportData = transferData.map((transfer, index) => ({
         "No": (page - 1) * pageSize + index + 1,
+        "Rference": transfer.ref,
         "Transfer Date": transfer.transferDate,
         "Branch": transfer.branch ? transfer.branch.name : "",
         "To Branch": transfer.toBranch ? transfer.toBranch.name : "",
@@ -261,6 +264,9 @@ const StockTransfer: React.FC = () => {
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
+                                                            )}
+                                                            {visibleCols.includes("Rference") && (
+                                                                <td>{rows.ref}</td>
                                                             )}
                                                             {visibleCols.includes("Transfer Date") && (
                                                                 <td>{rows.transferDate ? format(new Date(rows.transferDate), 'dd-MMM-yyyy') : ''}</td>

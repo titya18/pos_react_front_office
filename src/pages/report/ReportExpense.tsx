@@ -1,85 +1,80 @@
-// src/components/MainCategory.tsx
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import * as apiClient from "@/api/report";
 import { getAllBranches } from "@/api/branch";
-import Pagination from "../components/Pagination"; // Import the Pagination component
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowUpZA, faArrowDownAZ, faPrint, faClose, faSave, faFileInvoice, faDollarSign } from '@fortawesome/free-solid-svg-icons';
-import { toast } from "react-toastify";
-import { useAppContext } from "@/hooks/useAppContext";
-import { format } from 'date-fns';
-import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, NotebookText, MessageCircleOff, RefreshCw } from 'lucide-react';
-import { QuotationType, BranchType } from "@/data_types/types";
 import { NavLink, useNavigate, useSearchParams } from "react-router-dom";
-import SummaryCard from "./SummaryInvoiceCard";
+import { useAppContext } from "../../hooks/useAppContext";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowUpZA, faArrowDownAZ, faClose, faSave } from '@fortawesome/free-solid-svg-icons';
+import Pagination from "../components/Pagination";
+import { ExpenseType, BranchType } from "@/data_types/types";
+import { toast } from "react-toastify";
+import { useQueryClient } from "@tanstack/react-query";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
 import ExportDropdown from "@/components/ExportDropdown";
+import { MessageCircleOff, NotebookText, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
+import { format } from 'date-fns';
+import { set } from "date-fns";
 
 // Extend Day.js with plugins
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+type ViewNotePayload = {
+    delReason: string | null;
+    createdBy?: {
+        id: number | undefined;
+        name: string;
+    };
+    createdAt?: Date;
+};
+
 const columns = [
     "No",
-    "Quotation Date",
     "Reference",
-    "Quotation Type",
-    "Customer",
+    "Expense Date",
     "Branch",
-    "Status",
-    "Grand Total",
-    "Sent At",
-    "Sent By",
-    "INV At",
-    "INV By",
+    "Expense Name",
+    "Amount",
+    "Description",
     "Created At",
     "Created By",
     "Updated At",
     "Updated By",
-    "Cancelled By",
     "Cancelled At",
+    "Cancelled By",
     "Cancelled Reason",
     "Actions"
 ];
 
 const sortFields: Record<string, string> = {
     "No": "id",
-    "Quotation Date": "quotationDate",
     "Reference": "ref",
-    "Quotation Type": "QuoteSaleType",
-    "Customer": "customerId",
+    "Expense Date": "expenseDate",
     "Branch": "branchId",
-    "Status": "status",
-    "Grand Total": "grandTotal",
-    "Sent At": "sentAt",
-    "Sent By": "sentBy",
-    "INV At": "invoicedAt",
-    "INV By": "invoicedBy",
+    "Expense Name": "name",
+    "Amount": "amount",
+    "Description": "description",
     "Created At": "createdAt",
     "Created By": "createdBy",
     "Updated At": "updatedAt",
     "Updated By": "updatedBy",
-    "Cancelled By": "cancelledBy",
-    "Cancelled At": "cancelledAt",
+    "Cancelled At": "deletedAt",
+    "Cancelled By": "deletedBy",
     "Cancelled Reason": "delReason"
 };
 
-const ReportQuotation: React.FC = () => {
+const ReportExpense: React.FC = () => {
     const [branches, setBranches] = useState<BranchType[]>([]);
-    const [quotationData, setQuotationData] = useState<QuotationType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoadingConvert, setIsLoadingConvert] = useState(false);
-
+    const [expenses, setExpenses] = useState<ExpenseType[]>([]);
+    const [showNoteModal, setShowNoteModal] = useState(false);
+    const [viewNote, setViewNote] = useState<ViewNotePayload | null>(null);
     const [selected, setSelected] = useState<number[]>([]);
     const [visibleCols, setVisibleCols] = useState(columns);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
-    const [deleteMessage, setDeleteMessage] = useState("");
-    const [showNoteModal, setShowNoteModal] = useState(false);
-    const [viewNote, setViewNote] = useState<string | null>(null);
 
     // FILTER STATES
     const [total, setTotal] = useState(0);
@@ -87,7 +82,7 @@ const ReportQuotation: React.FC = () => {
     const today = dayjs().format("YYYY-MM-DD");
     const startDate = searchParams.get("startDate") || today;
     const endDate = searchParams.get("endDate") || today;
-    const saleType = searchParams.get("saleType") || "ALL";
+    const adjustType = searchParams.get("adjustType") || "ALL";
     const status = searchParams.get("status") || "";
     const branchId = searchParams.get("branchId") ? parseInt(searchParams.get("branchId")!, 10) : undefined;
     const search = searchParams.get("search") || "";
@@ -95,11 +90,6 @@ const ReportQuotation: React.FC = () => {
     const pageSize = parseInt(searchParams.get("pageSize") || "10", 10);
     const sortField = searchParams.get("sortField") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
-
-    const [summary, setSummary] = useState<{
-        totalQuotation: number;
-        totalAmount: number;
-    }>({ totalQuotation: 0, totalAmount: 0 });
 
     const updateParams = (params: Record<string, unknown>) => {
         const newParams = new URLSearchParams(searchParams.toString());
@@ -122,7 +112,7 @@ const ReportQuotation: React.FC = () => {
         }
     }, []);
 
-    const fetchQuotations = useCallback(async () => {
+    const fetchExpenses = useCallback(async () => {
         setIsLoading(true);
         try {
             const params = {
@@ -133,32 +123,30 @@ const ReportQuotation: React.FC = () => {
                 searchTerm: search || undefined,
                 startDate: startDate || undefined,
                 endDate: endDate || undefined,
-                saleType: (saleType !== "ALL" ? saleType : undefined) as "RETAIL" | "WHOLESALE" | undefined,
                 status: status || undefined,
                 branchId
             };
 
-            const { data, total: totalResult, summary } = await apiClient.getAllReportQuotations(params);
-            setQuotationData(data || []);
+            const { data, total: totalResult } = await apiClient.getAllReportExpenses(params);
+            setExpenses(data || []);
             setTotal(totalResult || 0);
             setSelected([]);
-            setSummary(summary || { totalQuotation: 0, totalAmount: 0 });
         } catch (error) {
-            console.error("Error fetching quotations:", error);
-            toast.error("Failed to fetch quotations.");
+            console.error("Error fetching expense report:", error);
+            toast.error("Failed to fetch expense report.");
         } finally {
             setIsLoading(false);
         }
-    }, [sortField, sortOrder, page, pageSize, search, startDate, endDate, saleType, status, branchId]);
+    }, [sortField, sortOrder, page, pageSize, search, startDate, endDate, status, branchId]);
 
     useEffect(() => {
         fetchBranches();
-        fetchQuotations();
-    }, [fetchBranches, fetchQuotations]);
+        fetchExpenses();
+    }, [fetchBranches, fetchExpenses]);
 
     // Filter handler
     const handleClearAllFilter = () => {
-        navigate("/reportQuotation");
+        navigate("/reportExpense");
     };
 
     const toggleCol = (col: string) => {
@@ -183,32 +171,29 @@ const ReportQuotation: React.FC = () => {
         }
     };
 
-    const exportData = quotationData.map((quote, index) => ({
+    const exportData = expenses.map((exp, index) => ({
         "No": (page - 1) * pageSize + index + 1,
-        "Quotation Date": quote.quotationDate,
-        "Reference": quote.ref,
-        "Quotation Type": quote.QuoteSaleType,
-        "Customer": quote.customers ? quote.customers.name : "N/A",
-        "Branch": quote.branch ? quote.branch.name : "",
-        "Status": quote.status,
-        "Grand Total": quote.grandTotal,
-        "Sent At": quote.sentAt ? dayjs.tz(quote.sentAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Sent By": quote.sentAt ? `${quote.sender?.lastName || ''} ${quote.sender?.firstName || ''}` : '',
-        "INV At": quote.invoicedAt ? dayjs.tz(quote.invoicedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "INV By": quote.invoicedAt ? `${quote.invoicer?.lastName || ''} ${quote.invoicer?.firstName || ''}` : '',
-        "Created At": quote.createdAt ? dayjs.tz(quote.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Created By": `${quote.creator?.lastName || ''} ${quote.creator?.firstName || ''}`,
-        "Updated At": quote.updatedAt ? dayjs.tz(quote.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Updated By": `${quote.updater?.lastName || ''} ${quote.updater?.firstName || ''}`,
-        "Cancelled At": quote.deletedAt ? dayjs.tz(quote.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Cancelled By": quote.deletedAt ? `${quote.deleter?.lastName || ''} ${quote.deleter?.firstName || ''}` : '',
-        "Cancelled Reason": quote.delReason || ''
+        "Reference": exp.ref,
+        "Expense Date": exp.expenseDate,
+        "Branch": exp.branch ? exp.branch.name : "",
+        "Expense Name": exp.name,
+        "Amount": `$ ${exp.amount}`,
+        "Description": exp.description,
+        "Created At": exp.createdAt ? dayjs.tz(exp.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Created By": `${exp.creator?.lastName || ''} ${exp.creator?.firstName || ''}`,
+        "Updated At": exp.updatedAt ? dayjs.tz(exp.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Updated By": `${exp.updater?.lastName || ''} ${exp.updater?.firstName || ''}`,
+        "Cancelled At": exp.deletedAt ? dayjs.tz(exp.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Cancelled By": exp.deletedAt ? `${exp.deleter?.lastName || ''} ${exp.deleter?.firstName || ''}` : '',
+        "Cancelled Reason": exp.delReason || ''
     }));
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-    const handleViewNote = (note: string) => {
-        setViewNote(note);
+    const queryClient = useQueryClient();
+
+    const handleViewNote = (payload: ViewNotePayload) => {
+        setViewNote(payload);
         setShowNoteModal(true);
     };
 
@@ -249,24 +234,6 @@ const ReportQuotation: React.FC = () => {
                                         className="form-input"
                                     />
                                 </div>
-                                <div>
-                                    <label>Quotation Type</label>
-                                    <select value={saleType} onChange={(e) => updateParams({ saleType: e.target.value, page: 1 })} className="form-select">
-                                        <option value="ALL">All</option>
-                                        <option value="RETAIL">Retail</option>
-                                        <option value="WHOLESALE">Wholesale</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label>Status</label>
-                                    <select value={status} onChange={(e) => updateParams({ status: e.target.value, page: 1 })} className="form-select">
-                                        <option value="">All</option>
-                                        <option value="PENDING">Pending</option>
-                                        <option value="SENT">Sent</option>
-                                        <option value="INVOICED">Invoiced</option>
-                                        <option value="CANCELLED">Cancelled</option>
-                                    </select>
-                                </div>
                                 {(user?.roleType === "ADMIN" || user?.roleType === "USER") &&
                                     <div>
                                         <label>Branch</label>
@@ -279,23 +246,6 @@ const ReportQuotation: React.FC = () => {
                                 <div>
                                     <button className="btn btn-primary" onClick={handleClearAllFilter}><RefreshCw /> Clear All Filter</button>
                                 </div>
-                            </div>
-
-                            {/* ---------------- SUMMARY ---------------- */}
-                            <div className="mt-4 mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-                                <SummaryCard
-                                    title="Total Quotation"
-                                    value={summary.totalQuotation}
-                                    icon={faFileInvoice}
-                                    color="indigo"
-                                />
-                                <SummaryCard
-                                    title="Total Amount"
-                                    value={summary.totalAmount}
-                                    icon={faDollarSign}
-                                    color="green"
-                                    isCurrency
-                                />
                             </div>
 
                             <div className="dataTable-wrapper dataTable-loading no-footer sortable searchable">
@@ -314,7 +264,7 @@ const ReportQuotation: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="Report_Quotation" />
+                                    <ExportDropdown data={exportData} prefix="Expense_Report" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (
@@ -349,69 +299,29 @@ const ReportQuotation: React.FC = () => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {quotationData && quotationData.length > 0 ? (
-                                                    quotationData.map((rows, index) => (
+                                            {expenses && expenses.length > 0 ? (
+                                                    expenses.map((rows, index) => (
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
                                                             )}
-                                                            {visibleCols.includes("Quotation Date") && (
-                                                                <td>{rows.quotationDate ? format(new Date(rows.quotationDate), 'dd-MMM-yyyy') : ''}</td>
-                                                            )}
                                                             {visibleCols.includes("Reference") && (
                                                                 <td>{rows.ref}</td>
                                                             )}
-                                                            {visibleCols.includes("Quotation Type") && (
-                                                                <td>
-                                                                    <span
-                                                                        className={`badge rounded-full px-3 py-1 font-medium cursor-default text-white`}
-                                                                        style={{ backgroundColor: rows.QuoteSaleType === "WHOLESALE" ? "#F39EB6" : "#a855f7" }}
-                                                                    >
-                                                                        {rows.QuoteSaleType}
-                                                                    </span>
-                                                                </td>
-                                                            )}
-                                                            {visibleCols.includes("Customer") && (
-                                                                <td>{rows.customer?.name || "N/A"}</td>
+                                                            {visibleCols.includes("Expense Date") && (
+                                                                <td>{rows.expenseDate ? format(new Date(rows.expenseDate), 'dd-MMM-yyyy') : ''}</td>
                                                             )}
                                                             {visibleCols.includes("Branch") && (
-                                                                <td>{rows.branch ? rows.branch.name : ""}</td>
+                                                                <td>{rows.branch?.name || ''}</td>
                                                             )}
-                                                            {visibleCols.includes("Status") && (
-                                                                <td>
-                                                                    {rows.status === 'PENDING' ? (
-                                                                        <span className="badge rounded-full bg-warning">
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    ) : rows.status === 'SENT' ? (
-                                                                            <span className="badge rounded-full bg-primary">
-                                                                                {rows.status}
-                                                                            </span>
-                                                                    ) : rows.status === 'CANCELLED' ? (
-                                                                        <span className="badge rounded-full bg-danger" title={rows.delReason}>
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="badge rounded-full bg-success">
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    )}
-                                                                </td>
+                                                            {visibleCols.includes("Expense Name") && (
+                                                                <td>{rows.name}</td>
                                                             )}
-                                                            {visibleCols.includes("Grand Total") && (
-                                                                <td style={{color: "blue"}}>$ { Number(rows.grandTotal).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
+                                                            {visibleCols.includes("Amount") && (
+                                                                <td>$ {rows.amount}</td>
                                                             )}
-                                                            {visibleCols.includes("Sent At") && (
-                                                                <td>{rows.sentAt ? dayjs.tz(rows.sentAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
-                                                            )}
-                                                            {visibleCols.includes("Sent By") && (
-                                                                <td>{rows.sentAt ? `${rows.sender?.lastName} ${rows.sender?.firstName}` : "N/A"}</td>
-                                                            )}
-                                                            {visibleCols.includes("INV At") && (
-                                                                <td>{rows.invoicedAt ? dayjs.tz(rows.invoicedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
-                                                            )}
-                                                            {visibleCols.includes("INV By") && (
-                                                                <td>{rows.invoicedAt ? `${rows.invoicer?.lastName} ${rows.invoicer?.firstName}` : "N/A"}</td>
+                                                            {visibleCols.includes("Description") && (
+                                                                <td>{rows.description}</td>
                                                             )}
                                                             {visibleCols.includes("Created At") && (
                                                                 <td>{dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss")}</td>
@@ -426,26 +336,35 @@ const ReportQuotation: React.FC = () => {
                                                                 <td>{rows.updater?.lastName} {rows.updater?.firstName}</td>
                                                             )}
                                                             {visibleCols.includes("Cancelled At") && (
-                                                                <td>{rows.deletedAt ? dayjs.tz(rows.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
+                                                                <td>{rows.deletedAt ? dayjs.tz(rows.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : ''}</td>
                                                             )}
                                                             {visibleCols.includes("Cancelled By") && (
-                                                                <td>{rows.deleter?.lastName} {rows.deleter?.firstName}</td>
+                                                                <td>{rows.deletedAt ? `${rows.deleter?.lastName} ${rows.deleter?.firstName}` : ''}</td>
                                                             )}
                                                             {visibleCols.includes("Cancelled Reason") && (
-                                                                <td>{rows.delReason || "N/A"}</td>
+                                                                <td>{rows.delReason || ''}</td>
                                                             )}
                                                             {visibleCols.includes("Actions") && (
                                                                 <td className="text-center">
-                                                                    <div className="flex items-center justify-center gap-2">
-                                                                        {rows.note !== null &&
-                                                                            <button type="button" className="hover:text-danger" onClick={() => handleViewNote(rows.note)} title="View Note">
+                                                                    <div className="flex gap-2">
+                                                                        {rows.deletedAt !== null && (
+                                                                            <button
+                                                                                type="button"
+                                                                                className="hover:text-danger"
+                                                                                onClick={() =>
+                                                                                    handleViewNote({
+                                                                                        delReason: rows.delReason,
+                                                                                        createdBy: {
+                                                                                            id: rows.creator?.id,
+                                                                                            name: `${rows.creator?.lastName} ${rows.creator?.firstName}`,
+                                                                                        },
+                                                                                        createdAt: rows.deletedAt,
+                                                                                    })
+                                                                                }
+                                                                                title="View Note"
+                                                                            >
                                                                                 <NotebookText color="pink" />
                                                                             </button>
-                                                                        }
-                                                                        {hasPermission('Quotation-Print') && (rows.status === 'SENT' || rows.status === 'INVOICED') && (
-                                                                            <NavLink to={`/printquotation/${rows.id}`} className="hover:text-warning" title="Print Quotation">
-                                                                                <PrinterCheck color="purple" />
-                                                                            </NavLink>
                                                                         )}
                                                                     </div>
                                                                 </td>
@@ -454,7 +373,7 @@ const ReportQuotation: React.FC = () => {
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={3}>No Quotation Found!</td>
+                                                        <td colSpan={3}>No Expense Found!</td>
                                                     </tr>
                                                 )}
                                             </tbody>
@@ -480,7 +399,7 @@ const ReportQuotation: React.FC = () => {
                         <div className="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-lg my-8">
                             <div className="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
                                 <h5 className="flex font-bold text-lg">
-                                    <NotebookText color="pink" /> View note
+                                    <NotebookText color="pink" /> View delete message
                                 </h5>
                                 <button type="button" className="text-white-dark hover:text-dark" onClick={() => setShowNoteModal(false)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
@@ -490,9 +409,35 @@ const ReportQuotation: React.FC = () => {
                                 </button>
                             </div>
                             <div className="p-5">
-                                <div className="mb-5">
-                                    {viewNote || "No note available"}
+                                <div className="mb-6">
+                                    {/* Message */}
+                                    <div className="rounded-md bg-gray-100 dark:bg-[#1e293b] p-4">
+                                        <p className="text-sm text-gray-800 dark:text-gray-100 leading-relaxed whitespace-pre-line">
+                                            {viewNote?.delReason || "No delete reason provided."}
+                                        </p>
+                                    </div>
+
+                                    {/* Meta info */}
+                                    <div className="mt-4 text-xs text-gray-500 dark:text-gray-400 space-y-1">
+
+                                        {viewNote?.createdBy && (
+                                            <div>
+                                                Deleted by{" "}
+                                                <span className="font-medium text-gray-700 dark:text-gray-300">
+                                                    {viewNote.createdBy.name}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {viewNote?.createdAt && (
+                                            <div>
+                                                {dayjs(viewNote.createdAt).format("DD MMM YYYY • HH:mm")}
+                                            </div>
+                                        )}
+
+                                    </div>
                                 </div>
+
                                 
                                 <div className="flex justify-end items-center mt-8">
                                     <button type="button" className="btn btn-outline-danger" onClick={() => setShowNoteModal(false)}>
@@ -509,4 +454,4 @@ const ReportQuotation: React.FC = () => {
     );
 };
 
-export default ReportQuotation;
+export default ReportExpense;

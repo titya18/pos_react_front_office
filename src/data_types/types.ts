@@ -489,6 +489,7 @@ export interface InvoiceDetailType {
 export interface StockAdjustmentType {
     id?: number;
     branchId: number;
+    ref: string;
     adjustDate?: string | null; // Format: YYYY-MM-DD
     AdjustMentType: string;
     StatusType: string;
@@ -506,6 +507,8 @@ export interface StockAdjustmentType {
 
     branch: BranchType | null;
     adjustmentDetails: StockAdjustmentDetailType[];
+
+    totalQuantity?: number;
 }
 
 export interface StockAdjustmentDetailType {
@@ -521,6 +524,7 @@ export interface StockAdjustmentDetailType {
 export interface StockTransferType {
     id?: number;
     branchId: number;
+    ref: string;
     fromBranchId: number;
     toBranchId: number;
     transferDate?: string | null; // Format: YYYY-MM-DD
@@ -539,9 +543,12 @@ export interface StockTransferType {
 
     fromBranch: BranchType | null;
     toBranch: BranchType | null;
+    tobranch?: BranchType | null;
     branch: BranchType | null;
 
     transferDetails: StockTransferDetailType[];
+
+    totalQuantity?: number;
 }
 
 export interface StockTransferDetailType {
@@ -557,6 +564,7 @@ export interface StockTransferDetailType {
 export interface StockRequestType {
     id?: number;
     branchId: number;
+    ref: string;
     requestBy: number;
     requestDate?: string | null; // Format: YYYY-MM-DD
     StatusType: string;
@@ -575,6 +583,8 @@ export interface StockRequestType {
 
     branch: BranchType | null;
     requestDetails: StockRequestDetailType[];
+
+    totalQuantity?: number;
 }
 
 export interface StockRequestDetailType {
@@ -590,6 +600,7 @@ export interface StockRequestDetailType {
 export interface StockReturnType {
     id?: number;
     branchId: number;
+    ref: string;
     returnBy: number;
     returnDate?: string | null; // Format: YYYY-MM-DD
     StatusType: string;
@@ -608,6 +619,8 @@ export interface StockReturnType {
 
     branch: BranchType | null;
     returnDetails: StockReturnDetailType[];
+
+    totalQuantity?: number;
 }
 
 export interface StockReturnDetailType {
@@ -623,6 +636,7 @@ export interface StockReturnDetailType {
 export interface ExpenseType {
     id: number;
     branchId: number;
+    ref: string;
     expenseDate?: string | null; // Format: YYYY-MM-DD
     name: string;
     amount: number;
@@ -642,6 +656,7 @@ export interface ExpenseType {
 export interface IncomeType {
     id: number;
     branchId: number;
+    ref: string;
     incomeDate?: string | null; // Format: YYYY-MM-DD
     name: string;
     amount: number;
@@ -666,6 +681,7 @@ export interface OrderOnPaymentType {
     totalPaid: number | null;
     createdAt: string | null;
     PaymentMethods: { name: string } | null;
+    status?: string;
     delReason: string;
     createdDat?: Date;
     updatedDat?: Date;

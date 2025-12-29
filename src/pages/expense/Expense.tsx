@@ -34,6 +34,7 @@ type ViewNotePayload = {
 
 const columns = [
     "No",
+    "Reference",
     "Expense Date",
     "Branch",
     "Expense Name",
@@ -48,6 +49,7 @@ const columns = [
 
 const sortFields: Record<string, string> = {
     "No": "id",
+    "Reference": "ref",
     "Expense Date": "expenseDate",
     "Branch": "branchId",
     "Expense Name": "name",
@@ -140,6 +142,7 @@ const Expense: React.FC = () => {
 
     const exportData = expenses.map((exp, index) => ({
         "No": (page - 1) * pageSize + index + 1,
+        "Reference": exp.ref,
         "Expense Date": exp.expenseDate,
         "Branch": exp.branch ? exp.branch.name : "",
         "Expense Name": exp.name,
@@ -322,6 +325,9 @@ const Expense: React.FC = () => {
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
+                                                            )}
+                                                            {visibleCols.includes("Reference") && (
+                                                                <td>{rows.ref}</td>
                                                             )}
                                                             {visibleCols.includes("Expense Date") && (
                                                                 <td>{rows.expenseDate ? format(new Date(rows.expenseDate), 'dd-MMM-yyyy') : ''}</td>

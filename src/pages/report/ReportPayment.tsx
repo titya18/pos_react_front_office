@@ -24,7 +24,7 @@ dayjs.extend(timezone);
 
 const columns = [
     "No", "Payment Date", "Invoice's ID", "Customer", "Branch",
-    "Payment Method", "Amount Paid", "Created At", "Created By"
+    "Payment Method", "Amount Paid", "Status", "Created At", "Created By", "Cancelled At", "Cancelled By", "Cancelled Reason"
 ];
 
 const sortFields: Record<string, string> = {
@@ -35,8 +35,12 @@ const sortFields: Record<string, string> = {
     "Branch": "branchId",
     "Payment Method": "paymentMethodId",
     "Amount Paid": "totalPaid",
+    "Status": "status",
     "Created At": "createdAt",
-    "Created By": "createdBy"
+    "Created By": "createdBy",
+    "Cancelled At": "deletedAt",
+    "Cancelled By": "deletedBy",
+    "Cancelled Reason": "delReason"
 };
 
 const ReportPaymentInvoice: React.FC = () => {
@@ -55,6 +59,7 @@ const ReportPaymentInvoice: React.FC = () => {
     // FILTER STATES
     const startDate = searchParams.get("startDate") || today;
     const endDate = searchParams.get("endDate") || today;
+    const status = searchParams.get("status") || "";
     const branchId = searchParams.get("branchId") ? parseInt(searchParams.get("branchId")!, 10) : undefined;
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
@@ -89,6 +94,7 @@ const ReportPaymentInvoice: React.FC = () => {
                 searchTerm: search || undefined,
                 startDate,
                 endDate,
+                status,
                 branchId
             };
 
@@ -103,7 +109,7 @@ const ReportPaymentInvoice: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [sortField, sortOrder, page, pageSize, search, startDate, endDate, branchId]);
+    }, [sortField, sortOrder, page, pageSize, search, startDate, endDate, status, branchId]);
 
     useEffect(() => {
         fetchBranches();
@@ -152,8 +158,12 @@ const ReportPaymentInvoice: React.FC = () => {
         "Branch": inv.branch?.name || "",
         "Payment Method": inv.PaymentMethods?.name || "",
         "Amount Paid": inv.totalPaid,
+        "Status": inv.status,
         "Created At": inv.createdAt ? dayjs.tz(inv.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
         "Created By": `${inv.creator?.lastName || ''} ${inv.creator?.firstName || ''}`,
+        "Cancelled At": inv.deletedAt ? dayjs.tz(inv.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Cancelled By": inv.deletedAt ? `${inv.deleter?.lastName || ''} ${inv.creator?.firstName || ''}` : '',
+        "Cancelled Reason": inv.delReason
     }));
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -184,6 +194,14 @@ const ReportPaymentInvoice: React.FC = () => {
                                         onChange={(e) => updateParams({ endDate: e.target.value, page: 1 })}
                                         className="form-input"
                                     />
+                                </div>
+                                <div>
+                                    <label>Status</label>
+                                    <select value={status} onChange={(e) => updateParams({ status: e.target.value, page: 1 })} className="form-select">
+                                        <option value="">All</option>
+                                        <option value="PAID">Paid</option>
+                                        <option value="CANCELLED">Cancelled</option>
+                                    </select>
                                 </div>
                                 {(user?.roleType === "ADMIN" || user?.roleType === "USER") &&
                                     <div>
@@ -271,8 +289,19 @@ const ReportPaymentInvoice: React.FC = () => {
                                                         {visibleCols.includes("Branch") && <td>{rows.branch?.name || ''}</td>}
                                                         {visibleCols.includes("Payment Method") && <td>{rows.PaymentMethods?.name || ''}</td>}
                                                         {visibleCols.includes("Amount Paid") && <td style={{color: 'green'}}>$ {Number(rows.totalPaid).toFixed(2)}</td>}
+                                                        {visibleCols.includes("Status") && (
+                                                            <td>
+                                                                <span className={`badge rounded-full ${rows.status === 'PAID' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>
+                                                                    {rows.status}
+                                                                </span>
+                                                            </td>
+                                                        )}
                                                         {visibleCols.includes("Created At") && <td>{rows.createdAt ? dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format('DD / MMM / YYYY HH:mm:ss') : ''}</td>}
                                                         {visibleCols.includes("Created By") && <td>{rows.creator?.lastName} {rows.creator?.firstName}</td>}
+                                                        {visibleCols.includes("Cancelled At") && <td>{rows.deletedAt ? dayjs.tz(rows.deletedAt, "Asia/Phnom_Penh").format('DD / MMM / YYYY HH:mm:ss') : ''}</td>}
+                                                        {visibleCols.includes("Cancelled By") && <td>{rows.creator?.lastName} {rows.creator?.firstName}</td>}
+                                                        {visibleCols.includes("Cancelled Reason") && <td>{rows.delReason || ''}</td>}
+                                                        
                                                         {/* {visibleCols.includes("Actions") && (
                                                             <td>
                                                                 {hasPermission('Invoice-Print') && (

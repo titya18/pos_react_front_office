@@ -25,6 +25,7 @@ dayjs.extend(timezone);
 
 const columns = [
     "No",
+    "Rference",
     "Request Date",
     "Request By",
     "Branch",
@@ -40,6 +41,7 @@ const columns = [
 
 const sortFields: Record<string, string> = {
     "No": "id",
+    "Rference": "ref",
     "Request Date": "requestDate",
     "Request By": "requestBy",
     "Branch": "branchId",
@@ -131,6 +133,7 @@ const StockRequest: React.FC = () => {
 
     const exportData = requestData.map((request, index) => ({
         "No": (page - 1) * pageSize + index + 1,
+        "Rference": request.ref,
         "Request Date": request.requestDate,
         "Request By": `${request.requester?.lastName || ''} ${request.requester?.firstName || 'N/A'}`,
         "Branch": request.branch ? request.branch.name : "",
@@ -261,6 +264,9 @@ const StockRequest: React.FC = () => {
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
+                                                            )}
+                                                            {visibleCols.includes("Rference") && (
+                                                                <td>{rows.ref}</td>
                                                             )}
                                                             {visibleCols.includes("Request Date") && (
                                                                 <td>{rows.requestDate ? format(new Date(rows.requestDate), 'dd-MMM-yyyy') : ''}</td>

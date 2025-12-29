@@ -138,7 +138,6 @@ const ReportPurchase: React.FC = () => {
             setTotal(totalResult || 0);
             setSelected([]);
             setSummary(summary || { totalPurchase: 0, grandTotalAmount: 0, totalPaidAmount:0, totalRemainAmount: 0 });
-console.log(summary);
         } catch (error) {
             console.error("Error fetching quotations:", error);
             toast.error("Failed to fetch quotations.");
@@ -381,11 +380,11 @@ console.log(summary);
                                                                 <td>{rows.branch ? rows.branch.name : ""}</td>
                                                             )}
                                                             {visibleCols.includes("Status") && (
-                                                            <td>
-                                                                <span className={`badge rounded-full ${rows.status === 'PENDING' ? 'bg-warning' : rows.status === 'RECEIVED' ? 'bg-primary' : rows.status === 'COMPLETED' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>
-                                                                    {rows.status}
-                                                                </span>
-                                                            </td>
+                                                                <td>
+                                                                    <span className={`badge rounded-full ${rows.status === 'PENDING' ? 'bg-warning' : rows.status === 'RECEIVED' ? 'bg-primary' : rows.status === 'COMPLETED' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>
+                                                                        {rows.status}
+                                                                    </span>
+                                                                </td>
                                                             )}
                                                             {visibleCols.includes("Grand Total") && (
                                                                 <td style={{color: "blue"}}>$ { Number(rows.grandTotal).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>

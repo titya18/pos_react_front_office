@@ -25,6 +25,7 @@ dayjs.extend(timezone);
 
 const columns = [
     "No",
+    "Rference",
     "Return Date",
     "Return By",
     "Branch",
@@ -40,6 +41,7 @@ const columns = [
 
 const sortFields: Record<string, string> = {
     "No": "id",
+    "Rference": "ref",
     "Return Date": "returnDate",
     "Return By": "returnBy",
     "Branch": "branchId",
@@ -131,6 +133,7 @@ const StockReturn: React.FC = () => {
 
     const exportData = returnData.map((request, index) => ({
         "No": (page - 1) * pageSize + index + 1,
+        "Rference": request.ref,
         "Return Date": request.returnDate,
         "Return By": `${request.returner?.lastName || ''} ${request.returner?.firstName || 'N/A'}`,
         "Branch": request.branch ? request.branch.name : "",
@@ -261,6 +264,9 @@ const StockReturn: React.FC = () => {
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
+                                                            )}
+                                                            {visibleCols.includes("Rference") && (
+                                                                <td>{rows.ref}</td>
                                                             )}
                                                             {visibleCols.includes("Return Date") && (
                                                                 <td>{rows.returnDate ? format(new Date(rows.returnDate), 'dd-MMM-yyyy') : ''}</td>
