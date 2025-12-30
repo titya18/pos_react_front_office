@@ -4,9 +4,10 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  base: '/inventory/',   // <<< ADD THIS LINE
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'), // if you're using @ as alias
+      '@': path.resolve(__dirname, 'src'),
     },
   },
   server: {

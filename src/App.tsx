@@ -57,10 +57,12 @@ import ReportIncome from "./pages/report/ReportIncome";
 
 import { Customer } from "./pages/customer/Customer";
 import NotFound from "./pages/notfound/NotFount";
+import { BrowserRouter } from "react-router-dom";
 
 const App: React.FC = () => {
     return (
-        <Router>
+        // <Router>
+        <BrowserRouter basename="/inventory">
             <AppContextProvider>
                 <LanguageProvider>
                     <Routes>
@@ -161,7 +163,8 @@ const App: React.FC = () => {
                     </Routes>
                 </LanguageProvider>
             </AppContextProvider>
-        </Router>
+        </BrowserRouter>
+        // </Router>
     );
 };
 
