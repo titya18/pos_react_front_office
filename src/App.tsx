@@ -61,8 +61,8 @@ import { BrowserRouter } from "react-router-dom";
 
 const App: React.FC = () => {
     return (
-        // <Router>
-        <BrowserRouter basename="/inventory">
+        <Router>
+        {/* <BrowserRouter basename="/inventory"> */}
             <AppContextProvider>
                 <LanguageProvider>
                     <Routes>
@@ -163,8 +163,8 @@ const App: React.FC = () => {
                     </Routes>
                 </LanguageProvider>
             </AppContextProvider>
-        </BrowserRouter>
-        // </Router>
+        {/* </BrowserRouter> */}
+        </Router>
     );
 };
 

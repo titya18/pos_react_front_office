@@ -58,15 +58,15 @@ const SignIn: React.FC = () => {
             {/* start main content section */}
             <div>
                 <div className="absolute inset-0">
-                    <img src="/admin_assets/images/auth/bg-gradient.png" alt="Company logo" className="h-full w-full object-cover" />
+                    <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/bg-gradient.png`} alt="Company logo" className="h-full w-full object-cover" />
                 </div>
                 <div
                     className="relative flex min-h-screen items-center justify-center bg-[url(../images/auth/map.png)] bg-cover bg-center bg-no-repeat px-6 py-10 dark:bg-[#060818] sm:px-16"
                 >
-                    <img src="/admin_assets/images/auth/coming-soon-object1.png" alt="Company logo" className="absolute left-0 top-1/2 h-full max-h-[893px] -translate-y-1/2" />
-                    <img src="/admin_assets/images/auth/coming-soon-object2.png" alt="Company logo" className="absolute left-24 top-0 h-40 md:left-[30%]" />
-                    <img src="/admin_assets/images/auth/coming-soon-object3.png" alt="Company logo" className="absolute right-0 top-0 h-[300px]" />
-                    <img src="/admin_assets/images/auth/polygon-object.svg" alt="Company logo" className="absolute bottom-0 end-[28%]" />
+                    <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/coming-soon-object1.png`} alt="Company logo" className="absolute left-0 top-1/2 h-full max-h-[893px] -translate-y-1/2" />
+                    <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/coming-soon-object2.png`} alt="Company logo" className="absolute left-24 top-0 h-40 md:left-[30%]" />
+                    <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/coming-soon-object3.png`} alt="Company logo" className="absolute right-0 top-0 h-[300px]" />
+                    <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/polygon-object.svg`} alt="Company logo" className="absolute bottom-0 end-[28%]" />
                     <div
                         className="relative flex w-full max-w-[1502px] flex-col justify-between overflow-hidden rounded-md bg-white/60 backdrop-blur-lg dark:bg-black/50 lg:min-h-[758px] lg:flex-row lg:gap-10 xl:gap-0"
                     >
@@ -78,10 +78,10 @@ const SignIn: React.FC = () => {
                             ></div>
                             <div className="ltr:xl:-skew-x-[14deg] rtl:xl:skew-x-[14deg]">
                                 <a href="" className="block w-48 lg:w-72 ms-10">
-                                    <img src="/admin_assets/images/auth/logo-white.svg" alt="Company logo" className="w-full" />
+                                    <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/logo-white.svg`} alt="Company logo" className="w-full" />
                                 </a>
                                 <div className="mt-24 hidden w-full max-w-[430px] lg:block">
-                                    <img src="/admin_assets/images/auth/login.svg" alt="Company logo" className="w-full" />
+                                    <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/login.svg`} alt="Company logo" className="w-full" />
                                 </div>
                             </div>
                         </div>
@@ -179,7 +179,7 @@ const SignIn: React.FC = () => {
                                     </button>
                                 </form>
 
-                                <div className="relative my-7 text-center md:mb-9">
+                                {/* <div className="relative my-7 text-center md:mb-9">
                                     <span className="absolute inset-x-0 top-1/2 h-px w-full -translate-y-1/2 bg-white-light dark:bg-white-dark"></span>
                                     <span className="relative bg-white px-2 font-bold uppercase text-white-dark dark:bg-dark dark:text-white-light">or</span>
                                 </div>
@@ -273,7 +273,7 @@ const SignIn: React.FC = () => {
                                         className="uppercase text-primary underline transition hover:text-black dark:hover:text-white">
                                         SIGN UP
                                     </Link>
-                                </div>
+                                </div> */}
                             </div>
                             <p className="absolute bottom-6 w-full text-center dark:text-white">
                                 © <span id="footer-year">2024</span>. Lorn Titya All Rights Reserved.
