@@ -59,7 +59,7 @@ const Header: React.FC = () => {
                     <div className="relative flex w-full items-center bg-white px-5 py-2.5 dark:bg-[#0e1726]">
                         <div className="horizontal-logo flex items-center justify-between ltr:mr-2 rtl:ml-2 lg:hidden">
                             <Link to="/dashboard" className="main-logo flex shrink-0 items-center">
-                                <img style={{ width: "4rem" }} className="inline ltr:-ml-1 rtl:-mr-1" src="/../admin_assets/images/izoom-logo.png" alt="Company logo" />
+                                <img style={{ width: "4rem" }} className="inline ltr:-ml-1 rtl:-mr-1" src={`${import.meta.env.BASE_URL}admin_assets/images/izoom-logo.png`} alt="Company logo" />
                                 {/* <span className="hidden align-middle text-2xl font-semibold transition-all duration-300 ltr:ml-1.5 rtl:mr-1.5 dark:text-white-light md:inline">Lorn Titya</span> */}
                             </Link>
 
@@ -219,7 +219,7 @@ const Header: React.FC = () => {
                                     <span>
                                         <img
                                             className="h-9 w-9 rounded-full object-cover saturate-50 group-hover:saturate-100"
-                                            src="/../admin_assets/images/user-profile.jpg"
+                                            src={`${import.meta.env.BASE_URL}admin_assets/images/user-profile.jpg`}
                                             alt="Company logo" />
                                     </span>
                                 </button>
@@ -231,7 +231,7 @@ const Header: React.FC = () => {
                                     <li>
                                         <div className="flex items-center px-4 py-4">
                                             <div className="flex-none">
-                                                <img className="h-10 w-10 rounded-md object-cover" src="/../admin_assets/images/user-profile.jpg" alt="Company logo" />
+                                                <img className="h-10 w-10 rounded-md object-cover" src={`${import.meta.env.BASE_URL}admin_assets/images/user-profile.jpg`} alt="Company logo" />
                                             </div>
                                             <div className="truncate ltr:pl-4 rtl:pr-4">
                                                 {isLoggedIn ? (
