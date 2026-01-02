@@ -76,23 +76,50 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
                                 <div>
                                     <label htmlFor="module">Product Cost <sup>*</sup></label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Enter product cost" 
-                                        autoFocus
-                                        className="form-input"
-                                        {...register("cost", { required: "This field is required" })} 
+                                    <input
+                                        type="text"
+                                        placeholder="Enter Product's cost"
+                                        className="form-input w-full"
+                                        {...register("cost", {
+                                            required: "Product's cost is required",
+                                        })}
+                                        onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                            const target = e.currentTarget;
+
+                                            // Allow numbers + decimal
+                                            target.value = target.value.replace(/[^0-9.]/g, "");
+
+                                            // Prevent multiple dots
+                                            const parts = target.value.split(".");
+                                            if (parts.length > 2) {
+                                                target.value = parts[0] + "." + parts.slice(1).join("");
+                                            }
+                                        }}
                                     />
                                     {errors.cost && <p className='error_validate'>{errors.cost.message}</p>}
                                 </div>
 
                                 <div>
                                     <label htmlFor="module">Quantity <sup>*</sup></label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Enter quantity" 
-                                        className="form-input"
-                                        {...register("quantity", { required: "This field is required" })} 
+                                    <input
+                                        type="text"
+                                        placeholder="Enter quantity"
+                                        className="form-input w-full"
+                                        {...register("quantity", {
+                                            required: "Quantity is required",
+                                        })}
+                                        onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                            const target = e.currentTarget;
+
+                                            // Allow numbers + decimal
+                                            target.value = target.value.replace(/[^0-9.]/g, "");
+
+                                            // Prevent multiple dots
+                                            const parts = target.value.split(".");
+                                            if (parts.length > 2) {
+                                                target.value = parts[0] + "." + parts.slice(1).join("");
+                                            }
+                                        }}
                                     />
                                     {errors.quantity && <p className='error_validate'>{errors.quantity.message}</p>}
                                 </div>
@@ -110,11 +137,23 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
 
                                 <div>
                                     <label htmlFor="module">Order Tax</label>
-                                    <input 
+                                    <input
                                         type="text"
-                                        className="form-input"
-                                        placeholder="0" 
+                                        placeholder="0"
+                                        className="form-input w-full"
                                         {...register("taxNet")}
+                                        onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                            const target = e.currentTarget;
+
+                                            // Allow numbers + decimal
+                                            target.value = target.value.replace(/[^0-9.]/g, "");
+
+                                            // Prevent multiple dots
+                                            const parts = target.value.split(".");
+                                            if (parts.length > 2) {
+                                                target.value = parts[0] + "." + parts.slice(1).join("");
+                                            }
+                                        }}
                                     />
                                 </div>
 
@@ -131,11 +170,23 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
 
                                 <div>
                                     <label htmlFor="module">Discount</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="0" 
-                                        className="form-input" 
+                                    <input
+                                        type="text"
+                                        placeholder="0"
+                                        className="form-input w-full"
                                         {...register("discount")}
+                                        onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                                            const target = e.currentTarget;
+
+                                            // Allow numbers + decimal
+                                            target.value = target.value.replace(/[^0-9.]/g, "");
+
+                                            // Prevent multiple dots
+                                            const parts = target.value.split(".");
+                                            if (parts.length > 2) {
+                                                target.value = parts[0] + "." + parts.slice(1).join("");
+                                            }
+                                        }}
                                     />
                                 </div>
                             </div>

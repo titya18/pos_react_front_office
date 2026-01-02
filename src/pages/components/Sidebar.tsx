@@ -737,6 +737,7 @@ const Sidebar: React.FC = () => {
                             hasPermission('Cancel-Invoice') ||
                             hasPermission('Payment-Report') ||
                             hasPermission('Purchase-Report') ||
+                            hasPermission('Payment-Purchase-Report') ||
                             hasPermission('Quotation-Report') ||
                             hasPermission('Adjustment-Report') ||
                             hasPermission('Request-Report') ||
@@ -844,6 +845,24 @@ const Sidebar: React.FC = () => {
                                             <div className="flex items-center">
                                                 <ShoppingCart />
                                                 <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Purchase Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Payment-Purchase-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/reportPurPayment"
+                                            className={['reportPurchasePayment'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <CircleDollarSign />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Payment Purchase Report</span>
                                             </div>
                                         </NavLink>
                                     </li>

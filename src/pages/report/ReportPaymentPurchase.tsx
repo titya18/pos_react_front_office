@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import { BranchType, OrderOnPaymentType } from "@/data_types/types";
+import { BranchType, PaymentType } from "@/data_types/types";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowUpZA, faArrowDownAZ, faClose, faFileInvoice, faDollarSign } from '@fortawesome/free-solid-svg-icons';
 import { PrinterCheck, RefreshCw } from 'lucide-react';
@@ -23,15 +23,15 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const columns = [
-    "No", "Payment Date", "Invoice's ID", "Customer", "Branch",
+    "No", "Payment Date", "Purchase's ID", "Supplier", "Branch",
     "Payment Method", "Amount Paid", "Status", "Created At", "Created By", "Cancelled At", "Cancelled By", "Cancelled Reason"
 ];
 
 const sortFields: Record<string, string> = {
     "No": "id",
     "Payment Date": "paymentDate",
-    "Invoice's ID": "ref",
-    "Customer": "customerId",
+    "Purchase's ID": "ref",
+    "Supplier": "supplierId",
     "Branch": "branchId",
     "Payment Method": "paymentMethodId",
     "Amount Paid": "totalPaid",
@@ -43,9 +43,9 @@ const sortFields: Record<string, string> = {
     "Cancelled Reason": "delReason"
 };
 
-const ReportPaymentInvoice: React.FC = () => {
+const reportPaymentPurchase: React.FC = () => {
     const [branches, setBranches] = useState<BranchType[]>([]);
-    const [invoiceData, setInvoiceData] = useState<OrderOnPaymentType[]>([]);
+    const [invoiceData, setInvoiceData] = useState<PaymentType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selected, setSelected] = useState<number[]>([]);
     const [visibleCols, setVisibleCols] = useState(columns);
@@ -98,14 +98,14 @@ const ReportPaymentInvoice: React.FC = () => {
                 branchId
             };
 
-            const { data, total: totalResult, summary } = await apiClient.getAllPaymentReportInvoices(params);
+            const { data, total: totalResult, summary } = await apiClient.getAllPaymentReportPurchases(params);
             setInvoiceData(data || []);
             setTotal(totalResult || 0);
             setSelected([]);
             setSummary(summary || { totalPayments: 0, totalPaid: 0 });
         } catch (error) {
-            console.error("Error fetching payment invoices:", error);
-            toast.error("Failed to fetch payment invoices");
+            console.error("Error fetching payment purchase:", error);
+            toast.error("Failed to fetch payment purchase.");
         } finally {
             setIsLoading(false);
         }
@@ -118,7 +118,6 @@ const ReportPaymentInvoice: React.FC = () => {
     useEffect(() => {
         fetchInvoices();
     }, [fetchInvoices]);
-    console.log(invoiceData)
 
     // Update URL params
     const updateParams = (params: Record<string, unknown>) => {
@@ -133,7 +132,7 @@ const ReportPaymentInvoice: React.FC = () => {
         setSearchParams(newParams);
     };
 
-    const handleClearAllFilter = () => navigate("/reportPayment");
+    const handleClearAllFilter = () => navigate("/reportPurPayment");
 
     const toggleCol = (col: string) => {
         setVisibleCols(prev =>
@@ -154,8 +153,8 @@ const ReportPaymentInvoice: React.FC = () => {
     const exportData = invoiceData.map((inv, index) => ({
         "No": (page - 1) * pageSize + index + 1,
         "Payment Date": inv.paymentDate,
-        "Invoice's ID": inv.order?.ref,
-        "Customer": inv.customer?.name || "N/A",
+        "Purchase's ID": inv.purchase?.ref,
+        "Supplier": inv.supplier?.name || "N/A",
         "Branch": inv.branch?.name || "",
         "Payment Method": inv.PaymentMethods?.name || "",
         "Amount Paid": inv.totalPaid,
@@ -285,11 +284,11 @@ const ReportPaymentInvoice: React.FC = () => {
                                                     <tr key={index}>
                                                         {visibleCols.includes("No") && <td>{(page - 1) * pageSize + index + 1}</td>}
                                                         {visibleCols.includes("Payment Date") && <td>{rows.paymentDate ? format(new Date(rows.paymentDate), 'dd-MMM-yyyy') : ''}</td>}
-                                                        {visibleCols.includes("Invoice's ID") && <td>{rows.order?.ref || ''}</td>}
-                                                        {visibleCols.includes("Customer") && <td>{rows.customer?.name || "N/A"}</td>}
+                                                        {visibleCols.includes("Purchase's ID") && <td>{rows.purchase?.ref || ''}</td>}
+                                                        {visibleCols.includes("Supplier") && <td>{rows.supplier?.name || "N/A"}</td>}
                                                         {visibleCols.includes("Branch") && <td>{rows.branch?.name || ''}</td>}
                                                         {visibleCols.includes("Payment Method") && <td>{rows.PaymentMethods?.name || ''}</td>}
-                                                        {visibleCols.includes("Amount Paid") && <td style={{color: 'green'}}>$ {Number(rows.totalPaid).toFixed(2)}</td>}
+                                                        {visibleCols.includes("Amount Paid") && <td style={{color: 'green'}}>$ {Number(rows.amount).toFixed(2)}</td>}
                                                         {visibleCols.includes("Status") && (
                                                             <td>
                                                                 <span className={`badge rounded-full ${rows.status === 'PAID' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>
@@ -314,7 +313,7 @@ const ReportPaymentInvoice: React.FC = () => {
                                                         )} */}
                                                     </tr>
                                                 )) : (
-                                                    <tr><td colSpan={columns.length}>No Payment Invoices Found!</td></tr>
+                                                    <tr><td colSpan={columns.length}>No Payment Purchase Found!</td></tr>
                                                 )}
                                             </tbody>
                                         </table>
@@ -337,4 +336,4 @@ const ReportPaymentInvoice: React.FC = () => {
     );
 };
 
-export default ReportPaymentInvoice;
+export default reportPaymentPurchase;

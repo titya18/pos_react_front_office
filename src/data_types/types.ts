@@ -316,12 +316,15 @@ export interface PurchaseDetailType {
 export interface PaymentType {
     branchId: number | null;
     purchaseId: number | null;
+    paymentDate?: Date;
     paymentMethodId: number | null;
     paidAmount: number | null;
     amount: number | null;
     due_balance?: number | null;
     createdAt: string | null;
-    paymentMethods: { name: string } | null;
+    PaymentMethods: { name: string } | null;
+    status?: string;
+    delReason?: string;
     createdDat?: Date;
     updatedDat?: Date;
     deletedAt?: Date;
@@ -329,6 +332,12 @@ export interface PaymentType {
     creator?: UserType | null;
     updater?: UserType | null;
     deleter?: UserType | null;
+
+    purchase?: PurchaseType | null;
+    branch?: BranchType | null;
+    supplier?: SupplierType | null;
+
+    totalPaid?: number | null;
 }
 
 export interface InvoicePaymentType {
@@ -693,4 +702,5 @@ export interface OrderOnPaymentType {
 
     order?: InvoiceType | null;
     branch?: BranchType | null;
+    customer?: CustomerType | null;
 }

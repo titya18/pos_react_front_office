@@ -98,6 +98,22 @@ export const getPurchaseByid = async (id: number): Promise<PurchaseType> => {
     return response.json();
 };
 
+export const delPaymentPurchase = async (id: number, delReason: string): Promise<PaymentType> => {
+    const response = await fetch(`${API_BASE_URL}/api/purchase/delpayment/${id}`, {
+        credentials: "include",
+        method: "DELETE",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ delReason })
+    });
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        throw new Error(errorResponse.message || "Error deleting purchase payment");
+    }
+    return response.json();
+};
+
 export const deletePurchase = async (id: number, delReason: string): Promise<PurchaseType> => {
     const response = await fetch(`${API_BASE_URL}/api/purchase/${id}`, {
         credentials: "include",

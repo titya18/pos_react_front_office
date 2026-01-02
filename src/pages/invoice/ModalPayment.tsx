@@ -179,7 +179,6 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
         }
     };
 
-
     if (!isOpen) return null;
     return (
         <>

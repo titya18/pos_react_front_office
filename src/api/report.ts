@@ -3,6 +3,7 @@ import {
     OrderOnPaymentType, 
     QuotationType, 
     PurchaseType, 
+    PaymentType,
     StockAdjustmentType,
     StockTransferType, 
     StockRequestType,
@@ -71,6 +72,15 @@ interface ReportInvoiceResponse {
 
 interface ReportPaymentInvoiceResponse {
     data: OrderOnPaymentType[];
+    total: number;
+    summary: {
+        totalPayments: number;
+        totalPaid: number;
+    };
+}
+
+interface ReportPaymentPurchaseResponse {
+    data: PaymentType[];
     total: number;
     summary: {
         totalPayments: number;
@@ -359,6 +369,59 @@ export const getAllReportPurchases = async ({
             grandTotalAmount: 0,
             totalPaidAmount: 0,
             totalRemainAmount: 0,
+        },
+    };
+};
+
+export const getAllPaymentReportPurchases = async ({
+    sortField,
+    sortOrder,
+    page,
+    pageSize,
+    searchTerm,
+    startDate,
+    endDate,
+    saleType,
+    status,
+    branchId
+}: ReportInvoiceParams): Promise<ReportPaymentPurchaseResponse> => {
+
+    const params = new URLSearchParams();
+
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+
+    if (searchTerm) params.set("searchTerm", searchTerm);
+    if (sortField && sortOrder) {
+        params.set("sortField", sortField);
+        params.set("sortOrder", sortOrder);
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    params.set("startDate", startDate || today);
+    params.set("endDate", endDate || today);
+
+    if (saleType) params.set("saleType", saleType);
+    if (status) params.set("status", status);
+    if (branchId) params.set("branchId", String(branchId));
+
+    const url = `${API_BASE_URL}/api/report/reportPaymentPurchases?${params.toString()}`;
+
+    const response = await fetch(url, { credentials: "include" });
+
+    if (!response.ok) {
+        throw new Error("Failed to fetch payment invoices");
+    }
+
+    const result = await response.json();
+
+    return {
+        data: result.data || [],
+        total: result.total || 0,
+        summary: result.summary || {
+            totalOrders: 0,
+            totalPaid: 0,
         },
     };
 };

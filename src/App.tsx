@@ -46,6 +46,7 @@ import Income from "./pages/income/Income";
 import ReportInvoice from "./pages/report/ReportInvoice";
 import ReportCancelInvoice from "./pages/report/ReportCancelInvoice";
 import ReportPayment from "./pages/report/ReportPayment";
+import ReportPaymentPurchase from "./pages/report/ReportPaymentPurchase";
 import ReportQuotation from "./pages/report/ReportQuotation";
 import ReportPurchase from "./pages/report/ReportPurchase";
 import ReportAdjustment from "./pages/report/ReportAdjustment";
@@ -151,6 +152,7 @@ const App: React.FC = () => {
                         <Route path="/reportPayment" element={<PrivateRoute element={<Layout><ReportPayment /></Layout>} />} />
                         <Route path="/reportQuotation" element={<PrivateRoute element={<Layout><ReportQuotation /></Layout>} />} />
                         <Route path="/reportPurchase" element={<PrivateRoute element={<Layout><ReportPurchase /></Layout>} />} />
+                        <Route path="/reportPurPayment" element={<PrivateRoute element={<Layout><ReportPaymentPurchase /></Layout>} />} />
                         <Route path="/reportAdjustment" element={<PrivateRoute element={<Layout><ReportAdjustment /></Layout>} />} />
                         <Route path="/reportTransfer" element={<PrivateRoute element={<Layout><ReportTransfer /></Layout>} />} />
                         <Route path="/reportRequest" element={<PrivateRoute element={<Layout><ReportRequest /></Layout>} />} />
