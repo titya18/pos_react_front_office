@@ -206,7 +206,7 @@ const Purchase: React.FC = () => {
                 amount: amount,
                 due_balance: due_balance,
                 createdAt: null,
-                paymentMethods: null,
+                PaymentMethods: null,
             }
             await apiClient.insertPurchasePayment(paymentData);
             toast.success("Purchase payment insert successfully", {
@@ -367,7 +367,7 @@ const Purchase: React.FC = () => {
                                                                                         paidAmount: rows.paidAmount,
                                                                                         amount: rows.grandTotal,
                                                                                         createdAt: null,
-                                                                                        paymentMethods: null, 
+                                                                                        PaymentMethods: null, 
                                                                                     })} 
                                                                                     title="Payment Purchase"
                                                                                 >

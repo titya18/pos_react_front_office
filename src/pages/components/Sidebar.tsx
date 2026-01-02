@@ -89,7 +89,7 @@ const Sidebar: React.FC = () => {
                 <div className="h-full bg-white dark:bg-[#0e1726]">
                     <div className="flex items-center justify-between px-4 py-3">
                         <NavLink to="/dashboard" className="main-logo flex shrink-0 items-center">
-                            <img style={{ width: "8rem" }} className="ml-[5px] flex-none" src="/../admin_assets/images/izoom-logo.png" alt="Company logo" />
+                            <img style={{ width: "8rem" }} className="ml-[5px] flex-none" src={`${import.meta.env.BASE_URL}admin_assets/images/izoom-logo.png`} alt="Company logo" />
                             {/* <span className="align-middle text-2xl font-semibold ltr:ml-1.5 rtl:mr-1.5 dark:text-white-light lg:inline">Lorn Titya</span> */}
                         </NavLink>
                         <button

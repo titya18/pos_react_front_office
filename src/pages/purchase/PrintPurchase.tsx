@@ -100,7 +100,7 @@ const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
             marginBottom: '10px'
           }}>
             <img 
-              src="/../admin_assets/images/izoom-logo.png" 
+              src={`${import.meta.env.BASE_URL}admin_assets/images/izoom-logo.png`} 
               alt="Logo" 
               style={{ 
                 height: '40px',
@@ -530,7 +530,7 @@ const InvoiceFooter: React.FC<{ data: any }> = ({ data }) => {
     <div className="invoice-footer" style={{ textAlign: 'center' }}>
       <div style={{ marginBottom: '20px' }}>
         <img 
-          src="/../admin_assets/images/izoom-logo.png" 
+          src={`${import.meta.env.BASE_URL}admin_assets/images/izoom-logo.png`} 
           alt="Logo" 
           style={{ height: '40px', marginBottom: '10px' }}
         />
