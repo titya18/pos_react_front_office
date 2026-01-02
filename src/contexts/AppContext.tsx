@@ -42,7 +42,7 @@ export const AppContext = createContext<AppContextType | undefined>(undefined);
 //     transports: ['websocket'],
 // });
 
-const socket = io(import.meta.env.VITE_API_URL, {
+const socket = io("http://202.93.8.4", {
   path: "/inventory/socket.io",
   transports: ["websocket"],
 });
