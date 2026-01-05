@@ -360,9 +360,10 @@ const PurchaseForm: React.FC = () => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
             const selectedSupplier = allSuppliers.find(s => s.id === formData.supplierId);
+            console.log("selectedSupplier:", formData);
             const purchaseData: PurchaseType = {
                 id: id ? Number(id) : undefined,
-                branchId: formData.branchId,
+                branchId: formData.branchId ?? user?.branchId,
                 supplierId: formData.supplierId,
                 branch: { id: formData.branchId ?? 0, name: "Default Branch", address: "Default Address"},
                 suppliers: selectedSupplier ?? null,
@@ -453,25 +454,6 @@ const PurchaseForm: React.FC = () => {
                 <div className="mb-5">
                     <form onSubmit={handleSubmit(onSubmit)}>
                         <div className="mb-5">
-                            {user?.roleType === "USER" && !user?.branchId &&
-                                <div className="mb-5">
-                                    <label>Branch <span className="text-danger text-md">*</span></label>
-                                    <select 
-                                        id="branch" className="form-input" 
-                                        {...register("branchId", { 
-                                            required: "Branch is required"
-                                        })} 
-                                    >
-                                        <option value="">Select a branch</option>
-                                        {braches.map((option) => (
-                                            <option key={option.id} value={option.id}>
-                                                {option.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
-                                </div>
-                            }
                             <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-3' : 'sm:grid-cols-2' } mb-5`}>
                                 {user?.roleType === "ADMIN" &&
                                     <div>

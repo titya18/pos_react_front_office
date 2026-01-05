@@ -91,7 +91,7 @@ const Income: React.FC = () => {
         setSearchParams(newParams);
     };
 
-    const { hasPermission } = useAppContext();
+    const { user, hasPermission } = useAppContext();
 
     const fetchIncomes = async () => {
         setIsLoading(true);
@@ -166,6 +166,7 @@ const Income: React.FC = () => {
             const { data } = payload;
             const incomeData: IncomeType = {
                 ...data,
+                branchId: data.branchId ?? user?.branchId,
                 id: data.id || 0
             };
 

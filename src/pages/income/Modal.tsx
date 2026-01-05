@@ -102,48 +102,27 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, income }) => {
                     </div>
                     <form onSubmit={handleSubmit(handleFormSubmit)}>
                         <div className="p-5">
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
-                                <div>
-                                    {user?.roleType === "USER" && !user?.branchId &&
-                                        <>
-                                            <label>Branch <span className="text-danger text-md">*</span></label>
-                                            <select 
-                                                id="branch" className="form-input" 
-                                                {...register("branchId", { 
-                                                    required: "Branch is required"
-                                                })} 
-                                            >
-                                                <option value="">Select a branch</option>
-                                                {braches.map((option) => (
-                                                    <option key={option.id} value={option.id}>
-                                                        {option.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
-                                        </>
-                                    }
-                                    {user?.roleType === "ADMIN" &&
-                                        <>
-                                            <label>Branch <span className="text-danger text-md">*</span></label>
-                                            <select 
-                                                id="branch" className="form-input" 
-                                                {...register("branchId", { 
-                                                    required: "Branch is required"
-                                                })} 
-                                            >
-                                                <option value="">Select a branch</option>
-                                                {braches.map((option) => (
-                                                    <option key={option.id} value={option.id}>
-                                                        {option.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
-                                        </>
-                                    }
-                                </div>
-
+                            <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-2' : 'sm:grid-cols-1' } mb-5`}>
+                                {user?.roleType === "ADMIN" &&
+                                    <div>
+                                        <label>Branch <span className="text-danger text-md">*</span></label>
+                                        <select 
+                                            id="branch" className="form-input" 
+                                            {...register("branchId", { 
+                                                required: "Branch is required"
+                                            })} 
+                                        >
+                                            <option value="">Select a branch</option>
+                                            {braches.map((option) => (
+                                                <option key={option.id} value={option.id}>
+                                                    {option.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
+                                    </div>
+                                }
+                                
                                 <div>
                                     <label htmlFor="date-picker">Select a Date: <span className="text-danger text-md">*</span></label>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>

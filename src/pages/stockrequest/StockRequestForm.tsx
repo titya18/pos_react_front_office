@@ -216,7 +216,8 @@ const StockRequestForm: React.FC = () => {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
             const requestData: StockRequestType = {
                 id: id ? Number(id) : undefined,
-                branchId: formData.branchId,
+                ref: "",
+                branchId: formData.branchId ?? user?.branchId,
                 requestBy: Number(user?.id),
                 branch: { id: formData.branchId ?? 0, name: "Default Branch", address: "Default Address"},
                 requestDate: formData.requestDate,
@@ -277,7 +278,7 @@ const StockRequestForm: React.FC = () => {
                 <div className="mb-5">
                     <form onSubmit={handleSubmit(onSubmit)}>
                         <div className="mb-5">
-                            {user?.roleType === "USER" && !user?.branchId &&
+                            {/* {user?.roleType === "USER" && !user?.branchId &&
                                 <div className="mb-5">
                                     <label>Branch <span className="text-danger text-md">*</span></label>
                                     <select 
@@ -295,7 +296,7 @@ const StockRequestForm: React.FC = () => {
                                     </select>
                                     {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
                                 </div>
-                            }
+                            } */}
                             <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-2' : 'sm:grid-cols-1' } mb-5`}>
                                 {user?.roleType === "ADMIN" &&
                                     <div>

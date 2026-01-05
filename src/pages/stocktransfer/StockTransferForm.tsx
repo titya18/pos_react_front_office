@@ -220,10 +220,11 @@ const StockTransferForm: React.FC = () => {
             const toBranch = braches.find(b => b.id === formData.toBranchId);
             const transferData: StockTransferType = {
                 id: id ? Number(id) : undefined,
-                branchId: formData.fromBranchId,
+                ref: "",
+                branchId: formData.fromBranchId ?? Number(user?.branchId),
                 branch: { id: formData.fromBranchId ?? 0, name: "Default Branch", address: "Default Address"},
-                fromBranchId: formData.fromBranchId,
-                toBranchId: formData.toBranchId,
+                fromBranchId: formData.fromBranchId ?? Number(user?.branchId),
+                toBranchId: Number(formData.toBranchId),
                 fromBranch: fromBranch || { id: formData.fromBranchId ?? 0, name: "Default Branch", address: "Default Address"},
                 toBranch: toBranch || { id: formData.toBranchId ?? 0, name: "Default Branch", address: "Default Address"},
                 transferDate: formData.transferDate,
@@ -286,7 +287,7 @@ const StockTransferForm: React.FC = () => {
                 <div className="mb-5">
                     <form onSubmit={handleSubmit(onSubmit)}>
                         <div className="mb-5">
-                            {user?.roleType === "USER" && !user?.branchId &&
+                            {/* {user?.roleType === "USER" && !user?.branchId &&
                                 <div className="mb-5">
                                     <label>From Branch <span className="text-danger text-md">*</span></label>
                                     <select 
@@ -304,7 +305,7 @@ const StockTransferForm: React.FC = () => {
                                     </select>
                                     {errors.fromBranchId && <span className="error_validate">{errors.fromBranchId.message}</span>}
                                 </div>
-                            }
+                            } */}
                             <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-3' : 'sm:grid-cols-2' } mb-5`}>
                                 {user?.roleType === "ADMIN" &&
                                     <div>
@@ -486,7 +487,7 @@ const StockTransferForm: React.FC = () => {
                                         </option>
                                         <option 
                                             value="APPROVED"
-                                            hidden={!(hasPermission('Adjust-Stock-Approve') && statusValue === "PENDING")}
+                                            hidden={!(hasPermission('Stock-Transfer-Approve') && statusValue === "PENDING")}
                                         >
                                             Approved
                                         </option>
@@ -506,7 +507,7 @@ const StockTransferForm: React.FC = () => {
                                 Go Back
                             </NavLink>
                             {statusValue === 'PENDING' &&
-                                (hasPermission('Stock-Movement-Create') || hasPermission('Adjust-Stock-Edit')) && (
+                                (hasPermission('Stock-Transfer-Create') || hasPermission('Stock-Transfer-Edit')) && (
                                     <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                                         <FontAwesomeIcon icon={faSave} className='mr-1' />
                                         {isLoading ? 'Saving...' : 'Save'}

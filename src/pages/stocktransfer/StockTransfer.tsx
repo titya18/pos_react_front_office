@@ -198,7 +198,7 @@ const StockTransfer: React.FC = () => {
                             <div className="px-0">
                                 <div className="md:absolute md:top-0 ltr:md:left-0 rtl:md:right-0">
                                     <div className="mb-5 flex items-center gap-2">
-                                        {hasPermission('Stock-Movement-Create') &&
+                                        {hasPermission('Stock-Transfer-Create') &&
                                             <NavLink to="/addmovestock" className="btn btn-primary gap-2" >
                                                 <Plus />
                                                 Add New
@@ -310,13 +310,13 @@ const StockTransfer: React.FC = () => {
                                                                                 <NotebookText color="pink" />
                                                                             </button>
                                                                         }
-                                                                        {hasPermission('Stock-Movement-Edit') &&
+                                                                        {hasPermission('Stock-Transfer-Edit') &&
                                                                                 <NavLink to={`/editmovestock/${rows.id}`} className="hover:text-warning" title="Edit">
                                                                                     <Pencil color="green" />
                                                                                 </NavLink>
                                                                         }
                                                                         {rows.StatusType === 'PENDING' &&
-                                                                            hasPermission('Stock-Movement-Delete') &&
+                                                                            hasPermission('Stock-Transfer-Delete') &&
                                                                                 <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteTransfer(rows.id)} title="Delete">
                                                                                     <Trash2 color="red" />
                                                                                 </button>

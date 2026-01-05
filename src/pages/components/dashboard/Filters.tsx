@@ -37,7 +37,7 @@ const Filters = ({ filters, onChange }: any) => {
         className="border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
       />
 
-      {(user?.roleType === "ADMIN" || user?.roleType === "USER") && (
+      {(user?.roleType === "ADMIN") && (
         <select
           onChange={e =>
             onChange({ ...filters, branchId: Number(e.target.value) || undefined })

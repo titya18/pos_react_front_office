@@ -566,7 +566,7 @@ const Sidebar: React.FC = () => {
                         {(
                             hasPermission('Check-Stock') ||
                             hasPermission('Adjust-Stock-View') ||
-                            hasPermission('Stock-Movement-View') ||
+                            hasPermission('Stock-Transfer-View') ||
                             hasPermission('Stock-Request-View') ||
                             hasPermission('Stock-Return-View')
                         ) && (
@@ -622,7 +622,7 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
-                        {hasPermission('Stock-Movement-View') &&
+                        {hasPermission('Stock-Transfer-View') &&
                             <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>

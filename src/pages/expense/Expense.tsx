@@ -91,7 +91,7 @@ const Expense: React.FC = () => {
         setSearchParams(newParams);
     };
 
-    const { hasPermission } = useAppContext();
+    const { user, hasPermission } = useAppContext();
 
     const fetchExpenses = async () => {
         setIsLoading(true);
@@ -164,8 +164,10 @@ const Expense: React.FC = () => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
             const { data } = payload;
+
             const expenseData: ExpenseType = {
                 ...data,
+                branchId: data.branchId ?? user?.branchId,
                 id: data.id || 0
             };
 

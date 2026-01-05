@@ -258,7 +258,8 @@ const StockAdjustmentForm: React.FC = () => {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
             const adjustmentData: StockAdjustmentType = {
                 id: id ? Number(id) : undefined,
-                branchId: formData.branchId,
+                ref: "",
+                branchId: formData.branchId ?? user?.branchId,
                 branch: { id: formData.branchId ?? 0, name: "Default Branch", address: "Default Address"},
                 adjustDate: formData.adjustDate,
                 AdjustMentType: formData.AdjustMentType,
@@ -267,7 +268,6 @@ const StockAdjustmentForm: React.FC = () => {
                 delReason: "",
                 adjustmentDetails: adjustmentDetails
             }
-            console.log("adjustmentData:", adjustmentData);
             await upsertAdjustment(adjustmentData);
             toast.success(id ? "Adjustment updated successfully" : "Adjustment created successfully", {
                 position: "top-right",
@@ -321,7 +321,7 @@ const StockAdjustmentForm: React.FC = () => {
                 <div className="mb-5">
                     <form onSubmit={handleSubmit(onSubmit)}>
                         <div className="mb-5">
-                            {user?.roleType === "USER" && !user?.branchId &&
+                            {/* {user?.roleType === "USER" && !user?.branchId &&
                                 <div className="mb-5">
                                     <label>Branch <span className="text-danger text-md">*</span></label>
                                     <select 
@@ -339,7 +339,7 @@ const StockAdjustmentForm: React.FC = () => {
                                     </select>
                                     {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
                                 </div>
-                            }
+                            } */}
                             <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-3' : 'sm:grid-cols-2' } mb-5`}>
                                 {user?.roleType === "ADMIN" &&
                                     <div>

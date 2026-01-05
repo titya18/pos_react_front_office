@@ -451,7 +451,7 @@ const InvoiceForm: React.FC = () => {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
             const invoiceData: InvoiceType = {
                 id: id ? Number(id) : undefined,
-                branchId: formData.branchId,
+                branchId: formData.branchId ?? user?.branchId,
                 customerId: formData.customerId,
                 branch: { id: formData.branchId ?? 0, name: "Default Branch", address: "Default Address"},
                 customers: { id: formData.customerId ?? 0, name: "Default Customer", address: "Default Address"},
@@ -572,7 +572,7 @@ const InvoiceForm: React.FC = () => {
                                 </div>
 
                             </div>
-                            {user?.roleType === "USER" && !user?.branchId &&
+                            {/* {user?.roleType === "USER" && !user?.branchId &&
                                 <div className="mb-5">
                                     <label>Branch <span className="text-danger text-md">*</span></label>
                                     <select 
@@ -590,7 +590,7 @@ const InvoiceForm: React.FC = () => {
                                     </select>
                                     {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
                                 </div>
-                            }
+                            } */}
                             <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-3' : 'sm:grid-cols-2' } mb-5`}>
                                 {user?.roleType === "ADMIN" &&
                                     <div>

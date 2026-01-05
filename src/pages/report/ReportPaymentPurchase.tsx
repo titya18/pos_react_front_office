@@ -203,7 +203,7 @@ const reportPaymentPurchase: React.FC = () => {
                                         <option value="CANCELLED">Cancelled</option>
                                     </select>
                                 </div>
-                                {(user?.roleType === "ADMIN" || user?.roleType === "USER") &&
+                                {(user?.roleType === "ADMIN") &&
                                     <div>
                                         <label>Branch</label>
                                         <select value={branchId} onChange={(e) => updateParams({ branchId: Number(e.target.value) || undefined, page: 1 })} className="form-select">
