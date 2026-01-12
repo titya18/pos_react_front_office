@@ -7,6 +7,7 @@ import { getAllBranches } from "@/api/branch";
 import { getAllCustomers } from "@/api/customer";
 import { searchProduct } from "@/api/searchProduct";
 import { searchService } from "@/api/searchService";
+import { getNextInvoiceRef } from "@/api/invoice";
 import { upsertInvoice, getInvoiceByid } from "@/api/invoice";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -103,6 +104,7 @@ const InvoiceForm: React.FC = () => {
                     setValue("OrderSaleType", invoiceData.OrderSaleType);
                     setValue("branchId", invoiceData.branchId);
                     setValue("customerId", invoiceData.customerId);
+                    setValue("ref", invoiceData.ref);
                     setValue("orderDate", invoiceData.orderDate
                         ? new Date(invoiceData.orderDate).toISOString()
                         : null
@@ -131,7 +133,60 @@ const InvoiceForm: React.FC = () => {
         fetchInvoice();
     }, [fetchBranches, fetchCustomers, fetchInvoice]);
 
+    const branchId = watch("branchId");
     const OrderSaleType = watch("OrderSaleType") // RETAIL || WHOLESALE;
+
+    useEffect(() => {
+        // Don't regenerate when editing invoice
+        if (id) return;
+
+        // Determine branch based on role
+        const effectiveBranchId =
+            user?.roleType === "USER"
+                ? user.branchId
+                : branchId;
+
+        // No branch → no ref
+        if (!effectiveBranchId) {
+            setValue("ref", "");
+            return;
+        }
+
+        getNextInvoiceRef(Number(effectiveBranchId))
+            .then((data) => {
+                const refValue = (data && typeof data === "object" && "ref" in data)
+                    ? (data as any).ref
+                    : String(data || "");
+                setValue("ref", refValue);
+            })
+            .catch(() => {
+                toast.error("Failed to generate invoice number");
+            });
+
+    }, [branchId, user, id, setValue]);
+
+
+    // useEffect(() => {
+    //     // Don't regenerate when editing invoice
+    //     if (id) return;
+    //     if (!branchId) {
+    //         setValue("ref", "");
+    //         return;
+    //     }
+
+    //     getNextInvoiceRef(Number(branchId))
+    //         .then((data) => {
+    //             const refValue = (data && typeof data === "object" && "ref" in data)
+    //                 ? (data as any).ref
+    //                 : String(data || "");
+    //             setValue("ref", refValue);
+    //         })
+    //         .catch(() => {
+    //             toast.error("Failed to generate invoice number");
+    //         });
+
+    // }, [branchId, setValue]);
+
     // Watch the "shipping" field
     const shippingValue = String(watch("shipping") || "0"); // Force it to be a string
     const discountValue = String(watch("discount") || "0");
@@ -455,7 +510,7 @@ const InvoiceForm: React.FC = () => {
                 customerId: formData.customerId,
                 branch: { id: formData.branchId ?? 0, name: "Default Branch", address: "Default Address"},
                 customers: { id: formData.customerId ?? 0, name: "Default Customer", address: "Default Address"},
-                ref: "",
+                ref: formData.ref ? formData.ref : "",
                 OrderSaleType: formData.OrderSaleType,
                 orderDate: formData.orderDate,
                 taxRate: formData.taxRate ? formData.taxRate : null,
@@ -481,6 +536,7 @@ const InvoiceForm: React.FC = () => {
                 OrderSaleType: undefined,
                 orderDate: undefined,
                 branchId: undefined,
+                ref: undefined,
                 customerId: undefined,
                 taxRate: undefined,
                 taxNet: undefined,
@@ -572,31 +628,13 @@ const InvoiceForm: React.FC = () => {
                                 </div>
 
                             </div>
-                            {/* {user?.roleType === "USER" && !user?.branchId &&
-                                <div className="mb-5">
-                                    <label>Branch <span className="text-danger text-md">*</span></label>
-                                    <select 
-                                        id="branch" className="form-input" 
-                                        {...register("branchId", { 
-                                            required: "Branch is required"
-                                        })} 
-                                    >
-                                        <option value="">Select a branch</option>
-                                        {braches.map((option) => (
-                                            <option key={option.id} value={option.id}>
-                                                {option.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
-                                </div>
-                            } */}
-                            <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-3' : 'sm:grid-cols-2' } mb-5`}>
+                            <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-4' : 'sm:grid-cols-3' } mb-5`}>
                                 {user?.roleType === "ADMIN" &&
                                     <div>
                                         <label>Branch <span className="text-danger text-md">*</span></label>
                                         <select 
                                             id="branch" className="form-input" 
+                                            disabled={id ? true : false}
                                             {...register("branchId", { 
                                                 required: "Branch is required"
                                             })} 
@@ -611,6 +649,16 @@ const InvoiceForm: React.FC = () => {
                                         {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
                                     </div>
                                 }
+
+                                <div>
+                                    <label htmlFor="module">Invoice No <span className="text-danger text-md">*</span></label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Enter invoice no" 
+                                        className="form-input"
+                                        {...register("ref", { required: "This invoice no is required" })} 
+                                    />
+                                </div>
                                 <div style={wrapperStyle}>
                                     <label htmlFor="date-picker">Select a Date: <span className="text-danger text-md">*</span></label>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -887,11 +935,11 @@ const InvoiceForm: React.FC = () => {
                                             <td style={{padding: "8px 5px", background: "#fff"}}>Discount</td>
                                             <td style={{background: "#fff"}}>$ { Number(discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
                                         </tr>
-                                        <tr>
+                                        {/* <tr>
                                             <td colSpan={6}></td>
                                             <td style={{padding: "8px 5px"}}>Shipping</td>
                                             <td>$ { Number(shipping).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
-                                        </tr>
+                                        </tr> */}
                                         <tr>
                                             <td colSpan={6}></td>
                                             <td style={{padding: "8px 5px", background: "#fff"}}><b>Grand Total</b></td>
@@ -913,12 +961,12 @@ const InvoiceForm: React.FC = () => {
                                         placeholder="0"
                                         {...register("discount")}/>
                                 </div>
-                                <div>
+                                {/* <div>
                                     <label>Shipping</label>
                                     <input type="text" className="form-input" 
                                         placeholder="0"
                                         {...register("shipping")}/>
-                                </div>
+                                </div> */}
                                 <div>
                                     <label>Status <span className="text-danger text-md">*</span></label>
                                     <select 
@@ -929,35 +977,26 @@ const InvoiceForm: React.FC = () => {
                                     >
                                         <option value="">Select a status...</option>
                                         <option value="PENDING">Pending</option>
-                                        <option 
+
+                                        <option
                                             value="APPROVED"
-                                            hidden={!(hasPermission('Invoice-Approve') && statusValue === "PENDING")}
+                                            disabled={!hasPermission("Invoice-Approve") && statusValue === "PENDING"}
                                         >
                                             Approved
                                         </option>
-                                        <option 
-                                            value="APPROVED"
-                                            hidden={!(user?.roleType === "USER" && statusValue !== "PENDING")}
-                                        >
-                                            Approved
-                                        </option>
-                                        <option 
-                                            value="APPROVED"
-                                            hidden={!(user?.roleType === "USER" && statusValue === "APPROVED")}
-                                        >
-                                            Approved
-                                        </option>
-                                        <option 
-                                            value="CANCELLED"
-                                            hidden={!(user?.roleType === "USER" && statusValue === "CANCELLED")}
-                                        >
-                                            Cancelled
-                                        </option>
-                                        <option 
+                                        
+                                        <option
                                             value="COMPLETED"
-                                            hidden={!(user?.roleType === "USER" && statusValue === "COMPLETED")}
+                                            disabled={statusValue !== "COMPLETED" && statusValue !== "CANCELLED" && statusValue !== "APPROVED"}
                                         >
                                             Completed
+                                        </option>
+                                        
+                                        <option
+                                            value="CANCELLED"
+                                            disabled={statusValue !== "CANCELLED" && statusValue !== "COMPLETED" && statusValue !== "APPROVED"}
+                                        >
+                                            Cancelled
                                         </option>
                                     </select>
                                     {errors.status && <span className="error_validate">{errors.status.message}</span>}

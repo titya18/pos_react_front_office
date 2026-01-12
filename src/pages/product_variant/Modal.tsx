@@ -267,18 +267,18 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, productVariant
         setIsLoading(true);
         try {
             // Validate variant attributes
-            const selectedAttrIds = data.variantAttributeIds || [];
-            if (selectedAttrIds.length === 0) {
-                alert("Please select at least one Variant Attribute.");
-                setIsLoading(false);
-                return;
-            }
+            // const selectedAttrIds = data.variantAttributeIds || [];
+            // if (selectedAttrIds.length === 0) {
+            //     alert("Please select at least one Variant Attribute.");
+            //     setIsLoading(false);
+            //     return;
+            // }
 
-            if (!data.variantValueIds || data.variantValueIds.length === 0) {
-                alert("Please select at least one variant value.");
-                setIsLoading(false);
-                return;
-            }
+            // if (!data.variantValueIds || data.variantValueIds.length === 0) {
+            //     alert("Please select at least one variant value.");
+            //     setIsLoading(false);
+            //     return;
+            // }
 
             // Convert existing image paths to File objects
             const convertedExistingImages = await convertExistingImagesPaths();

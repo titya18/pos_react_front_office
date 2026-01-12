@@ -28,7 +28,7 @@ dayjs.extend(timezone);
 const columns = [
     "No",
     "Invoice Date",
-    "Reference",
+    "INV-No",
     "Invoice Type",
     "Customer",
     "Branch",
@@ -48,7 +48,7 @@ const columns = [
 const sortFields: Record<string, string> = {
     "No": "id",
     "Invoice Date": "orderDate",
-    "Reference": "ref",
+    "INV-No": "ref",
     "Invoice Type": "OrderSaleType",
     "Customer": "customerId",
     "Branch": "branchId",
@@ -147,7 +147,7 @@ const Invoice: React.FC = () => {
     const exportData = invoiceData.map((inv, index) => ({
         "No": (page - 1) * pageSize + index + 1,
         "Invoice Date": inv.orderDate,
-        "Reference": inv.ref,
+        "INV-No": inv.ref,
         "Invoice Type": inv.OrderSaleType,
         "Customer": inv.customers ? inv.customers.name : "N/A",
         "Branch": inv.branch ? inv.branch.name : "",
@@ -344,7 +344,7 @@ const Invoice: React.FC = () => {
                                                             {visibleCols.includes("Invoice Date") && (
                                                                 <td>{rows.orderDate ? format(new Date(rows.orderDate), 'dd-MMM-yyyy') : ''}</td>
                                                             )}
-                                                            {visibleCols.includes("Reference") && (
+                                                            {visibleCols.includes("INV-No") && (
                                                                 <td>{rows.ref}</td>
                                                             )}
                                                             {visibleCols.includes("Invoice Type") && (

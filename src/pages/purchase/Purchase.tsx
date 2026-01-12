@@ -11,7 +11,7 @@ import { toast } from "react-toastify";
 import { useAppContext } from "@/hooks/useAppContext";
 import ModalPayment from "./ModalPayment";
 import { format } from 'date-fns';
-import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, MessageCircleOff, NotebookText } from 'lucide-react';
+import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, MessageCircleOff, NotebookText, BookImage } from 'lucide-react';
 import { PurchaseType, PaymentType } from "@/data_types/types";
 import { useSearchParams } from "react-router-dom";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
@@ -20,6 +20,14 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 
+import { normalizePreviewItems } from "@/utils/normalizePreviewItems";
+import { FilePreviewModal } from "@/components/FilePreviewModal";
+
+type PreviewItem = {
+  url: string;
+  type: "image" | "pdf";
+};
+
 // Extend Day.js with plugins
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -27,7 +35,7 @@ dayjs.extend(timezone);
 const columns = [
     "No",
     "Purchase Date",
-    "Reference",
+    "Purchase No",
     "Supplier",
     "Branch",
     "Status",
@@ -44,7 +52,7 @@ const columns = [
 const sortFields: Record<string, string> = {
     "No": "id",
     "Purchase Date": "purchaseDate",
-    "Reference": "ref",
+    "Purchase No": "ref",
     "Supplier": "supplierId",
     "Branch": "branchId",
     "Status": "status",
@@ -78,6 +86,13 @@ const Purchase: React.FC = () => {
     const [deleteMessage, setDeleteMessage] = useState("");
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [viewNote, setViewNote] = useState<string | null>(null);
+    const [file, setFile] = useState<File | null>(null);
+    const [open, setOpen] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewImages, setPreviewImages] = useState<string[]>([]);
+    const [activeIndex, setActiveIndex] = useState(0);
+
+    const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
 
     const updateParams = (params: Record<string, unknown>) => {
         const newParams = new URLSearchParams(searchParams.toString());
@@ -139,7 +154,7 @@ const Purchase: React.FC = () => {
     const exportData = purchaseData.map((purchase, index) => ({
         "No": (page - 1) * pageSize + index + 1,
         "Purchase Date": purchase.purchaseDate,
-        "Reference": purchase.ref,
+        "Purchase No": purchase.ref,
         "Supplier": purchase.suppliers ? purchase.suppliers.name : "",
         "Branch": purchase.branch ? purchase.branch.name : "",
         "Status": purchase.status,
@@ -227,6 +242,32 @@ const Purchase: React.FC = () => {
         setShowNoteModal(true);
     };
 
+    useEffect(() => {
+        return () => {
+            previewImages.forEach(img => {
+            if (img.startsWith("blob:")) URL.revokeObjectURL(img);
+            });
+        };
+    }, [previewImages]);
+
+
+    const normalizePreviewItems = (files: string | File | File[] | null): PreviewItem[] => {
+        if (!files) return [];
+
+        const array = Array.isArray(files) ? files : [files];
+        return array.map(f => {
+            if (typeof f === "string") {
+                const ext = f.split('.').pop()?.toLowerCase();
+                return { url: `${import.meta.env.VITE_API_URL}/${f}`, type: ext === "pdf" ? "pdf" : "image" };
+            } else if (f instanceof File) {
+                const ext = f.name.split('.').pop()?.toLowerCase();
+                return { url: URL.createObjectURL(f), type: ext === "pdf" ? "pdf" : "image" };
+            } else {
+                return { url: "", type: "image" };
+            }
+        });
+    };
+
     return (
         <>
             <div className="pt-0">
@@ -306,7 +347,7 @@ const Purchase: React.FC = () => {
                                                             {visibleCols.includes("Purchase Date") && (
                                                                 <td>{rows.purchaseDate ? format(new Date(rows.purchaseDate), 'dd-MMM-yyyy') : ''}</td>
                                                             )}
-                                                            {visibleCols.includes("Reference") && (
+                                                            {visibleCols.includes("Purchase No") && (
                                                                 <td>{rows.ref}</td>
                                                             )}
                                                             {visibleCols.includes("Supplier") && (
@@ -346,6 +387,24 @@ const Purchase: React.FC = () => {
                                                             {visibleCols.includes("Actions") && (
                                                                 <td className="text-center">
                                                                     <div className="flex items-center justify-center gap-2">
+                                                                        {rows.image && ((Array.isArray(rows.image) && rows.image.length > 0) || (typeof rows.image === 'string' && rows.image.length > 0) || (rows.image instanceof File)) &&
+                                                                        <button
+                                                                            type="button"
+                                                                            className="px-2 py-1 text-primary"
+                                                                            onClick={() => {
+                                                                                const items = normalizePreviewItems(rows.image);
+                                                                                if (items.length === 0) {
+                                                                                    toast.info("No image to preview");
+                                                                                    return;
+                                                                                }
+                                                                                setPreviewItems(items);
+                                                                                setActiveIndex(0);
+                                                                                setPreviewOpen(true);
+                                                                            }}
+                                                                        >
+                                                                            < BookImage />
+                                                                        </button>
+                                                                        }
                                                                         {rows.note !== null &&
                                                                             <button type="button" className="hover:text-danger" onClick={() => handleViewNote(rows.note)} title="View Note">
                                                                                 <NotebookText color="pink" />
@@ -495,6 +554,21 @@ const Purchase: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <FilePreviewModal
+                isOpen={previewOpen}
+                items={previewItems}
+                activeIndex={activeIndex}
+                setActiveIndex={setActiveIndex}
+                onClose={() => setPreviewOpen(false)}
+                onDelete={(idx) => {
+                    const newItems = [...previewItems];
+                    const [removed] = newItems.splice(idx, 1);
+                    setPreviewItems(newItems);
+                    if (removed.url.startsWith("blob:")) URL.revokeObjectURL(removed.url);
+                    if (activeIndex >= newItems.length) setActiveIndex(newItems.length - 1);
+                }}
+            />
         </>
     );
 };

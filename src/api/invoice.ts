@@ -44,6 +44,17 @@ export const insertInvoicePayment = async (paymentData: InvoicePaymentType): Pro
     return response.json();
 };
 
+export const getNextInvoiceRef = async (branchId: number): Promise<string> => {
+    const response = await fetch(`${API_BASE_URL}/api/invoice/next-ref/${branchId}`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching next-ref");
+    }
+
+    return response.json();
+};
+
 export const getInvoicePaymentById = async (id: number): Promise<InvoicePaymentType[]> => {
     const response = await fetch(`${API_BASE_URL}/api/invoice/payment/${id}`, {
         credentials: "include"

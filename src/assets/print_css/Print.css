@@ -1,0 +1,90 @@
+@media print {
+  /* ================= RESET ================= */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* ================= HIDE UI ================= */
+  .no-print,
+  button,
+  svg,
+  [class*="mt-auto"],
+  [class*="main-logo"],
+  [class*="my-auto"],
+  [class*="floating"],
+  [class*="fab"],
+  [class*="chat"],
+  [class*="help"],
+  [class*="setting"],
+  [class*="widget"] {
+    display: none !important;
+  }
+
+  /* ================= INVOICE ================= */
+  .invoice-container {
+    width: 190mm;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: white !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* ================= TABLE ================= */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* Smaller font ONLY for items */
+  .items-section table {
+    font-size: 11px;
+  }
+
+  .items-section th {
+    font-size: 11px;
+    padding: 6px 8px !important;
+  }
+
+  .items-section td {
+    font-size: 10px;
+    padding: 4px 8px !important;
+  }
+
+  .items-section td span {
+    font-size: 9px !important;
+  }
+
+  /* ================= BLOCK SAFETY ================= */
+  .invoice-header,
+  .address-section,
+  .totals-section,
+  .terms-notes-section {
+    page-break-inside: avoid;
+  }
+}

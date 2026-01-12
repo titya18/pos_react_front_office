@@ -55,6 +55,7 @@ import ReportRequest from "./pages/report/ReportRequest";
 import ReportReturn from "./pages/report/ReportReturn";
 import ReportExpense from "./pages/report/ReportExpense";
 import ReportIncome from "./pages/report/ReportIncome";
+import Pos from "./pages/pos/Pos";
 
 import { Customer } from "./pages/customer/Customer";
 import NotFound from "./pages/notfound/NotFount";
@@ -62,14 +63,17 @@ import { BrowserRouter } from "react-router-dom";
 
 const App: React.FC = () => {
     return (
-        // <Router>
-        <BrowserRouter basename="/inventory">
+        <Router>
+        {/* <BrowserRouter basename="/inventory"> */}
             <AppContextProvider>
                 <LanguageProvider>
                     <Routes>
                         {/* Sign-In and Sign-Up */}
                         <Route path="/" element={<SignIn />} />
                         <Route path="/asignup" element={<SignUp />} />
+
+                        {/* POS */}
+                        <Route path="/pos" element={<PrivateRoute element={<Pos />} />} />
 
                         {/* Dashboard */}
                         <Route path="/dashboard" element={<PrivateRoute element={<Layout><Dashboard /></Layout>} />} />
@@ -165,8 +169,8 @@ const App: React.FC = () => {
                     </Routes>
                 </LanguageProvider>
             </AppContextProvider>
-        </BrowserRouter>
-        // </Router>
+        {/* </BrowserRouter> */}
+        </Router>
     );
 };
 

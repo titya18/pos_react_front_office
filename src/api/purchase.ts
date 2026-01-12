@@ -1,18 +1,61 @@
 import { ProductType, PurchaseType, PurchaseDetailType, PaymentType } from "../data_types/types";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
+export const getNextPurchaseRef = async (branchId: number): Promise<string> => {
+    const response = await fetch(`${API_BASE_URL}/api/purchase/next-ref/${branchId}`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching next-ref");
+    }
+
+    return response.json();
+};
+
 export const upsertPurchase = async (purchaseData: PurchaseType): Promise<PurchaseType> => {
-    const { id, ...data } = purchaseData;
+    const { id, image, imagesToDelete, ...data } = purchaseData;
     const method = id ? "PUT" : "POST";
     const url = id ? `${API_BASE_URL}/api/purchase/${id}` : `${API_BASE_URL}/api/purchase`;
+
+    const formData = new FormData();
+
+    // ---------- NORMAL DATA ----------
+    Object.entries(data).forEach(([key, value]) => {
+        if (value === null || value === undefined) return;
+
+        if (Array.isArray(value) || typeof value === "object") {
+            formData.append(key, JSON.stringify(value));
+        } else {
+            formData.append(key, String(value));
+        }
+    });
+
+    // ---------- NEW IMAGES ----------
+    if (image) {
+        if (Array.isArray(image) && image.length > 0) {
+            image.forEach((file) => {
+                formData.append("images[]", file);
+            });
+        } else if (image instanceof File) {
+            formData.append("images[]", image);
+        } else if (typeof image === "string" && image.length > 0) {
+            // image is a URL/string — if backend expects URLs, send as part of the JSON fields above;
+            // otherwise ignore here since it's not a File to append.
+        }
+    }
+
+    // ---------- DELETE IMAGES ----------
+    if (imagesToDelete && imagesToDelete.length > 0) {
+        formData.append(
+            "imagesToDelete",
+            JSON.stringify(imagesToDelete)
+        );
+    }
 
     const response = await fetch(url, {
         method,
         credentials: "include",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
+        body: formData, // NO Content-Type
     });
 
     if (!response.ok) {

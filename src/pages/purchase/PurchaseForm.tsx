@@ -5,6 +5,7 @@ import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { BranchType, SupplierType, ProductVariantType, ProductType, PurchaseType, PurchaseDetailType } from "@/data_types/types";
 import { getAllBranches } from "@/api/branch";
 import { searchProduct } from "@/api/searchProduct";
+import { getNextPurchaseRef } from "@/api/purchase";
 import { upsertPurchase, getPurchaseByid } from "@/api/purchase";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -19,6 +20,7 @@ import { useSuppliers } from "@/hooks/useSupplier";
 import { useQueryClient } from "@tanstack/react-query";
 import { FilePenLine, Pencil, Plus, Trash2 } from 'lucide-react';
 import ShowWarningMessage from "../components/ShowWarningMessage";
+import { FileRejection, useDropzone } from "react-dropzone";
 
 const PurchaseForm: React.FC = () => {
     const { allSuppliers, handleAddOrEditSupplier } = useSuppliers();
@@ -39,10 +41,16 @@ const PurchaseForm: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
     const [statusValue, setStatusValue] = useState<string>("PENDING");
+    const [imagePreview, setImagePreview] = useState<string[] | null>(null);
+    const [existingImages, setExistingImages] = useState<string[]>([]); // Existing images
+    const [newImages, setNewImages] = useState<File[]>([]); // New images
+    const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
+    const [resetKey, setResetKey] = useState(0); // Key to re-render the dropzone
 
     const queryClient = useQueryClient();
 
     const { user, hasPermission } = useAppContext();
+    const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
     const navigate = useNavigate(); // Initialize useNavigate
 
@@ -71,6 +79,7 @@ const PurchaseForm: React.FC = () => {
                     await fetchBranches();
                     // await fetchSuppliers();
                     setValue("branchId", purchaseData.branchId);
+                    setValue("ref", purchaseData.ref);
                     setValue("supplierId", purchaseData.supplierId);
                     setValue("purchaseDate", purchaseData.purchaseDate
                         ? new Date(purchaseData.purchaseDate).toISOString()
@@ -82,6 +91,7 @@ const PurchaseForm: React.FC = () => {
                     setGrandTotal(purchaseData.grandTotal);
                     setValue("paidAmount", purchaseData.paidAmount);
                     setValue("status", purchaseData.status);
+                    setValue("image", purchaseData.image || null);
                     setValue("note", purchaseData.note);
                     // Update purchaseDetails only if it has changed
                     // if (JSON.stringify(purchaseData.purchaseDetails) !== JSON.stringify(purchaseDetails)) {
@@ -89,6 +99,26 @@ const PurchaseForm: React.FC = () => {
                     // }
                     // console.log("purchaseData:", purchaseData.purchaseDetails);
                     setStatusValue(purchaseData.status);
+
+                    // Handle existing images
+                    if (purchaseData.image) {
+                        if (typeof purchaseData.image === "string") {
+                            setExistingImages([purchaseData.image]);
+                            setImagePreview([`${API_BASE_URL}/${purchaseData.image}`]);
+                        } else if (Array.isArray(purchaseData.image)) {
+                            const images = purchaseData.image.map(item =>
+                                typeof item === "string" ? item : URL.createObjectURL(item)
+                            );
+                            setExistingImages(images);
+                            setImagePreview(purchaseData.image.map(img => `${API_BASE_URL}/${img}`));
+                        } else if (purchaseData.image instanceof File) {
+                            const url = URL.createObjectURL(purchaseData.image);
+                            setExistingImages([url]);
+                            setImagePreview([url]);
+                        }
+                    } else {
+                        setImagePreview(null);
+                    }
                 }
             } catch (error) {
                 console.error("Error fetching purchase:", error);
@@ -108,6 +138,37 @@ const PurchaseForm: React.FC = () => {
         fetchBranches();
         fetchPurchase();
     }, [fetchBranches, fetchPurchase]);
+
+    const branchId = watch("branchId");
+
+    useEffect(() => {
+        // Don't regenerate when editing invoice
+        if (id) return;
+
+        // Determine branch based on role
+        const effectiveBranchId =
+            user?.roleType === "USER"
+                ? user.branchId
+                : branchId;
+
+        // No branch → no ref
+        if (!effectiveBranchId) {
+            setValue("ref", "");
+            return;
+        }
+
+        getNextPurchaseRef(Number(effectiveBranchId))
+            .then((data) => {
+                const refValue = (data && typeof data === "object" && "ref" in data)
+                    ? (data as any).ref
+                    : String(data || "");
+                setValue("ref", refValue);
+            })
+            .catch(() => {
+                toast.error("Failed to generate invoice number");
+            });
+
+    }, [branchId, user, id, setValue]);
 
     // Watch the "shipping" field
     const shippingValue = String(watch("shipping") || "0"); // Force it to be a string
@@ -161,35 +222,6 @@ const PurchaseForm: React.FC = () => {
         setSearchTerm(term);
         handleSearch(term);
     };
-
-    // // Add product to cart
-    // const addOrUpdatePurchaseDetail = (productVariant: ProductVariant) => {
-    //     const existing = purchaseDetails.find((item) => item.productVariantId === productVariant.id);
-    //     if (existing) {
-    //         alert("Product already in cart");
-    //         return;
-    //     }
-
-    //     const newDetail: PurchaseDetail = {
-    //         id: 0,
-    //         productId: productVariant.productId,
-    //         productVariantId: productVariant.id,
-    //         name: productVariant.name,
-    //         code: productVariant.code,
-    //         products: productVariant.products || null,
-    //         cost: 0.0000,
-    //         taxNet: 0,
-    //         taxMethod: "",
-    //         discount: 0,
-    //         discountMethod: "",
-    //         total: 0.0000,
-    //         quantity: 1
-    //     }
-
-    //     setPurchaseDetails([...purchaseDetails, newDetail]);
-    //     setSearchTerm(""); // Clear search
-    //     setShowSuggestions(false); // Hide suggestions
-    // };
 
     // Function to add or update a product detail
     const addOrUpdatePurchaseDetail = async (newDetail: PurchaseDetailType) => {
@@ -355,19 +387,95 @@ const PurchaseForm: React.FC = () => {
         setPurchaseDetails(updatedDetails);
     };
 
+    // Reset dropzone states and input
+    const resetDropzoneOrFormData = () => {
+        reset();
+        setNewImages([]);
+        setImagePreview([]);
+        setResetKey((prev) => prev + 1); // Force re-render the dropzone
+    };
+
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/jpg", "application/pdf"];
+
+    const onDrop = (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
+        const validFiles = acceptedFiles.filter(file => ALLOWED_TYPES.includes(file.type) && file.size <= MAX_FILE_SIZE);
+
+        if (rejectedFiles.length > 0 || validFiles.length < acceptedFiles.length) {
+            alert("Some files were rejected. Only JPG, PNG, WEBP, and GIF files up to 5 MB are allowed.");
+            return;
+        }
+
+        const previews = validFiles.map(file => URL.createObjectURL(file));
+        setNewImages(prev => [...prev, ...validFiles]);
+        setImagePreview(prev => (prev ? [...prev, ...previews] : previews));
+    };
+
+    const { getRootProps, getInputProps } = useDropzone({
+        onDrop,
+        accept: {
+            "image/jpeg": [],
+            "image/png": [],
+            "image/webp": [],
+            "image/gif": [],
+            "image/jpg": [],
+            "application/pdf": []
+        },
+        multiple: true,
+    });
+
+    const removeImage = (index: number, type: "existing" | "new") => {
+        if (type === "existing") {
+            const removedImage = existingImages[index];
+            setImagesToDelete((prev) => [...prev, removedImage]);
+
+            setExistingImages(prev => prev ? prev.filter((_, i) => i !== index) : []); // Guard for null
+            setImagePreview(prev => prev ? prev.filter((_, i) => i !== index) : []);  // Guard for null
+        } else if (type === "new") {
+            setNewImages(prev => prev ? prev.filter((_, i) => i !== index - (existingImages?.length || 0)) : []);
+            setImagePreview(prev => prev ? prev.filter((_, i) => i !== index) : []);
+        }
+    };
+    
+    const convertExistingImagesPaths = async (): Promise<File[]> => {
+        const imageFiles: File[] = [];
+        for (const url of existingImages) {
+            const filename = url.split("/").pop() || "file";
+
+            const response = await fetch(url);
+            const blob = await response.blob();
+
+            // Only accept allowed types
+            if (!["image/jpeg", "image/png", "image/webp", "image/gif", "image/jpg", "application/pdf"].includes(blob.type)) {
+                continue; // skip unsupported types
+            }
+
+            const file = new File([blob], filename, { type: blob.type }); // Use actual MIME type
+            imageFiles.push(file);
+        }
+        return imageFiles;
+    };
+
     const onSubmit: SubmitHandler<PurchaseType> = async (formData) => {
         setIsLoading(true);
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
             const selectedSupplier = allSuppliers.find(s => s.id === formData.supplierId);
-            console.log("selectedSupplier:", formData);
+
+            // Convert existing image paths to File objects
+            const convertedExistingImages = await convertExistingImagesPaths();
+
+            // Combine existing + new uploaded images
+            const combinedImages = [...convertedExistingImages, ...newImages];
+
             const purchaseData: PurchaseType = {
                 id: id ? Number(id) : undefined,
                 branchId: formData.branchId ?? user?.branchId,
                 supplierId: formData.supplierId,
                 branch: { id: formData.branchId ?? 0, name: "Default Branch", address: "Default Address"},
                 suppliers: selectedSupplier ?? null,
-                ref: "",
+                ref: formData.ref,
                 purchaseDate: formData.purchaseDate,
                 taxRate: formData.taxRate ? formData.taxRate : null,
                 taxNet: formData.taxNet ? formData.taxNet : null,
@@ -378,17 +486,23 @@ const PurchaseForm: React.FC = () => {
                 status: formData.status,
                 note: formData.note,
                 delReason: "",
-                purchaseDetails: purchaseDetails
+                purchaseDetails: purchaseDetails,
+                image: combinedImages.length > 0 ? combinedImages : null,
+                imagesToDelete: imagesToDelete
             }
+
             await upsertPurchase(purchaseData);
             toast.success(id ? "Purchase updated successfully" : "Purchase created successfully", {
                 position: "top-right",
                 autoClose: 2000
             });
 
+            resetDropzoneOrFormData();
+
             // Reset form data and purchaseDetails
             reset({
                 id: undefined,
+                ref: undefined,
                 branchId: undefined,
                 supplierId: undefined,
                 taxRate: undefined,
@@ -398,6 +512,8 @@ const PurchaseForm: React.FC = () => {
                 status: undefined,
                 note: undefined,
                 purchaseDetails: [], // Clear purchaseDetails
+                image: null,
+                imagesToDelete: []
             });
 
             // Redirect to the specified URL
@@ -454,12 +570,13 @@ const PurchaseForm: React.FC = () => {
                 <div className="mb-5">
                     <form onSubmit={handleSubmit(onSubmit)}>
                         <div className="mb-5">
-                            <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-3' : 'sm:grid-cols-2' } mb-5`}>
+                            <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-4' : 'sm:grid-cols-3' } mb-5`}>
                                 {user?.roleType === "ADMIN" &&
                                     <div>
                                         <label>Branch <span className="text-danger text-md">*</span></label>
                                         <select 
                                             id="branch" className="form-input" 
+                                            disabled={id ? true : false}
                                             {...register("branchId", { 
                                                 required: "Branch is required"
                                             })} 
@@ -474,6 +591,15 @@ const PurchaseForm: React.FC = () => {
                                         {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
                                     </div>
                                 }
+                                <div>
+                                    <label htmlFor="module">Purchase No <span className="text-danger text-md">*</span></label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Enter purchase no" 
+                                        className="form-input"
+                                        {...register("ref", { required: "This purchase no is required" })} 
+                                    />
+                                </div>
                                 <div style={wrapperStyle}>
                                     <label htmlFor="date-picker">Select a Date: <span className="text-danger text-md">*</span></label>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -671,11 +797,11 @@ const PurchaseForm: React.FC = () => {
                                             <td style={{padding: "8px 5px", background: "#fff"}}>Discount</td>
                                             <td style={{background: "#fff"}}>$ { Number(discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
                                         </tr>
-                                        <tr>
+                                        {/* <tr>
                                             <td colSpan={6}></td>
                                             <td style={{padding: "8px 5px"}}>Shipping</td>
                                             <td>$ { Number(shipping).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
-                                        </tr>
+                                        </tr> */}
                                         <tr>
                                             <td colSpan={6}></td>
                                             <td style={{padding: "8px 5px", background: "#fff"}}><b>Grand Total</b></td>
@@ -697,12 +823,12 @@ const PurchaseForm: React.FC = () => {
                                         placeholder="0"
                                         {...register("discount")}/>
                                 </div>
-                                <div>
+                                {/* <div>
                                     <label>Shipping</label>
                                     <input type="text" className="form-input" 
                                         placeholder="0"
                                         {...register("shipping")}/>
-                                </div>
+                                </div> */}
                                 <div>
                                     <label>Status <span className="text-danger text-md">*</span></label>
                                     <select 
@@ -713,29 +839,73 @@ const PurchaseForm: React.FC = () => {
                                     >
                                         <option value="">Select a status...</option>
                                         <option value="PENDING">Pending</option>
-                                        <option 
+
+                                         <option
                                             value="RECEIVED"
-                                            hidden={!(user?.roleType === "USER" && statusValue !== "PENDING")}
+                                            disabled={!hasPermission("Purchase-Receive") && statusValue === "PENDING"}
                                         >
                                             Received
                                         </option>
-                                        <option 
-                                            value="RECEIVED"
-                                            hidden={!(hasPermission('Purchase-Receive') && statusValue === "PENDING")}
-                                        >
-                                            Received
-                                        </option>
-                                        <option 
-                                            value="COMPLETED" 
-                                            hidden={!(user?.roleType === "ADMIN" && statusValue === "COMPLETED")}
+                                        
+                                        <option
+                                            value="COMPLETED"
+                                            disabled={statusValue !== "COMPLETED" && statusValue !== "RECEIVED" && statusValue !== "CANCELLED"}
                                         >
                                             Completed
+                                        </option>
+                                        
+                                        <option
+                                            value="CANCELLED"
+                                            disabled={statusValue !== "CANCELLED" && statusValue !== "RECEIVED" && statusValue !== "COMPLETED"}
+                                        >
+                                            Cancelled
                                         </option>
 
                                     </select>
                                     {errors.status && <span className="error_validate">{errors.status.message}</span>}
                                 </div>
                             </div>
+                            <label htmlFor="module">Product's Image</label>
+                                    {/* Drag-and-Drop File Upload */}
+                                    <div
+                                        key={resetKey}
+                                        {...getRootProps()}
+                                        style={{
+                                            border: "2px dashed #ccc",
+                                            padding: "20px",
+                                            textAlign: "center",
+                                            margin: "20px 0",
+                                        }}
+                                    >
+                                        <input {...getInputProps()} />
+                                        <p>Drag & drop some files here, or click to select files</p>
+                                    </div>
+                                    {/* Image Previews */}
+                                    <div className="flex gap-2 mt-3 flex-wrap">
+                                        {imagePreview?.map((img, index) => (
+                                            <div key={index} className="relative group">
+                                                <img
+                                                    src={img}
+                                                    alt={`preview-${index}`}
+                                                    className="h-16 w-16 rounded-md"
+                                                />
+                                                {/* Remove Button */}
+                                                <button
+                                                    type="button"
+                                                    className="absolute top-0 right-0 text-white py-0.5 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    style={{ background: 'red', borderRadius: '15px' }}
+                                                    onClick={() =>
+                                                        removeImage(
+                                                            index,
+                                                            index < existingImages.length ? "existing" : "new"
+                                                        )
+                                                    }
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
                             <div className="mb-5">
                                 <label>Note</label>
                                 <textarea {...register("note")} className="form-input" rows={3}></textarea>

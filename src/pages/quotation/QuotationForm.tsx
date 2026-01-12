@@ -7,6 +7,7 @@ import { getAllBranches } from "@/api/branch";
 import { getAllCustomers } from "@/api/customer";
 import { searchProduct } from "@/api/searchProduct";
 import { searchService } from "@/api/searchService";
+import { getNextQuotationRef } from "@/api/quotation";
 import { upsertQuotation, getQuotationByid } from "@/api/quotation";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
@@ -100,6 +101,7 @@ const QuotationForm: React.FC = () => {
                     await fetchBranches();
                     // await fetchSuppliers();
                     setValue("QuoteSaleType", quotationData.QuoteSaleType);
+                    setValue("ref", quotationData.ref);
                     setValue("branchId", quotationData.branchId);
                     setValue("customerId", quotationData.customerId);
                     setValue("quotationDate", quotationData.quotationDate
@@ -130,7 +132,38 @@ const QuotationForm: React.FC = () => {
         fetchQuotation();
     }, [fetchBranches, fetchQuotation]);
 
+    const branchId = watch("branchId");
     const quoteSaleType = watch("QuoteSaleType") // RETAIL || WHOLESALE;
+
+    useEffect(() => {
+        // Don't regenerate when editing invoice
+        if (id) return;
+
+        // Determine branch based on role
+        const effectiveBranchId =
+            user?.roleType === "USER"
+                ? user.branchId
+                : branchId;
+
+        // No branch → no ref
+        if (!effectiveBranchId) {
+            setValue("ref", "");
+            return;
+        }
+
+        getNextQuotationRef(Number(effectiveBranchId))
+            .then((data) => {
+                const refValue = (data && typeof data === "object" && "ref" in data)
+                    ? (data as any).ref
+                    : String(data || "");
+                setValue("ref", refValue);
+            })
+            .catch(() => {
+                toast.error("Failed to generate quotation number");
+            });
+
+    }, [branchId, user, id, setValue]);
+
     // Watch the "shipping" field
     const shippingValue = String(watch("shipping") || "0"); // Force it to be a string
     const discountValue = String(watch("discount") || "0");
@@ -454,7 +487,7 @@ const QuotationForm: React.FC = () => {
                 customerId: formData.customerId,
                 branch: { id: formData.branchId ?? 0, name: "Default Branch", address: "Default Address"},
                 customers: { id: formData.customerId ?? 0, name: "Default Customer", address: "Default Address"},
-                ref: "",
+                ref: formData.ref,
                 QuoteSaleType: formData.QuoteSaleType,
                 quotationDate: formData.quotationDate,
                 taxRate: formData.taxRate ? formData.taxRate : null,
@@ -476,6 +509,7 @@ const QuotationForm: React.FC = () => {
             // Reset form data and purchaseDetails
             reset({
                 id: undefined,
+                ref: undefined,
                 QuoteSaleType: undefined,
                 quotationDate: undefined,
                 branchId: undefined,
@@ -589,12 +623,13 @@ const QuotationForm: React.FC = () => {
                                     {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
                                 </div>
                             } */}
-                            <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-3' : 'sm:grid-cols-2' } mb-5`}>
+                            <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-4' : 'sm:grid-cols-3' } mb-5`}>
                                 {user?.roleType === "ADMIN" &&
                                     <div>
                                         <label>Branch <span className="text-danger text-md">*</span></label>
                                         <select 
                                             id="branch" className="form-input" 
+                                            disabled={id ? true : false}
                                             {...register("branchId", { 
                                                 required: "Branch is required"
                                             })} 
@@ -609,6 +644,17 @@ const QuotationForm: React.FC = () => {
                                         {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
                                     </div>
                                 }
+
+                                <div>
+                                    <label htmlFor="module">Quotation No <span className="text-danger text-md">*</span></label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Enter quotation no" 
+                                        className="form-input"
+                                        {...register("ref", { required: "This quotation no is required" })} 
+                                    />
+                                </div>
+
                                 <div style={wrapperStyle}>
                                     <label htmlFor="date-picker">Select a Date: <span className="text-danger text-md">*</span></label>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -885,11 +931,11 @@ const QuotationForm: React.FC = () => {
                                             <td style={{padding: "8px 5px", background: "#fff"}}>Discount</td>
                                             <td style={{background: "#fff"}}>$ { Number(discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
                                         </tr>
-                                        <tr>
+                                        {/* <tr>
                                             <td colSpan={6}></td>
                                             <td style={{padding: "8px 5px"}}>Shipping</td>
                                             <td>$ { Number(shipping).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
-                                        </tr>
+                                        </tr> */}
                                         <tr>
                                             <td colSpan={6}></td>
                                             <td style={{padding: "8px 5px", background: "#fff"}}><b>Grand Total</b></td>
@@ -911,12 +957,12 @@ const QuotationForm: React.FC = () => {
                                         placeholder="0"
                                         {...register("discount")}/>
                                 </div>
-                                <div>
+                                {/* <div>
                                     <label>Shipping</label>
                                     <input type="text" className="form-input" 
                                         placeholder="0"
                                         {...register("shipping")}/>
-                                </div>
+                                </div> */}
                                 <div>
                                     <label>Status <span className="text-danger text-md">*</span></label>
                                     <select 
@@ -927,23 +973,33 @@ const QuotationForm: React.FC = () => {
                                     >
                                         <option value="">Select a status...</option>
                                         <option value="PENDING">Pending</option>
-                                        <option 
+
+                                        <option
                                             value="SENT"
-                                            hidden={!(user?.roleType === "USER" && statusValue !== "PENDING")}
+                                            disabled={!hasPermission("Quotation-Sent") && statusValue === "PENDING"}
                                         >
                                             Sent
                                         </option>
-                                        <option 
+
+                                        <option
                                             value="INVOICED"
-                                            hidden={!(user?.roleType === "USER" && statusValue === "INVOICED")}
+                                            disabled={statusValue !== "COMPLETED" && statusValue !== "SENT" && statusValue !== "CANCELLED" && statusValue !== "INVOICED"}
                                         >
                                             Invoiced
                                         </option>
-                                        <option 
-                                            value="SENT"
-                                            hidden={!(hasPermission('Quotation-Sent') && statusValue === "PENDING")}
+                                        
+                                        <option
+                                            value="COMPLETED"
+                                            disabled={statusValue !== "COMPLETED" && statusValue !== "SENT" && statusValue !== "CANCELLED" && statusValue !== "INVOICED"}
                                         >
-                                            Sent
+                                            Completed
+                                        </option>
+                                        
+                                        <option
+                                            value="CANCELLED"
+                                            disabled={statusValue !== "CANCELLED" && statusValue !== "SENT" && statusValue !== "COMPLETED" && statusValue !== "INVOICED"}
+                                        >
+                                            Cancelled
                                         </option>
 
                                     </select>

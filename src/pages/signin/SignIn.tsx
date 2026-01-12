@@ -78,9 +78,9 @@ const SignIn: React.FC = () => {
                             ></div>
                             <div className="ltr:xl:-skew-x-[14deg] rtl:xl:skew-x-[14deg]">
                                 <a href="" className="block w-48 lg:w-72 ms-10">
-                                    <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/logo-white.svg`} alt="Company logo" className="w-full" />
+                                    <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/logo.png`} alt="Company logo" className="w-full" />
                                 </a>
-                                <div className="mt-24 hidden w-full max-w-[430px] lg:block">
+                                <div className="mt-0 hidden w-full max-w-[430px] lg:block">
                                     <img src={`${import.meta.env.BASE_URL}admin_assets/images/auth/login.svg`} alt="Company logo" className="w-full" />
                                 </div>
                             </div>

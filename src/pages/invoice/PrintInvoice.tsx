@@ -3,11 +3,13 @@ import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import * as apiClient from "../../api/invoice";
 import "./dateStyle.css";
+import "@/assets/print_css/Print.css";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 import { Print } from "@mui/icons-material";
 import { ArrowLeft } from "lucide-react";
+import { fi } from "date-fns/locale";
 
 // Extend Day.js with plugins
 dayjs.extend(utc);
@@ -17,7 +19,7 @@ const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
   return (
     <div className="invoice-header" style={{ 
       marginBottom: '30px',
-      borderBottom: '2px solid #4f46e5',
+      borderBottom: '2px solid #ffab93',
       paddingBottom: '20px'
     }}>
       <div style={{ 
@@ -69,16 +71,16 @@ const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
         {/* Right side - Invoice details */}
         <div style={{ 
           textAlign: 'right',
-          backgroundColor: '#f8fafc',
+          // backgroundColor: '#f8fafc',
           padding: '20px',
-          borderRadius: '8px',
-          minWidth: '300px',
-          border: '1px solid #e2e8f0'
+          // borderRadius: '8px',
+          minWidth: '100px',
+          // border: '1px solid #e2e8f0'
         }}>
           <div style={{ 
             fontSize: '22px',
             fontWeight: '700',
-            color: '#4f46e5',
+            color: '#ffab93',
             marginBottom: '15px'
           }}>
             INVOICE
@@ -96,13 +98,19 @@ const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
             <div style={{ color: '#64748b', fontWeight: '500' }}>Date:</div>
             <div style={{ fontWeight: '600', color: '#1e293b' }}>{dayjs.tz(data.invoiceDate, "Asia/Phnom_Penh").format("DD / MMM / YYYY")}</div>
             
+            <div style={{ color: '#64748b', fontWeight: '500' }}>Due Date:</div>
+            <div style={{ fontWeight: '600', color: '#1e293b' }}>
+              {dayjs.tz(data.invoiceDate, "Asia/Phnom_Penh").add(7, "day").format("DD / MMM / YYYY")}
+
+            </div>
+
             {/* <div style={{ color: '#64748b', fontWeight: '500' }}>Due Date:</div>
             <div style={{ fontWeight: '600', color: '#1e293b' }}>
               {dayjs.tz(data.invoiceDate, "Asia/Phnom_Penh").add(7, "day").format("DD / MMM / YYYY")}
 
             </div> */}
             
-            <div style={{ color: '#64748b', fontWeight: '500' }}>Invoice Type:</div>
+            {/* <div style={{ color: '#64748b', fontWeight: '500' }}>Invoice Type:</div>
             <div>
               <span style={{
                 backgroundColor: data.orderSaleType === 'RETAIL' ? '#a855f7' : '#F39EB6',
@@ -115,7 +123,7 @@ const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
               }}>
                 {data.orderSaleType}
               </span>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
@@ -360,7 +368,7 @@ const TotalsSection: React.FC<{ totals: any }> = ({ totals }) => {
             <span style={{ fontWeight: 'bold' }}>${discount.toFixed(2)}</span>
           </div>
           
-          <div style={{ 
+          {/* <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between',
             padding: '10px 0',
@@ -368,7 +376,7 @@ const TotalsSection: React.FC<{ totals: any }> = ({ totals }) => {
           }}>
             <span>Shipping</span>
             <span style={{ fontWeight: 'bold' }}>${shipping.toFixed(2)}</span>
-          </div>
+          </div> */}
           
           <div style={{ 
             display: 'flex', 
@@ -387,73 +395,141 @@ const TotalsSection: React.FC<{ totals: any }> = ({ totals }) => {
 // Terms and Notes Component
 const TermsNotesSection: React.FC<{ data: any }> = ({ data }) => {
   return (
-    <div className="terms-notes-section" style={{ 
-      display: 'flex',
-      marginBottom: '30px',
-      paddingBottom: '30px',
-      // borderBottom: '1px solid #e0e6ed'
-    }}>
+    <div
+      className="terms-notes-section"
+      style={{
+        display: "flex",
+        gap: "40px",
+        marginBottom: "30px",
+        paddingBottom: "30px",
+        pageBreakInside: "avoid",
+      }}
+    >
+      {/* ----------- TERMS & CONDITIONS ----------- */}
       <div style={{ flex: 1 }}>
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ 
-            fontSize: '16px',
-            fontWeight: 'bold',
-            marginBottom: '10px',
-            color: '#333'
-          }}>
+        <div style={{ marginBottom: "50px" }}>
+          <div
+            style={{
+              fontSize: "16px",
+              fontWeight: "bold",
+              marginBottom: "10px",
+              color: "#333",
+            }}
+          >
             Terms and Conditions
           </div>
-          <div style={{ 
-            fontSize: '14px',
-            color: '#555',
-            lineHeight: '1.5'
-          }}>
+          <div
+            style={{
+              fontSize: "14px",
+              color: "#555",
+              lineHeight: "1.5",
+            }}
+          >
             {data.terms}
           </div>
         </div>
-        
-        {/* <div>
-          <div style={{ 
-            fontSize: '16px',
-            fontWeight: 'bold',
-            marginBottom: '10px',
-            color: '#333'
-          }}>
-            Notes
-          </div>
-          <div style={{ 
-            fontSize: '14px',
-            color: '#555',
-            lineHeight: '1.5'
-          }}>
-            {data.notes}
-          </div>
-        </div> */}
       </div>
-      
-      <div style={{ width: '200px', textAlign: 'right' }}>
-        <div style={{ marginBottom: '10px' }}>
-          <img 
-            src="/react/template/assets/sign-DBs_Kojb.svg" 
-            alt="Signature" 
-            style={{ height: '50px' }}
-          />
+
+      {/* ----------- CUSTOMER SIGNATURE ----------- */}
+      <div style={{ width: "200px", textAlign: "center" }}>
+        <div style={{ marginBottom: "50px" }}>
+          Customer Signature
         </div>
-        <div style={{ 
-          fontSize: '14px',
-          fontWeight: 'bold',
-          marginBottom: '5px'
-        }}>
-          {/* Ted M. Davis */}
+        <div
+          style={{
+            fontSize: "14px",
+            fontWeight: "bold",
+            marginBottom: "5px",
+          }}
+        >
+          {data.customerName}
         </div>
-        <div style={{ 
-          fontSize: '12px',
-          color: '#666'
-        }}>
-          Assistant Manager
+      </div>
+
+      {/* ----------- CREATOR / STAFF SIGNATURE ----------- */}
+      <div style={{ width: "200px", textAlign: "right" }}>
+        <div style={{ marginBottom: "50px" }}>
+          Authorized By
+        </div>
+        <div
+          style={{
+            fontSize: "14px",
+            fontWeight: "bold",
+            marginBottom: "5px",
+          }}
+        >
+          {data.lastName} {data.firstName}
         </div>
       </div>
     </div>
+
+    // <div className="terms-notes-section" style={{ 
+    //   display: 'flex',
+    //   marginBottom: '30px',
+    //   paddingBottom: '30px',
+    //   // borderBottom: '1px solid #e0e6ed'
+    // }}>
+    //   <div style={{ flex: 1 }}>
+    //     <div style={{ marginBottom: '20px' }}>
+    //       <div style={{ 
+    //         fontSize: '16px',
+    //         fontWeight: 'bold',
+    //         marginBottom: '10px',
+    //         color: '#333'
+    //       }}>
+    //         Terms and Conditions
+    //       </div>
+    //       <div style={{ 
+    //         fontSize: '14px',
+    //         color: '#555',
+    //         lineHeight: '1.5'
+    //       }}>
+    //         {data.terms}
+    //       </div>
+    //     </div>
+        
+    //     <div>
+    //       <div style={{ 
+    //         fontSize: '16px',
+    //         fontWeight: 'bold',
+    //         marginBottom: '10px',
+    //         color: '#333'
+    //       }}>
+    //         Notes
+    //       </div>
+    //       <div style={{ 
+    //         fontSize: '14px',
+    //         color: '#555',
+    //         lineHeight: '1.5'
+    //       }}>
+    //         {data.notes}
+    //       </div>
+    //     </div>
+    //   </div>
+      
+    //   <div style={{ width: '200px', textAlign: 'right' }}>
+    //     <div style={{ marginBottom: '10px' }}>
+    //       <img 
+    //         src="/react/template/assets/sign-DBs_Kojb.svg" 
+    //         alt="Signature" 
+    //         style={{ height: '50px' }}
+    //       />
+    //     </div>
+    //     <div style={{ 
+    //       fontSize: '14px',
+    //       fontWeight: 'bold',
+    //       marginBottom: '5px'
+    //     }}>
+    //       {/* Ted M. Davis */}
+    //     </div>
+    //     <div style={{ 
+    //       fontSize: '12px',
+    //       color: '#666'
+    //     }}>
+    //       {data.lastName} {data.firstName}
+    //     </div>
+    //   </div>
+    // </div>
   );
 };
 
@@ -508,43 +584,10 @@ const PrintQuotation: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const handlePrint = async () => {
-    if (!printRef.current) return;
-    
-    const printWindow = window.open('', '', 'height=700,width=900');
-    if (!printWindow) return;
-    
-    const printContents = printRef.current.innerHTML || '';
-    
-    try {
-      const cssResponse = await fetch('/admin_assets/css/style.css');
-      const cssText = await cssResponse.text();
-      
-      printWindow.document.write('<html><head><title>Purchase Invoice</title>');
-      printWindow.document.write('<style>' + cssText + '</style>');
-      printWindow.document.write('<style>');
-      printWindow.document.write(`
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .invoice-container { max-width: 800px; margin: 0 auto; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px; border: 1px solid #ddd; }
-        .text-right { text-align: right; }
-        .text-bold { font-weight: bold; }
-      `);
-      printWindow.document.write('</style>');
-      printWindow.document.write('</head><body>');
-      printWindow.document.write(printContents);
-      printWindow.document.write('</body></html>');
-      
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    } catch (error) {
-      console.error('Error loading CSS:', error);
-    }
+  const handlePrint = () => {
+    window.print();
   };
-
+  
   useEffect(() => {
     const fetchInvoice = async () => {
       setIsLoading(true);
@@ -564,6 +607,9 @@ const PrintQuotation: React.FC = () => {
           invoiceDate: invoice.orderDate ? new Date(invoice.orderDate).toLocaleDateString() : "Dec 24, 2025",
           invoiceFor: "Invoice Items",
           orderSaleType: invoice.OrderSaleType,
+          lastName: invoice.creator?.lastName || "",
+          firstName: invoice.creator?.firstName || "",
+          customerName: invoice.customer?.name || "Customer",
           
           from: {
             name: "IZOOM",
@@ -646,19 +692,22 @@ const PrintQuotation: React.FC = () => {
 
   return (
     <>
-      <div style={{ 
+      <div 
+        className="no-print" 
+        style={{ 
           marginBottom: '20px', 
           textAlign: 'left', 
           display: 'flex', 
           justifyContent: 'flex-end', 
           gap: '10px' // space between buttons
-      }}>
+        }}
+      >
         <button
           type="button"
+          className="btn btn-warning"
           onClick={() => navigate(-1)} // go back in history
           style={{
             padding: '10px 20px',
-            backgroundColor: '#f1d866ff',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
@@ -693,12 +742,16 @@ const PrintQuotation: React.FC = () => {
         </button>
       </div>
 
-      <div ref={printRef} style={{ 
-        padding: '40px',
-        backgroundColor: 'white',
-        borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
-      }}>
+      <div
+        ref={printRef}
+        className="invoice-container"
+        style={{
+          padding: '40px',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
+        }}
+      >
         <InvoiceHeader data={invoiceData} />
         <AddressSection data={invoiceData} />
         <InvoiceItemsTable items={invoiceData.items} />

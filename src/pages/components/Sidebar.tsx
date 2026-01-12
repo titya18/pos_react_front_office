@@ -353,8 +353,7 @@ const Sidebar: React.FC = () => {
                             hasPermission('Unit-View') ||
                             hasPermission('Varient-Attribute-View') ||
                             hasPermission('Product-View') ||
-                            hasPermission('Service-View') ||
-                            hasPermission('Purchase-View')
+                            hasPermission('Service-View')
                         ) && (
                             <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
                                 <svg
@@ -898,7 +897,7 @@ const Sidebar: React.FC = () => {
                                         >
                                             <div className="flex items-center">
                                                 <FolderSync />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Trnsfer Report</span>
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Transfer Report</span>
                                             </div>
                                         </NavLink>
                                     </li>
@@ -977,6 +976,22 @@ const Sidebar: React.FC = () => {
                                 </ul>
                             </li>
                         }
+
+                        <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/pos"
+                                            className={['pos'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <BanknoteArrowUp />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Point of Sale</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
                     </ul>
                 </div>
             </nav>

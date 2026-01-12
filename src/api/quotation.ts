@@ -1,6 +1,17 @@
 import { QuotationType } from "../data_types/types";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
+export const getNextQuotationRef = async (branchId: number): Promise<string> => {
+    const response = await fetch(`${API_BASE_URL}/api/quotation/next-ref/${branchId}`, {
+        credentials: "include"
+    });
+    if (!response.ok) {
+        throw new Error("Error fetching next-ref");
+    }
+
+    return response.json();
+};
+
 export const upsertQuotation = async (quotationData: QuotationType): Promise<QuotationType> => {
     const { id, ...data } = quotationData;
     const method = id ? "PUT" : "POST";

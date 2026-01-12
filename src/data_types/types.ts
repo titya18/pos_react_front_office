@@ -281,6 +281,8 @@ export interface PurchaseType {
     status: string;
     note: string;
     delReason: string;
+    image: File | File[] | string | null;
+    imagesToDelete: string[];
     createdAt?: Date;
     updatedAt?: Date;
     deletedAt?: Date;
