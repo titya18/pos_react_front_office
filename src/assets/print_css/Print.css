@@ -1,20 +1,7 @@
 @media print {
   /* iOS Safari FIX for fixed / overlay UI */
-  [x-data],
-  [x-cloak],
   nav,
-  aside,
-  header,
-  footer,
-  .sidebar,
-  .navbar,
-  .screen_loader,
-  .customizer,
-  .fixed,
-  .sticky,
-  .z-\[51\],
-  .z-\[50\],
-  .z-\[60\] {
+  .sticky {
     display: none !important;
     visibility: hidden !important;
   }

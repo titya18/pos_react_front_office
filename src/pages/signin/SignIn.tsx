@@ -276,7 +276,7 @@ const SignIn: React.FC = () => {
                                 </div> */}
                             </div>
                             <p className="absolute bottom-6 w-full text-center dark:text-white">
-                                © <span id="footer-year">2024</span>. Lorn Titya All Rights Reserved.
+                                © <span id="footer-year">2026</span>. IZOOM All rights reserved.
                             </p>
                         </div>
                     </div>
