@@ -1,4 +1,4 @@
-import { ProductType, PurchaseType, PurchaseDetailType, PaymentType } from "../data_types/types";
+import { PurchaseAuthorizeAmountType, PurchaseType, PurchaseDetailType, PaymentType } from "../data_types/types";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export const getNextPurchaseRef = async (branchId: number): Promise<string> => {
@@ -170,5 +170,35 @@ export const deletePurchase = async (id: number, delReason: string): Promise<Pur
         const errorResponse = await response.json();
         throw new Error(errorResponse.message || "Error deleting purchase");
     }
+    return response.json();
+};
+
+export const getAmoutAuthorized = async (): Promise<PurchaseAuthorizeAmountType> => {
+    const response = await fetch(`${API_BASE_URL}/api/purchase/amount-purchasing`, {
+        credentials: 'include',
+    });
+
+    if (!response.ok) {
+        throw new Error('Error fetching amount authorized');
+    }
+
+    const result = await response.json();
+    return result;
+};
+
+export const updateAmountAuthorized = async (amountAuthorizedData: PurchaseAuthorizeAmountType): Promise<PurchaseAuthorizeAmountType> => {
+    const { id, ...data } = amountAuthorizedData;
+    const response = await fetch(`${API_BASE_URL}/api/purchase/amount-purchasing/${id}`, {
+        credentials: "include",
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) {
+        throw new Error("Error updating amount authorized");
+    }
+
     return response.json();
 };

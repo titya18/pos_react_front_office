@@ -575,7 +575,7 @@ const InvoiceFooter: React.FC<{ data: any }> = ({ data }) => {
 };
 
 // Main PrintPurchase Component
-const PrintQuotation: React.FC = () => {
+const PrintInvoice: React.FC = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -616,7 +616,7 @@ const PrintQuotation: React.FC = () => {
             address: "#48 Borey Angkor PP, St. Angkor Blvd",
             addressLine2: "Sangkat Toul Sangke, Khan Russeykeo, Phnom Penh",
             email: "sales@izooms.com.kh",
-            phone: "+855 (12) 699 975 / +855 (16) 589 299"
+            phone: "+855 (11) 589 299 / +855 (16) 589 299"
           },
           
           to: {
@@ -646,7 +646,7 @@ const PrintQuotation: React.FC = () => {
           },
           
           notes: "Please quote invoice number when remitting funds.",
-          terms: "Please pay within 15 days from the date of invoice, overdue interest @ 14% will be charged on delayed payments.",
+          terms: "Please pay within 7 days from the date of invoice, overdue interest @ 10% will be charged on delayed payments.",
           paymentMethod: "Payment Made Via bank transfer / Cheque",
           bankDetails: {
             bankName: "Lorn Titya",
@@ -757,10 +757,10 @@ const PrintQuotation: React.FC = () => {
         <InvoiceItemsTable items={invoiceData.items} />
         <TotalsSection totals={invoiceData.totals} />
         <TermsNotesSection data={invoiceData} />
-        {/* <InvoiceFooter data={quotationData} /> */}
+        {/* <InvoiceFooter data={invoiceData} /> */}
       </div>
     </>
   );
 };
 
-export default PrintQuotation;
+export default PrintInvoice;

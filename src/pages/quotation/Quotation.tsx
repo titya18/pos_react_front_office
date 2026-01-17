@@ -409,7 +409,7 @@ const Quotation: React.FC = () => {
                                                             {visibleCols.includes("Actions") && (
                                                                 <td className="text-center">
                                                                     <div className="flex items-center justify-center gap-2">
-                                                                        {rows.note !== null &&
+                                                                        {rows.note !== "" &&
                                                                             <button type="button" className="hover:text-danger" onClick={() => handleViewNote(rows.note)} title="View Note">
                                                                                 <NotebookText color="pink" />
                                                                             </button>

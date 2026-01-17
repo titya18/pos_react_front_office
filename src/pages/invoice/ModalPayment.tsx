@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { format } from "date-fns";
 import { useAppContext } from "../../hooks/useAppContext";
 import { getAllPaymentMethods } from "../../api/paymentMethod";
+import { getLastExchangeRate } from "@/api/exchangeRate";
 import { getInvoicePaymentById, delPaymentInvoice } from "../../api/invoice";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -28,6 +29,9 @@ export interface InvoicePaymentData {
     orderId: number | null;
     paymentMethodId: number | null;
     totalPaid: number | null;
+    receive_usd?: number | null;
+    receive_khr?: number | null;
+    exchangerate?: number | null;
     createdAt: string | null;
     paymentMethods: { name: string } | null;
 }
@@ -35,17 +39,41 @@ export interface InvoicePaymentData {
 interface ModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (brandId: number | null, orderId: number | null, paymentMethodId: number | null, paidAmount: number | null, totalPaid: number, due_balance: number, createdAt: string | null) => void;
-    amountInvoice?: {branchId: number | null, orderId: number | null, paidAmount: number | null, totalPaid: number | null, createdAt: string | null} | null;
+    onSubmit: (
+        brandId: number | null, 
+        orderId: number | null, 
+        paymentMethodId: number | null, 
+        paidAmount: number | null, 
+        totalPaid: number, 
+        receive_usd: number | null,
+        receive_khr: number | null,
+        exchangerate: number | null,
+        due_balance: number, 
+        createdAt: string | null
+    ) => void;
+    amountInvoice?: {
+        branchId: number | null, 
+        orderId: number | null, 
+        paidAmount: number | null, 
+        totalPaid: number | null, 
+        receive_usd?: number | null,
+        receive_khr?: number | null,
+        exchangerate?: number | null,
+        createdAt: string | null
+    } | null;
 };
 
 export interface FormData {
     paymentMethodId: number;
     totalPaid: number;
+    receive_usd: number;
+    receive_khr: number;
+    exchangerate: number;
     due_balance: number;
 };
 
 const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, onSubmit }) => {
+    const [exchangeRate, setExchangeRate] = useState<number>(0);
     const [paymentMethods, setPaymentMethod] = useState<PaymentMethodData[]>([]);
     const [invoicePayments, setInvoicePayments] = useState<InvoicePaymentData[]>([]);
     const [deletePayId, setDeletePayId] = useState<number | null>(null);
@@ -53,7 +81,7 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
     const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
     const [deleteMessage, setDeleteMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<FormData>();
+    const { register, handleSubmit, setValue, reset, watch, formState: { errors } } = useForm<FormData>();
 
     const { hasPermission } = useAppContext();
     
@@ -97,9 +125,22 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
         }
     }
 
+    const fetchLastExchangeRate = async () => {
+        setIsLoading(true);
+        try {
+            const data = await getLastExchangeRate();
+            setExchangeRate(data.amount);
+        } catch (error) {
+            console.error("Error fetching last exchange rate:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     useEffect(() => {
         fetchPaymentMethods();
         fetchInvoicePayments();
+        fetchLastExchangeRate();
 
         if (amountInvoice) {
             setValue('due_balance', Number(amountInvoice.totalPaid ?? 0) - Number(amountInvoice.paidAmount ?? 0));
@@ -113,8 +154,25 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
         }
     }, [amountInvoice, setValue, reset]);
 
+    const receiveUsd = watch("receive_usd");
+    const receiveKhr = watch("receive_khr");
+
     const handlePaidAmount = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const inputPaid = Number(e.target.value || 0);
+        const usd = Number(
+            (document.querySelector('input[name="receive_usd"]') as HTMLInputElement)?.value || 0
+        );
+
+        const khr = Number(
+            (document.querySelector('input[name="receive_khr"]') as HTMLInputElement)?.value || 0
+        );
+
+        const rate = Number(exchangeRate || 0);
+
+        const amountCalculated =
+            usd + (rate > 0 ? khr / rate : 0);
+
+        // set calculated amount
+        setValue("totalPaid", Number(amountCalculated.toFixed(2)));
 
         // Sum of all existing payments
         const totalPaidSoFar = invoicePayments.reduce(
@@ -125,7 +183,7 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
         const invoiceTotal = Number(amountInvoice?.totalPaid ?? 0);
 
         // due balance = invoice total - total already paid - the current input
-        const dueBalance = invoiceTotal - totalPaidSoFar - inputPaid;
+        const dueBalance = invoiceTotal - totalPaidSoFar - amountCalculated;
 
         setValue("due_balance", dueBalance);
     };
@@ -134,7 +192,18 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
         setIsLoading(true);
         try {
             // Call the onSubmit function, making sure it recieve the correct format
-            await onSubmit(amountInvoice?.branchId || null, amountInvoice?.orderId || null, amountInvoice?.paidAmount || null, data.paymentMethodId, data.totalPaid, data.due_balance, amountInvoice?.createdAt || null);
+            await onSubmit(
+                amountInvoice?.branchId || null, 
+                amountInvoice?.orderId || null, 
+                amountInvoice?.paidAmount || null, 
+                data.paymentMethodId, 
+                data.totalPaid, 
+                data.receive_usd,
+                data.receive_khr,
+                exchangeRate,
+                data.due_balance, 
+                amountInvoice?.createdAt || null
+            );
             reset();
             onClose();
         } catch (error) {
@@ -220,7 +289,20 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
                                                 return (
                                                     <div className="flex" key={index}>
                                                         <p className="text-[#3b3f5c] dark:text-white-light min-w-[58px] max-w-[200px] text-base font-semibold py-2.5" style={{ width: '110px' }}>
-                                                            $ { Number(rows.totalPaid).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }
+                                                            { 
+                                                                rows.receive_usd !== null && rows.receive_khr !== null ? (
+                                                                    <>
+                                                                        <span>{`$ ${Number(rows.receive_usd).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`}</span>
+                                                                        <br />
+                                                                        <span>{`${Number(rows.receive_khr).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} ៛`}</span>
+                                                                    </>
+                                                                ) : rows.receive_usd !== null ? (
+                                                                    <span>{`$ ${Number(rows.receive_usd).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`}</span>
+                                                                ) : (
+                                                                    <span>{`${Number(rows.receive_khr).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} ៛`}</span>
+                                                                )
+                                                            }
+                                                            
                                                         </p>
                                                         
                                                         {/* Conditional Div Styling */}
@@ -283,10 +365,10 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
                                             {errors.paymentMethodId && <span className="error_validate">{errors.paymentMethodId.message}</span>}
                                         </div>
 
-                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-3">
                                             <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937]">
                                                 <label htmlFor="module">
-                                                    Paid <span className="text-danger text-md">*</span>
+                                                    Paid USD <span className="text-danger text-md">*</span>
                                                 </label>
                                                 <input
                                                     type="text"
@@ -296,33 +378,82 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
                                                         Number(amountInvoice?.totalPaid ?? 0) ===
                                                         Number(amountInvoice?.paidAmount ?? 0)
                                                     }
-                                                    {...register("totalPaid", {
-                                                        required: "Amount is required",
-                                                    })}
-                                                    onInput={(e: React.FormEvent<HTMLInputElement>) => {
-                                                        const target = e.currentTarget;
-
-                                                        // Allow numbers + decimal
-                                                        target.value = target.value.replace(/[^0-9.]/g, "");
-
-                                                        // Prevent multiple dots
-                                                        const parts = target.value.split(".");
-                                                        if (parts.length > 2) {
-                                                            target.value = parts[0] + "." + parts.slice(1).join("");
+                                                    onKeyDown={(e) => {
+                                                        if (!/[0-9.]|Backspace|Delete|ArrowLeft|ArrowRight|Tab/.test(e.key)) {
+                                                            e.preventDefault();
                                                         }
                                                     }}
-                                                    onChange={(e) => handlePaidAmount(e)}
+                                                    {...register("receive_usd", {
+                                                        setValueAs: (v) => Number(v || 0),
+                                                        validate: () => {
+                                                            if ((!receiveUsd || receiveUsd === 0) && (!receiveKhr || receiveKhr === 0)) {
+                                                                return "Please enter USD or KHR amount";
+                                                            }
+                                                            return true;
+                                                        },
+                                                        onChange: handlePaidAmount,
+                                                    })}
                                                 />
-                                                {errors.totalPaid && <p className="error_validate">{errors.totalPaid.message}</p>}
                                             </div>
 
+                                            <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937]">
+                                                <label htmlFor="module">
+                                                    Paid KHR <span className="text-danger text-md">*</span>
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Enter amount to paid"
+                                                    className="form-input w-full"
+                                                    disabled={
+                                                        Number(amountInvoice?.totalPaid ?? 0) ===
+                                                        Number(amountInvoice?.paidAmount ?? 0)
+                                                    }
+                                                    onKeyDown={(e) => {
+                                                        if (!/[0-9.]|Backspace|Delete|ArrowLeft|ArrowRight|Tab/.test(e.key)) {
+                                                            e.preventDefault();
+                                                        }
+                                                    }}
+                                                    {...register("receive_khr", {
+                                                        setValueAs: (v) => Number(v || 0),
+                                                        validate: () => {
+                                                            if ((!receiveUsd || receiveUsd === 0) && (!receiveKhr || receiveKhr === 0)) {
+                                                                return "Please enter USD or KHR amount";
+                                                            }
+                                                            return true;
+                                                        },
+                                                        onChange: handlePaidAmount,
+                                                    })}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {(errors.receive_usd || errors.receive_khr) && (
+                                            <div>
+                                                <span className="error_validate">
+                                                    {errors.receive_usd?.message || errors.receive_khr?.message}
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                             <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937]">
                                                 <label htmlFor="module">Due Balance</label>
                                                 <input
                                                     type="text"
+                                                    placeholder="Enter Supplier's name"
                                                     className="form-input w-full"
                                                     readOnly
                                                     {...register("due_balance")}
+                                                />
+                                            </div>
+
+                                            <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937]">
+                                                <label htmlFor="module">Exchange Rate</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-input w-full"
+                                                    readOnly
+                                                    value={`$1 = ${exchangeRate}`}
                                                 />
                                             </div>
                                         </div>

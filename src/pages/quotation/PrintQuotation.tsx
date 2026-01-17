@@ -62,7 +62,7 @@ const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
           }}>
             <div>#48 Borey Angkor PP, St. Angkor Blvd</div>
             <div>Sangkat Toul Sangke, Khan Russeykeo, Phnom Penh</div>
-            <div>Phone: +855 (12) 699 975 / +855 (16) 589 299</div>
+            <div>Phone: +855 (11) 589 299 / +855 (16) 589 299</div>
             <div>Email: sales@izooms.com.kh</div>
           </div>
         </div>
@@ -367,7 +367,7 @@ const TotalsSection: React.FC<{ totals: any }> = ({ totals }) => {
             <span style={{ fontWeight: 'bold' }}>${discount.toFixed(2)}</span>
           </div>
           
-          <div style={{ 
+          {/* <div style={{ 
             display: 'flex', 
             justifyContent: 'space-between',
             padding: '10px 0',
@@ -375,7 +375,7 @@ const TotalsSection: React.FC<{ totals: any }> = ({ totals }) => {
           }}>
             <span>Shipping</span>
             <span style={{ fontWeight: 'bold' }}>${shipping.toFixed(2)}</span>
-          </div>
+          </div> */}
           
           <div style={{ 
             display: 'flex', 
@@ -415,7 +415,9 @@ const TermsNotesSection: React.FC<{ data: any }> = ({ data }) => {
               color: "#333",
             }}
           >
-            Terms and Conditions
+            {
+              data.notes ? "Notes" : ""
+            }
           </div>
           <div
             style={{
@@ -424,7 +426,7 @@ const TermsNotesSection: React.FC<{ data: any }> = ({ data }) => {
               lineHeight: "1.5",
             }}
           >
-            {data.terms}
+            {data.notes}
           </div>
         </div>
       </div>
@@ -576,7 +578,7 @@ const PrintQuotation: React.FC = () => {
             total: quotation.grandTotal || 0
           },
           
-          notes: "Please quote invoice number when remitting funds.",
+          notes: quotation.note,
           terms: "Please pay within 15 days from the date of invoice, overdue interest @ 14% will be charged on delayed payments.",
           paymentMethod: "Payment Made Via bank transfer / Cheque",
           bankDetails: {

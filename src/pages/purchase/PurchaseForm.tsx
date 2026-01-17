@@ -523,12 +523,12 @@ const PurchaseForm: React.FC = () => {
             if (err.message) {
                 toast.error(err.message, {
                     position: 'top-right',
-                    autoClose: 2000
+                    autoClose: 4500
                 });
             } else {
                 toast.error("Error adding/editing purchase", {
                     position: 'top-right',
-                    autoClose: 2000
+                    autoClose: 4500
                 });
             }
         } finally {
@@ -838,11 +838,31 @@ const PurchaseForm: React.FC = () => {
                                         })} 
                                     >
                                         <option value="">Select a status...</option>
-                                        <option value="PENDING">Pending</option>
-
-                                         <option
+                                        <option 
+                                            value="PENDING"
+                                            disabled={statusValue === "APPROVED"}
+                                        >
+                                            Pending
+                                        </option>
+                                        <option 
+                                            value="REQUESTED"
+                                            disabled={statusValue === "APPROVED"}
+                                        >
+                                            Requested
+                                        </option>
+                                        <option 
+                                            value="APPROVED" 
+                                            disabled={statusValue === "APPROVED"}
+                                        >
+                                            Approved
+                                        </option>
+                                        <option
                                             value="RECEIVED"
-                                            disabled={!hasPermission("Purchase-Receive") && statusValue === "PENDING"}
+                                            selected={statusValue === "APPROVED"}
+                                            disabled={
+                                                !hasPermission("Purchase-Receive") &&
+                                                (statusValue === "PENDING" || statusValue === "APPROVED")
+                                            }
                                         >
                                             Received
                                         </option>
@@ -865,7 +885,7 @@ const PurchaseForm: React.FC = () => {
                                     {errors.status && <span className="error_validate">{errors.status.message}</span>}
                                 </div>
                             </div>
-                            <label htmlFor="module">Product's Image</label>
+                            <label htmlFor="module">Purchase's Image</label>
                                     {/* Drag-and-Drop File Upload */}
                                     <div
                                         key={resetKey}
@@ -916,11 +936,15 @@ const PurchaseForm: React.FC = () => {
                                 <FontAwesomeIcon icon={faArrowLeft} className='mr-1' />
                                 Go Back
                             </NavLink>
-                            {statusValue === 'PENDING' &&
+                            {(statusValue === 'PENDING' || statusValue === 'REQUESTED' || statusValue === 'APPROVED') &&
                                 (hasPermission('Purchase-Create') || hasPermission('Purchase-Edit')) && (
                                 <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                                     <FontAwesomeIcon icon={faSave} className='mr-1' />
-                                    {isLoading ? 'Saving...' : 'Save'}
+                                    {
+                                        statusValue === 'APPROVED' 
+                                        ? isLoading ? 'Receiving...' : 'Receive' 
+                                        : isLoading ? 'Saving...' : 'Save'
+                                    }
                                 </button>
                             )}
                         </div>

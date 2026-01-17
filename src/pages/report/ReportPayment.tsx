@@ -24,7 +24,7 @@ dayjs.extend(timezone);
 
 const columns = [
     "No", "Payment Date", "Invoice's ID", "Customer", "Branch",
-    "Payment Method", "Amount Paid", "Status", "Created At", "Created By", "Cancelled At", "Cancelled By", "Cancelled Reason"
+    "Payment Method", "Amount Paid", "Paid USD", "Paid KHR", "Exchange Rate", "Status", "Created At", "Created By", "Cancelled At", "Cancelled By", "Cancelled Reason"
 ];
 
 const sortFields: Record<string, string> = {
@@ -35,6 +35,9 @@ const sortFields: Record<string, string> = {
     "Branch": "branchId",
     "Payment Method": "paymentMethodId",
     "Amount Paid": "totalPaid",
+    "Paid USD": "receive_usd",
+    "Paid KHR": "receive_khr",
+    "Exchange Rate": "exchangerate",
     "Status": "status",
     "Created At": "createdAt",
     "Created By": "createdBy",
@@ -158,6 +161,9 @@ const ReportPaymentInvoice: React.FC = () => {
         "Branch": inv.branch?.name || "",
         "Payment Method": inv.PaymentMethods?.name || "",
         "Amount Paid": inv.totalPaid,
+        "Paid USD": inv.receive_usd,
+        "Paid KHR": inv.receive_khr,
+        "Exchange Rate": inv.exchangerate,
         "Status": inv.status,
         "Created At": inv.createdAt ? dayjs.tz(inv.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
         "Created By": `${inv.creator?.lastName || ''} ${inv.creator?.firstName || ''}`,
@@ -289,6 +295,9 @@ const ReportPaymentInvoice: React.FC = () => {
                                                         {visibleCols.includes("Branch") && <td>{rows.branch?.name || ''}</td>}
                                                         {visibleCols.includes("Payment Method") && <td>{rows.PaymentMethods?.name || ''}</td>}
                                                         {visibleCols.includes("Amount Paid") && <td style={{color: 'green'}}>$ {Number(rows.totalPaid).toFixed(2)}</td>}
+                                                        {visibleCols.includes("Paid USD") && <td style={{color: 'green'}}>$ {Number(rows.receive_usd).toFixed(2)}</td>}
+                                                        {visibleCols.includes("Paid KHR") && <td style={{color: 'green'}}>{Number(rows.receive_khr).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} ៛</td>}
+                                                        {visibleCols.includes("Exchange Rate") && <td>{Number(rows.exchangerate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',')} ៛</td>}
                                                         {visibleCols.includes("Status") && (
                                                             <td>
                                                                 <span className={`badge rounded-full ${rows.status === 'PAID' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>

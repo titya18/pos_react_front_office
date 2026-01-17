@@ -233,7 +233,17 @@ const Invoice: React.FC = () => {
             setIsModalPaymentOpen(true);
     };
 
-    const handleOnSubmitPayment = async (branchId: number | null, orderId: number | null, paidAmount: number | null, paymentMethodId: number | null, totalPaid: number, due_balance: number) => {
+    const handleOnSubmitPayment = async (
+        branchId: number | null, 
+        orderId: number | null, 
+        paidAmount: number | null, 
+        paymentMethodId: number | null, 
+        totalPaid: number, 
+        receive_usd: number | null,
+        receive_khr: number | null,
+        exchangerate: number | null,
+        due_balance: number
+    ) => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
             const paymentData: InvoicePaymentType = {
@@ -242,6 +252,9 @@ const Invoice: React.FC = () => {
                 paymentMethodId: paymentMethodId,
                 paidAmount: paidAmount,
                 totalPaid: totalPaid,
+                receive_usd: receive_usd,
+                receive_khr: receive_khr,
+                exchangerate: exchangerate,
                 due_balance: due_balance,
                 createdAt: null,
                 paymentMethods: null,

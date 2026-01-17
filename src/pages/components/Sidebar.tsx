@@ -24,7 +24,9 @@ import {
     BanknoteArrowDown,
     BanknoteArrowUp,
     CircleOff,
-    CircleDollarSign
+    CircleDollarSign,
+    BadgeDollarSign,
+    FileKey
 } from 'lucide-react';
 
 // Define a type for the state
@@ -977,7 +979,63 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
-                        <li className="nav-item">
+                        {(
+                            hasPermission('Amount-Purchase-View') ||
+                            hasPermission('Exchange-Rate-View')
+                        ) && (
+                            <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
+                                <svg
+                                    className="hidden h-5 w-4 flex-none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth="1.5"
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>Setting</span>
+                            </h2>
+                        )}
+
+                        {hasPermission('Amount-Purchase-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/authorizeamount"
+                                            className={['authorizeamount'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <FileKey />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">PO Authorize Amount</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Exchange-Rate-View') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/exchangerate"
+                                            className={['exchangerate'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <BadgeDollarSign />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Exchange Rates</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {/* <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>
                                         <NavLink
@@ -991,7 +1049,7 @@ const Sidebar: React.FC = () => {
                                         </NavLink>
                                     </li>
                                 </ul>
-                            </li>
+                            </li> */}
                     </ul>
                 </div>
             </nav>

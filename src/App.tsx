@@ -1,5 +1,5 @@
 import React from "react";
-import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
+import { BrowserRouter, Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import { AppContextProvider } from "./contexts/AppContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import PrivateRoute from "./PrivateRoute";
@@ -55,11 +55,13 @@ import ReportRequest from "./pages/report/ReportRequest";
 import ReportReturn from "./pages/report/ReportReturn";
 import ReportExpense from "./pages/report/ReportExpense";
 import ReportIncome from "./pages/report/ReportIncome";
+import PurchaseAuthorizeAmount from "./pages/setting/PurchaseAuthorizeAmount";
+import ExchangeRate from "./pages/setting/ExchangeRate";
+
 import Pos from "./pages/pos/Pos";
 
 import { Customer } from "./pages/customer/Customer";
 import NotFound from "./pages/notfound/NotFount";
-import { BrowserRouter } from "react-router-dom";
 
 const App: React.FC = () => {
     return (
@@ -163,6 +165,10 @@ const App: React.FC = () => {
                         <Route path="/reportReturn" element={<PrivateRoute element={<Layout><ReportReturn /></Layout>} />} />
                         <Route path="/reportExpense" element={<PrivateRoute element={<Layout><ReportExpense /></Layout>} />} />
                         <Route path="/reportIncome" element={<PrivateRoute element={<Layout><ReportIncome /></Layout>} />} />
+
+                        {/* setting */}
+                        <Route path="/authorizeamount" element={<PrivateRoute element={<Layout><PurchaseAuthorizeAmount /></Layout>} />} />
+                        <Route path="/exchangerate" element={<PrivateRoute element={<Layout><ExchangeRate /></Layout>} />} />
 
                         {/* Catch-all route for undefined paths */}
                         <Route path="*" element={<NotFound />} />

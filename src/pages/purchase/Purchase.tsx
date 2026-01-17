@@ -42,6 +42,11 @@ const columns = [
     "Grand Total",
     "Paid",
     "Due",
+    "Received At",
+    "Received By",
+    "Cancelled At",
+    "Cancelled By",
+    "Cancelled Reason",
     "Created At",
     "Created By",
     "Updated At",
@@ -59,6 +64,11 @@ const sortFields: Record<string, string> = {
     "Grand Total": "grandTotal",
     "Paid": "paidAmount",
     "Due": "due",
+    "Received At": "receivedAt",
+    "Received By": "receivedBy",
+    "Cancelled At": "deletedAt",
+    "Cancelled By": "deletedBy",
+    "Cancelled Reason": "delReason",
     "Created At": "createdAt",
     "Created By": "createdBy",
     "Updated At": "updatedAt",
@@ -161,6 +171,11 @@ const Purchase: React.FC = () => {
         "Grand Total": purchase.grandTotal,
         "Paid": purchase.paidAmount,
         "Due": Number(purchase.grandTotal - (purchase.paidAmount ?? 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','),
+        "Received At": purchase.receivedAt ? dayjs.tz(purchase.receivedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Received By": `${purchase.receiver?.lastName || ''} ${purchase.receiver?.firstName || ''}`,
+        "Cancelled At": purchase.deletedAt ? dayjs.tz(purchase.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Cancelled By": `${purchase.deleter?.lastName || ''} ${purchase.deleter?.firstName || ''}`,
+        "Cancelled Reason": purchase.delReason,
         "Created At": purchase.createdAt ? dayjs.tz(purchase.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
         "Created By": `${purchase.creator?.lastName || ''} ${purchase.creator?.firstName || ''}`,
         "Updated At": purchase.updatedAt ? dayjs.tz(purchase.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
@@ -210,7 +225,17 @@ const Purchase: React.FC = () => {
         setIsModalPaymentOpen(true);
     };
 
-    const handleOnSubmitPayment = async (branchId: number | null, purchaseId: number | null, paidAmount: number | null, paymentMethodId: number | null, amount: number, due_balance: number) => {
+    const handleOnSubmitPayment = async (
+        branchId: number | null, 
+        purchaseId: number | null, 
+        paymentMethodId: number | null,
+        paidAmount: number | null, 
+        amount: number, 
+        receive_usd: number | null,
+        receive_khr: number | null,
+        exchangerate: number | null,
+        due_balance: number
+    ) => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
             const paymentData: PaymentType = {
@@ -219,10 +244,14 @@ const Purchase: React.FC = () => {
                 paymentMethodId: paymentMethodId,
                 paidAmount: paidAmount,
                 amount: amount,
+                receive_usd: receive_usd,
+                receive_khr: receive_khr,
+                exchangerate: exchangerate,
                 due_balance: due_balance,
                 createdAt: null,
                 PaymentMethods: null,
             }
+ 
             await apiClient.insertPurchasePayment(paymentData);
             toast.success("Purchase payment insert successfully", {
                 position: "top-right",
@@ -358,7 +387,7 @@ const Purchase: React.FC = () => {
                                                             )}
                                                             {visibleCols.includes("Status") && (
                                                             <td>
-                                                                <span className={`badge rounded-full ${rows.status === 'PENDING' ? 'bg-warning' : rows.status === 'RECEIVED' ? 'bg-primary' : rows.status === 'COMPLETED' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>
+                                                                <span className={`badge rounded-full ${rows.status === 'PENDING' ? 'bg-warning' : rows.status === 'RECEIVED' ? 'bg-primary' : rows.status === 'COMPLETED' ? 'bg-success' : rows.status === 'REQUESTED' ? 'bg-secondary' : rows.status === 'APPROVED' ? 'bg-info' : 'bg-danger'}`} title={rows.delReason}>
                                                                     {rows.status}
                                                                 </span>
                                                             </td>
@@ -371,6 +400,21 @@ const Purchase: React.FC = () => {
                                                             )}
                                                             {visibleCols.includes("Due") && (
                                                                 <td style={{color: (rows.grandTotal - (rows.paidAmount ?? 0)) > 0 ? "red" : "black"}}>$ { Number(rows.grandTotal - (rows.paidAmount ?? 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
+                                                            )}
+                                                            {visibleCols.includes("Received At") && (
+                                                                <td>{rows.receivedAt ? dayjs.tz(rows.receivedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
+                                                            )}
+                                                            {visibleCols.includes("Received By") && (
+                                                                <td>{rows.receiver?.lastName} {rows.receiver?.firstName}</td>
+                                                            )}
+                                                            {visibleCols.includes("Cancelled At") && (
+                                                                <td>{rows.deletedAt ? dayjs.tz(rows.deletedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
+                                                            )}
+                                                            {visibleCols.includes("Cancelled By") && (
+                                                                <td>{rows.deleter?.lastName} {rows.deleter?.firstName}</td>
+                                                            )}
+                                                            {visibleCols.includes("Cancelled Reason") && (
+                                                                <td>{rows.delReason}</td>
                                                             )}
                                                             {visibleCols.includes("Created At") && (
                                                                 <td>{dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss")}</td>
@@ -405,7 +449,7 @@ const Purchase: React.FC = () => {
                                                                             < BookImage />
                                                                         </button>
                                                                         }
-                                                                        {rows.note !== null &&
+                                                                        {rows.note !== "" &&
                                                                             <button type="button" className="hover:text-danger" onClick={() => handleViewNote(rows.note)} title="View Note">
                                                                                 <NotebookText color="pink" />
                                                                             </button>
@@ -438,7 +482,7 @@ const Purchase: React.FC = () => {
                                                                                     <Pencil color="green" />
                                                                                 </NavLink>
                                                                         }
-                                                                        {rows.status === 'PENDING' &&
+                                                                        {(rows.status === 'PENDING' || rows.status === 'REQUESTED') &&
                                                                             hasPermission('Purchase-Delete') &&
                                                                                 <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeletePurchase(rows.id)} title="Delete">
                                                                                     <Trash2 color="red" />

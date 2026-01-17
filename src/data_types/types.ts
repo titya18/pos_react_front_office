@@ -17,6 +17,7 @@ export interface UserType {
     email: string;
     phoneNumber: string;
     password: string;
+    show_pass?: string;
     confirmPassword: string;
     firstName: string;
     lastName: string;
@@ -322,6 +323,9 @@ export interface PaymentType {
     paymentMethodId: number | null;
     paidAmount: number | null;
     amount: number | null;
+    receive_usd?: number | null;
+    receive_khr?: number | null;
+    exchangerate?: number | null;
     due_balance?: number | null;
     createdAt: string | null;
     PaymentMethods: { name: string } | null;
@@ -348,6 +352,9 @@ export interface InvoicePaymentType {
     paymentMethodId: number | null;
     paidAmount: number | null;
     totalPaid: number | null;
+    receive_usd?: number | null;
+    receive_khr?: number | null;
+    exchangerate?: number | null;
     due_balance?: number | null;
     createdAt: string | null;
     paymentMethods: { name: string } | null;
@@ -690,6 +697,9 @@ export interface OrderOnPaymentType {
     paymentDate?: Date;
     paymentMethodId: number | null;
     totalPaid: number | null;
+    receive_usd?: number | null;
+    receive_khr?: number | null;
+    exchangerate?: number | null;
     createdAt: string | null;
     PaymentMethods: { name: string } | null;
     status?: string;
@@ -706,3 +716,25 @@ export interface OrderOnPaymentType {
     branch?: BranchType | null;
     customer?: CustomerType | null;
 }
+
+export interface PurchaseAuthorizeAmountType {
+    id?: number;
+    amount: number;
+    createdAt?: Date;
+    updatedAt?: Date;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+}
+
+export interface ExchangeRateType {
+    id?: number;
+    amount: number;
+    createdAt?: Date;
+    updatedAt?: Date;
+    createdBy?: string;
+    updatedBy?: string;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+};

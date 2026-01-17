@@ -251,6 +251,8 @@ const ReportPurchase: React.FC = () => {
                                     <select value={status} onChange={(e) => updateParams({ status: e.target.value, page: 1 })} className="form-select">
                                         <option value="">All</option>
                                         <option value="PENDING">Pending</option>
+                                        <option value="REQUESTED">Requested</option>
+                                        <option value="APPROVED">Approved</option>
                                         <option value="RECEIVED">Received</option>
                                         <option value="CANCELLED">Cancelled</option>
                                         <option value="COMPLETED">Completed</option>
@@ -381,7 +383,7 @@ const ReportPurchase: React.FC = () => {
                                                             )}
                                                             {visibleCols.includes("Status") && (
                                                                 <td>
-                                                                    <span className={`badge rounded-full ${rows.status === 'PENDING' ? 'bg-warning' : rows.status === 'RECEIVED' ? 'bg-primary' : rows.status === 'COMPLETED' ? 'bg-success' : 'bg-danger'}`} title={rows.delReason}>
+                                                                    <span className={`badge rounded-full ${rows.status === 'PENDING' ? 'bg-warning' : rows.status === 'RECEIVED' ? 'bg-primary' : rows.status === 'COMPLETED' ? 'bg-success' : rows.status === 'REQUESTED' ? 'bg-secondary' : rows.status === 'APPROVED' ? 'bg-info' : 'bg-danger'}`} title={rows.delReason}>
                                                                         {rows.status}
                                                                     </span>
                                                                 </td>
