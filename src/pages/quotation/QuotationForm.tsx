@@ -229,14 +229,28 @@ const QuotationForm: React.FC = () => {
     const handleSearch = async (term: string) => {
         if (term.trim() === "") {
             setProductResults([]);
+            setShowSuggestions(false);
             return;
         }
 
         try {
-            const response = await searchProduct(term);
-            // const data = await response.json();
-            setProductResults(response);
-            setShowSuggestions(true);
+            const response = await searchProduct(term); // Fetch products first
+            // Check for exact match
+            // Check for exact match in fresh response
+            const exactMatch = response.find(
+                (p: ProductVariantType) => p.barcode === term || p.sku === term
+            );
+
+            if (exactMatch) {
+                // Add to purchaseDetails directly
+                addToCartDirectly(exactMatch, "PRODUCT");
+                setSearchTerm(""); // Clear search
+                setShowSuggestions(false); // Hide suggestions
+            } else {
+                
+                setProductResults(response);
+                setShowSuggestions(true);
+            }
         } catch (error) {
             console.error("Error fetching products:", error);
         }
@@ -246,17 +260,89 @@ const QuotationForm: React.FC = () => {
     const handleSearchService = async (term: string) => {
         if (term.trim() === "") {
             setServiceResults([]);
+            setShowSuggestionsService(false);
             return;
         }
 
         try {
-            const response = await searchService(term);
-            // const data = await response.json();
-            setServiceResults(response);
-            setShowSuggestionsService(true);
+            const response = await searchService(term); // Fetch products first
+            // Check for exact match
+            // Check for exact match in fresh response
+            const exactMatch = response.find(
+                (s: ServiceType) => s.serviceCode === term || s.name === term
+            );
+
+            if (exactMatch) {
+                // Add to purchaseDetails directly
+                addToCartDirectly(exactMatch, "SERVICE");
+                setSearchTermService(""); // Clear search
+                setShowSuggestionsService(false); // Hide suggestions
+            } else {
+                
+                setServiceResults(response);
+                setShowSuggestionsService(true);
+            }
         } catch (error) {
-            console.error("Error fetching service:", error);
+            console.error("Error fetching products:", error);
         }
+    };
+
+    const addToCartDirectly = (variant: ProductVariantType | ServiceType, dataType: "PRODUCT" | "SERVICE") => {
+        const isProduct = dataType === "PRODUCT";
+        const productVariant = variant as ProductVariantType;
+        const serviceVariant = variant as ServiceType;
+
+        const priceValue = isProduct ? Number(productVariant.purchasePrice) || 0 : Number(serviceVariant.price) || 0;
+
+        const newDetail: QuotationDetailType = {
+            id: 0,
+            quotationId: 0,
+            productId: isProduct ? (productVariant.products?.id || 0) : 0,
+            productVariantId: isProduct ? productVariant.id : 0,
+            products: isProduct ? (productVariant.products || null) : null,
+            productvariants: isProduct ? productVariant : null,
+            services: !isProduct ? serviceVariant : null,
+            serviceId: !isProduct ? serviceVariant.id : 0,
+            ItemType: dataType,
+            quantity: 1,
+            cost: priceValue,
+            taxNet: 0,
+            taxMethod: "Include",
+            discount: 0,
+            discountMethod: "Fixed",
+            total: calculateTotal({
+                cost: priceValue,
+                quantity: 1,
+                taxNet: 0,
+                taxMethod: "Include",
+                discount: 0,
+                discountMethod: "Fixed",
+            }),
+        };
+    
+        const existingIndex = quotationDetails.findIndex(
+            (item) => item.productVariantId === newDetail.productVariantId
+        );
+
+        let updatedDetails = [...quotationDetails];
+        if (existingIndex !== -1) {
+            // Increase quantity if already in cart
+            const currentQty = Number(updatedDetails[existingIndex].quantity) || 0;
+            updatedDetails[existingIndex].quantity = currentQty + 1;
+            updatedDetails[existingIndex].total = calculateTotal({
+                ...updatedDetails[existingIndex],
+                quantity: currentQty + 1,
+            });
+        } else {
+            // Add new product/service
+            updatedDetails.push(newDetail);
+        }
+
+        setQuotationDetails(updatedDetails);
+
+        // Recalculate grand total
+        const totalSum = sumTotal(updatedDetails);
+        setGrandTotal(totalSum);
     };
 
     const handleFocus = () => {
@@ -705,7 +791,7 @@ const QuotationForm: React.FC = () => {
                                     <div>
                                         <label>Product <span className="text-danger text-md">*</span></label>
                                         <div className="relative">
-                                            <input type="text" placeholder="Scan/Search Product by Code Or Name" className="peer form-input bg-gray-100 placeholder:tracking-widest ltr:pl-9 ltr:pr-9 rtl:pl-9 rtl:pr-9 sm:bg-transparent ltr:sm:pr-4 rtl:sm:pl-4" value={searchTerm} onChange={handleInputChange} onFocus={handleFocus} />
+                                            <input type="text" placeholder="Scan/Search Product by barcode, sku Or Name" className="peer form-input bg-gray-100 placeholder:tracking-widest ltr:pl-9 ltr:pr-9 rtl:pl-9 rtl:pr-9 sm:bg-transparent ltr:sm:pr-4 rtl:sm:pl-4" value={searchTerm} onChange={handleInputChange} onFocus={handleFocus} />
                                             <button type="button" className="absolute inset-0 h-9 w-9 appearance-none peer-focus:text-primary ltr:right-auto rtl:left-auto">
                                                 <svg className="mx-auto" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                     <circle cx="11.5" cy="11.5" r="9.5" stroke="currentColor" strokeWidth="1.5" opacity="0.5"></circle>

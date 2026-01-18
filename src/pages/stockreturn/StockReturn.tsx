@@ -329,7 +329,7 @@ const StockReturn: React.FC = () => {
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={3}>No Stock Request Found!</td>
+                                                        <td colSpan={3}>No Stock Return Found!</td>
                                                     </tr>
                                                 )}
                                             </tbody>

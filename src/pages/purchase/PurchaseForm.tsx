@@ -198,17 +198,85 @@ const PurchaseForm: React.FC = () => {
     const handleSearch = async (term: string) => {
         if (term.trim() === "") {
             setProductResults([]);
+            setShowSuggestions(false);
             return;
         }
 
         try {
-            const response = await searchProduct(term);
-            // const data = await response.json();
-            setProductResults(response);
-            setShowSuggestions(true);
+            const response = await searchProduct(term); // Fetch products first
+            // Check for exact match
+            // Check for exact match in fresh response
+            const exactMatch = response.find(
+                (p: ProductVariantType) => p.barcode === term || p.sku === term
+            );
+
+            if (exactMatch) {
+                // Add to purchaseDetails directly
+                addToCartDirectly(exactMatch);
+                setSearchTerm(""); // Clear search
+                setShowSuggestions(false); // Hide suggestions
+            } else {
+                
+                setProductResults(response);
+                setShowSuggestions(true);
+            }
+            // old style
+            // const response = await searchProduct(term);
+            // // const data = await response.json();
+            // setProductResults(response);
+            // setShowSuggestions(true);
         } catch (error) {
             console.error("Error fetching products:", error);
         }
+    };
+
+    const addToCartDirectly = (variant: ProductVariantType) => {
+        const newDetail: PurchaseDetailType = {
+            id: 0,
+            productId: variant.products?.id || 0,
+            productVariantId: variant.id,
+            products: variant.products || null,
+            productvariants: variant,
+            quantity: 1, 
+            cost: Number(variant.purchasePrice) || 0,
+            taxNet: 0,
+            taxMethod: "Include",
+            discount: 0,
+            discountMethod: "Fixed",
+            total: calculateTotal({
+                cost: Number(variant.purchasePrice) || 0,
+                quantity: 1,
+                taxNet: 0,
+                taxMethod: "Include",
+                discount: 0,
+                discountMethod: "Fixed",
+            }),
+        };
+
+        const existingIndex = purchaseDetails.findIndex(
+            (item) => item.productVariantId === newDetail.productVariantId
+        );
+
+        let updatedDetails = [...purchaseDetails];
+
+        if (existingIndex !== -1) {
+            // Increase quantity if already in cart
+            const currentQty = Number(updatedDetails[existingIndex].quantity) || 0;
+            updatedDetails[existingIndex].quantity = currentQty + 1;
+            updatedDetails[existingIndex].total = calculateTotal({
+                ...updatedDetails[existingIndex],
+                quantity: currentQty + 1,
+            });
+        } else {
+            // Add new product
+            updatedDetails.push(newDetail);
+        }
+
+        setPurchaseDetails(updatedDetails);
+
+        // Recalculate grand total
+        const totalSum = sumTotal(updatedDetails);
+        setGrandTotal(totalSum);
     };
 
     const handleFocus = () => {
@@ -650,7 +718,7 @@ const PurchaseForm: React.FC = () => {
                             <div className="mb-5">
                                 <label>Product <span className="text-danger text-md">*</span></label>
                                 <div className="relative">
-                                    <input type="text" placeholder="Scan/Search Product by Code Or Name" className="peer form-input bg-gray-100 placeholder:tracking-widest ltr:pl-9 ltr:pr-9 rtl:pl-9 rtl:pr-9 sm:bg-transparent ltr:sm:pr-4 rtl:sm:pl-4" value={searchTerm} onChange={handleInputChange} onFocus={handleFocus} />
+                                    <input type="text" placeholder="Scan/Search Product by barcode, sku Or Name" className="peer form-input bg-gray-100 placeholder:tracking-widest ltr:pl-9 ltr:pr-9 rtl:pl-9 rtl:pr-9 sm:bg-transparent ltr:sm:pr-4 rtl:sm:pl-4" value={searchTerm} onChange={handleInputChange} onFocus={handleFocus} />
                                     <button type="button" className="absolute inset-0 h-9 w-9 appearance-none peer-focus:text-primary ltr:right-auto rtl:left-auto">
                                         <svg className="mx-auto" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <circle cx="11.5" cy="11.5" r="9.5" stroke="currentColor" strokeWidth="1.5" opacity="0.5"></circle>
