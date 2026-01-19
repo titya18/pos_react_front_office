@@ -44,10 +44,21 @@ const columns = [
     "Actions"
 ];
 
+const DEFAULT_VISIBLE_COLUMNS = [
+    "No",
+    "Rference",
+    "Transfer Date",
+    "Branch",
+    "To Branch",
+    "Status",
+    "Total QTY",
+    "Actions"
+];
+
 const sortFields: Record<string, string> = {
     "No": "id",
     "Rference": "ref",
-    "Adjustment Date": "adjustDate",
+    "Transfer Date": "transferDate",
     "Branch": "branchId",
     "To Branch": "toBranchId",
     "Status": "StatusType",
@@ -67,7 +78,7 @@ const ReportTransfer: React.FC = () => {
     const [branches, setBranches] = useState<BranchType[]>([]);
     const [transferData, setTransferData] = useState<StockTransferType[]>([]);
     const [isLoading, setIsLoading] = useState(false);const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(columns);
+    const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE_COLUMNS);
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [viewNote, setViewNote] = useState<string | null>(null);
 

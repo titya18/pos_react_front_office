@@ -50,6 +50,18 @@ const columns = [
     "Actions"
 ];
 
+const DEFAULT_VISIBLE_COLUMNS = [
+    "No",
+    "Reference",
+    "Income Date",
+    "Branch",
+    "Income Name",
+    "Amount",
+    "Description",
+    "Cancelled Reason",
+    "Actions"
+];
+
 const sortFields: Record<string, string> = {
     "No": "id",
     "Reference": "ref",
@@ -74,7 +86,7 @@ const ReportIncome: React.FC = () => {
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [viewNote, setViewNote] = useState<ViewNotePayload | null>(null);
     const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(columns);
+    const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE_COLUMNS);
 
     // FILTER STATES
     const [total, setTotal] = useState(0);

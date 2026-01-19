@@ -54,6 +54,19 @@ const columns = [
     "Actions"
 ];
 
+const DEFAULT_VISIBLE_COLUMNS = [
+    "No",
+    "Purchase Date",
+    "Purchase No",
+    "Supplier",
+    "Branch",
+    "Status",
+    "Grand Total",
+    "Paid",
+    "Due",
+    "Actions"
+];
+
 const sortFields: Record<string, string> = {
     "No": "id",
     "Purchase Date": "purchaseDate",
@@ -90,7 +103,7 @@ const Purchase: React.FC = () => {
     const sortOrder: "desc" | "asc" = rawSortOrder === "desc" ? "desc" : "asc";
     const [total, setTotal] = useState(0);
     const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(columns);
+    const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE_COLUMNS);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
     const [deleteMessage, setDeleteMessage] = useState("");

@@ -27,6 +27,11 @@ const columns = [
     "Payment Method", "Amount Paid", "Paid USD", "Paid KHR", "Exchange Rate", "Status", "Created At", "Created By", "Cancelled At", "Cancelled By", "Cancelled Reason"
 ];
 
+const DEFAULT_VISIBLE_COLUMNS = [
+    "No", "Payment Date", "Invoice's ID", "Customer", "Branch",
+    "Payment Method", "Amount Paid", "Paid USD", "Paid KHR", "Exchange Rate", "Status"
+];
+
 const sortFields: Record<string, string> = {
     "No": "id",
     "Payment Date": "paymentDate",
@@ -51,7 +56,7 @@ const ReportPaymentInvoice: React.FC = () => {
     const [invoiceData, setInvoiceData] = useState<OrderOnPaymentType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(columns);
+    const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE_COLUMNS);
     const [total, setTotal] = useState(0);
     const { user, hasPermission } = useAppContext();
     const navigate = useNavigate();

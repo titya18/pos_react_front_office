@@ -39,6 +39,20 @@ const columns = [
     "Actions"
 ];
 
+const DEFAULT_VISIBLE_COLUMNS = [
+    "Image",
+    "Barcode",
+    "SKU",
+    "Product's Name",
+    "Variant's Name",
+    "Purchase Price",
+    "Retail Price",
+    "Whole Sale Price",
+    "Unit",
+    "Status",
+    "Actions"
+];
+
 const sortFields: Record<string, string> = {
     "Barcode": "barcode",
     "SKU": "sku",
@@ -72,7 +86,7 @@ const ProductVariant: React.FC = () => {
     const sortOrder: "asc" | "desc" = rawSortOrder === "desc" ? "desc" : "asc";
     const [total, setTotal] = useState(0);
     const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(columns);
+    const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE_COLUMNS);
 
     const updateParams = (params: Record<string, unknown>) => {
         const newParams = new URLSearchParams(searchParams.toString());

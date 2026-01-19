@@ -43,6 +43,17 @@ const columns = [
     "Actions"
 ];
 
+const DEFAULT_VISIBLE_COLUMNS = [
+    "No",
+    "Rference",
+    "Request Date",
+    "Request By",
+    "Branch",
+    "Status",
+    "Total QTY",
+    "Actions"
+];
+
 const sortFields: Record<string, string> = {
     "No": "id",
     "Rference": "ref",
@@ -67,7 +78,7 @@ const ReportRequest: React.FC = () => {
     const [requestData, setRequestData] = useState<StockRequestType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(columns);
+    const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE_COLUMNS);
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [viewNote, setViewNote] = useState<string | null>(null);
 

@@ -45,6 +45,18 @@ const columns = [
     "Actions"
 ];
 
+const DEFAULT_VISIBLE_COLUMNS = [
+    "No",
+    "Quotation Date",
+    "Reference",
+    "Quotation Type",
+    "Customer",
+    "Branch",
+    "Status",
+    "Grand Total",
+    "Actions"
+];
+
 const sortFields: Record<string, string> = {
     "No": "id",
     "Quotation Date": "quotationDate",
@@ -74,7 +86,7 @@ const ReportQuotation: React.FC = () => {
     const [isLoadingConvert, setIsLoadingConvert] = useState(false);
 
     const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(columns);
+    const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE_COLUMNS);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
     const [deleteMessage, setDeleteMessage] = useState("");

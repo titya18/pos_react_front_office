@@ -32,6 +32,11 @@ const columns = [
     "Created At", "Created By", "Updated At", "Updated By", "Actions"
 ];
 
+const DEFAULT_VISIBLE_COLUMNS = [
+    "No", "Invoice Date", "Reference", "Invoice Type", "Customer", "Branch",
+    "Status", "Grand Total", "Paid", "Due", "Actions"
+];
+
 const sortFields: Record<string, string> = {
     "No": "id",
     "Invoice Date": "orderDate",
@@ -56,7 +61,7 @@ const ReportInvoice: React.FC = () => {
     const [invoiceData, setInvoiceData] = useState<InvoiceType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(columns);
+    const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE_COLUMNS);
     const [showNoteModal, setShowNoteModal] = useState(false);
     const [viewNote, setViewNote] = useState<string | null>(null);
     const [total, setTotal] = useState(0);
