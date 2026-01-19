@@ -492,7 +492,7 @@ const Sidebar: React.FC = () => {
                         {(
                             hasPermission('Purchase-View') ||
                             hasPermission('Quotation-View') || 
-                            hasPermission('Invoice-View') 
+                            hasPermission('Sale-View') 
                         ) && (
                             <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
                                 <svg
@@ -546,17 +546,17 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
-                        {hasPermission('Invoice-View') &&
+                        {hasPermission('Sale-View') &&
                             <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>
                                         <NavLink
-                                            to="/invoice"
-                                            className={['invoice','addinvoice','editinvoice'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                            to="/sale"
+                                            className={['sale','addsale','editsale'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
                                         >
                                             <div className="flex items-center">
                                                 <FilePenLine />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Invoices</span>
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Sales</span>
                                             </div>
                                         </NavLink>
                                     </li>
@@ -734,8 +734,8 @@ const Sidebar: React.FC = () => {
                         }
 
                         {(
-                            hasPermission('Invoice-Report') ||
-                            hasPermission('Cancel-Invoice') ||
+                            hasPermission('Sale-Report') ||
+                            hasPermission('Cancel-Sale') ||
                             hasPermission('Payment-Report') ||
                             hasPermission('Purchase-Report') ||
                             hasPermission('Payment-Purchase-Report') ||
@@ -763,7 +763,7 @@ const Sidebar: React.FC = () => {
                             </h2>
                         )}
 
-                        {hasPermission('Invoice-Report') &&
+                        {hasPermission('Sale-Report') &&
                             <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>
@@ -781,7 +781,7 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
-                        {hasPermission('Cancel-Invoice') &&
+                        {hasPermission('Cancel-Sale') &&
                             <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>

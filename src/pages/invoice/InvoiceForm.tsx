@@ -494,7 +494,7 @@ const InvoiceForm: React.FC = () => {
                     autoClose: 2000
                 });
             } else {
-                toast.error("Error adding/editting invoice", {
+                toast.error("Error adding/editting sale", {
                     position: "top-right",
                     autoClose: 2000
                 });
@@ -612,7 +612,7 @@ const InvoiceForm: React.FC = () => {
                 items: invoiceDetails
             }
             await upsertInvoice(invoiceData);
-            toast.success(id ? "Invoice updated successfully" : "Invoice created successfully", {
+            toast.success(id ? "Sale updated successfully" : "Sale created successfully", {
                 position: "top-right",
                 autoClose: 4000
             });
@@ -635,7 +635,7 @@ const InvoiceForm: React.FC = () => {
             });
 
             // Redirect to the specified URL
-            navigate("/invoice");
+            navigate("/sale");
         } catch (err: any) {
             if (err.message) {
                 toast.error(err.message, {
@@ -643,7 +643,7 @@ const InvoiceForm: React.FC = () => {
                     autoClose: 4000
                 });
             } else {
-                toast.error("Error adding/editing invoice", {
+                toast.error("Error adding/editing sale", {
                     position: 'top-right',
                     autoClose: 4000
                 });
@@ -685,7 +685,7 @@ const InvoiceForm: React.FC = () => {
                 <div className="mb-5">
                     <h5 className="flex items-center text-lg font-semibold dark:text-white-light">
                         { id ? <FilePenLine /> : <Plus /> }
-                        { id ? " Update Invoice" : " Add Invoice" }
+                        { id ? " Update Sale" : " Add Sale" }
                     </h5>
                 </div>
                 <div className="mb-5">
@@ -1067,7 +1067,7 @@ const InvoiceForm: React.FC = () => {
 
                                         <option
                                             value="APPROVED"
-                                            disabled={!hasPermission("Invoice-Approve") && statusValue === "PENDING"}
+                                            disabled={!hasPermission("Sale-Approve") && statusValue === "PENDING"}
                                         >
                                             Approved
                                         </option>
@@ -1095,12 +1095,12 @@ const InvoiceForm: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex justify-end items-center mt-8">
-                            <NavLink to="/invoice" type="button" className="btn btn-outline-warning">
+                            <NavLink to="/sale" type="button" className="btn btn-outline-warning">
                                 <FontAwesomeIcon icon={faArrowLeft} className='mr-1' />
                                 Go Back
                             </NavLink>
                             {statusValue === 'PENDING' &&
-                                (hasPermission('Invoice-Create') || hasPermission('Invoice-Edit')) && (
+                                (hasPermission('Sale-Create') || hasPermission('Sale-Edit')) && (
                                     <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                                         <FontAwesomeIcon icon={faSave} className='mr-1' />
                                         {isLoading ? 'Saving...' : 'Save'}

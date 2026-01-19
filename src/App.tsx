@@ -125,11 +125,11 @@ const App: React.FC = () => {
                         <Route path="/addquotation" element={<PrivateRoute element={<Layout><QuotationForm /></Layout>} />} />
                         <Route path="/editquotation/:id" element={<PrivateRoute element={<Layout><QuotationForm /></Layout>} />} />
                         <Route path="/printquotation/:id" element={<PrivateRoute element={<Layout><PrintQuotation /></Layout>} />} />
-                        {/* Invoice */}
-                        <Route path="/invoice" element={<PrivateRoute element={<Layout><Invoice /></Layout>} />} />
-                        <Route path="/addinvoice" element={<PrivateRoute element={<Layout><InvoiceForm /></Layout>} />} />
-                        <Route path="/editinvoice/:id" element={<PrivateRoute element={<Layout><InvoiceForm /></Layout>} />} />
-                        <Route path="/printinvoice/:id" element={<PrivateRoute element={<Layout><PrintInvoice /></Layout>} />} />
+                        {/* Sale */}
+                        <Route path="/sale" element={<PrivateRoute element={<Layout><Invoice /></Layout>} />} />
+                        <Route path="/addsale" element={<PrivateRoute element={<Layout><InvoiceForm /></Layout>} />} />
+                        <Route path="/editsale/:id" element={<PrivateRoute element={<Layout><InvoiceForm /></Layout>} />} />
+                        <Route path="/printsale/:id" element={<PrivateRoute element={<Layout><PrintInvoice /></Layout>} />} />
                         {/* Stock Summary */}
                         <Route path="/stocksummary" element={<PrivateRoute element={<Layout><StockSummary /></Layout>} />} />
                         {/* Stock Adjustment */}

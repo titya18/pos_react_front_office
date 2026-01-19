@@ -27,9 +27,9 @@ dayjs.extend(timezone);
 
 const columns = [
     "No",
-    "Invoice Date",
+    "Sale Date",
     "INV-No",
-    "Invoice Type",
+    "Sale Type",
     "Customer",
     "Branch",
     "Status",
@@ -47,9 +47,9 @@ const columns = [
 
 const sortFields: Record<string, string> = {
     "No": "id",
-    "Invoice Date": "orderDate",
+    "Sale Date": "orderDate",
     "INV-No": "ref",
-    "Invoice Type": "OrderSaleType",
+    "Sale Type": "OrderSaleType",
     "Customer": "customerId",
     "Branch": "branchId",
     "Status": "status",
@@ -111,7 +111,7 @@ const Invoice: React.FC = () => {
             setTotal(total || 0);
             setSelected([]);
         } catch (error) {
-            console.error("Error fetching invoices:", error);
+            console.error("Error fetching sales:", error);
         } finally {
             setIsLoading(false);
         }
@@ -146,9 +146,9 @@ const Invoice: React.FC = () => {
 
     const exportData = invoiceData.map((inv, index) => ({
         "No": (page - 1) * pageSize + index + 1,
-        "Invoice Date": inv.orderDate,
+        "Sale Date": inv.orderDate,
         "INV-No": inv.ref,
-        "Invoice Type": inv.OrderSaleType,
+        "Sale Type": inv.OrderSaleType,
         "Customer": inv.customers ? inv.customers.name : "N/A",
         "Branch": inv.branch ? inv.branch.name : "",
         "Status": inv.status,
@@ -211,15 +211,15 @@ const Invoice: React.FC = () => {
             }
 
             await apiClient.ApprovedInvoice(id);
-            toast.success("Invoice has approved successfully", {
+            toast.success("Sale has approved successfully", {
                 position: "top-right",
                 autoClose: 4000
             })
 
             fetchInvoice();
         } catch (err: any) {
-            console.error("Error approving invoice:", err);
-            toast.error(err.message || "Error approving invoice", {
+            console.error("Error approving sale:", err);
+            toast.error(err.message || "Error approving sale", {
                 position: 'top-right',
                 autoClose: 6000
             });
@@ -287,8 +287,8 @@ const Invoice: React.FC = () => {
                             <div className="px-0">
                                 <div className="md:absolute md:top-0 ltr:md:left-0 rtl:md:right-0">
                                     <div className="mb-5 flex items-center gap-2">
-                                        {hasPermission('Invoice-Create') &&
-                                            <NavLink to="/addinvoice" className="btn btn-primary gap-2" >
+                                        {hasPermission('Sale-Create') &&
+                                            <NavLink to="/addsale" className="btn btn-primary gap-2" >
                                                 <Plus />
                                                 Add New
                                             </NavLink>
@@ -313,7 +313,7 @@ const Invoice: React.FC = () => {
                                         visibleColumns={visibleCols}
                                         onToggleColumn={toggleCol}
                                     />
-                                    <ExportDropdown data={exportData} prefix="Invoice" />
+                                    <ExportDropdown data={exportData} prefix="Sales" />
                                 </div>
                                 <div className="dataTable-container">
                                     {isLoading ? (
@@ -354,13 +354,13 @@ const Invoice: React.FC = () => {
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
                                                             )}
-                                                            {visibleCols.includes("Invoice Date") && (
+                                                            {visibleCols.includes("Sale Date") && (
                                                                 <td>{rows.orderDate ? format(new Date(rows.orderDate), 'dd-MMM-yyyy') : ''}</td>
                                                             )}
                                                             {visibleCols.includes("INV-No") && (
                                                                 <td>{rows.ref}</td>
                                                             )}
-                                                            {visibleCols.includes("Invoice Type") && (
+                                                            {visibleCols.includes("Sale Type") && (
                                                                 <td>
                                                                     <span
                                                                         className={`badge rounded-full px-3 py-1 font-medium cursor-default text-white`}
@@ -379,7 +379,7 @@ const Invoice: React.FC = () => {
                                                             {visibleCols.includes("Status") && (
                                                                 <td>
                                                                     {rows.status === 'PENDING' ? (
-                                                                        hasPermission('Invoice-Approve') ? (
+                                                                        hasPermission('Sale-Approve') ? (
                                                                             <span
                                                                                 className="badge rounded-full bg-warning cursor-pointer"
                                                                                 aria-disabled={isLoadingApprove}
@@ -443,13 +443,13 @@ const Invoice: React.FC = () => {
                                                                                 <NotebookText color="pink" />
                                                                             </button>
                                                                         }
-                                                                        {hasPermission('Invoice-Print') && (
-                                                                            <NavLink to={`/printinvoice/${rows.id}`} className="hover:text-warning" title="Print Invoice">
+                                                                        {hasPermission('Sale-Print') && (
+                                                                            <NavLink to={`/printsale/${rows.id}`} className="hover:text-warning" title="Print Sale">
                                                                                 <PrinterCheck color="purple" />
                                                                             </NavLink>
                                                                         )}
                                                                         {(rows.status === 'APPROVED' || rows.status === 'COMPLETED') &&
-                                                                            hasPermission('Invoice-Payment') &&
+                                                                            hasPermission('Sale-Payment') &&
                                                                                 <button type="button" 
                                                                                     className="hover:text-primary" 
                                                                                     onClick={() => addPaymentInvoice({ 
@@ -461,18 +461,18 @@ const Invoice: React.FC = () => {
                                                                                         createdAt: null,
                                                                                         paymentMethods: null, 
                                                                                     })} 
-                                                                                    title="Payment Invoice"
+                                                                                    title="Payment Sale"
                                                                                 >
                                                                                     <BanknoteArrowUp color="blue" />
                                                                                 </button>
                                                                         }
-                                                                        {hasPermission('Invoice-Edit') &&
-                                                                            <NavLink to={`/editinvoice/${rows.id}`} className="hover:text-warning" title="Edit">
+                                                                        {hasPermission('Sale-Edit') &&
+                                                                            <NavLink to={`/editsale/${rows.id}`} className="hover:text-warning" title="Edit">
                                                                                 <Pencil color="green" />
                                                                             </NavLink>
                                                                         }
                                                                         {rows.status === 'PENDING' &&
-                                                                            hasPermission('Invoice-Delete') &&
+                                                                            hasPermission('Sale-Delete') &&
                                                                                 <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteInvoice(rows.id)} title="Delete">
                                                                                     <Trash2 color="red" />
                                                                                 </button>
@@ -485,7 +485,7 @@ const Invoice: React.FC = () => {
                                                     ))
                                                 ) : (
                                                     <tr>
-                                                        <td colSpan={3}>No Invoice Found!</td>
+                                                        <td colSpan={3}>No Sale Found!</td>
                                                     </tr>
                                                 )}
                                             </tbody>

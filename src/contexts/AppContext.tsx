@@ -42,7 +42,7 @@ export const AppContext = createContext<AppContextType | undefined>(undefined);
 //     transports: ['websocket'],
 // });
 
-const socket = io("http://202.93.8.4", {
+const socket = io("http://202.93.8.4/inventory", {
   path: "/inventory/socket.io",
   transports: ["websocket"],
 });
