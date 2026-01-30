@@ -26,7 +26,8 @@ import {
     CircleOff,
     CircleDollarSign,
     BadgeDollarSign,
-    FileKey
+    FileKey,
+    Undo2
 } from 'lucide-react';
 
 // Define a type for the state
@@ -492,7 +493,8 @@ const Sidebar: React.FC = () => {
                         {(
                             hasPermission('Purchase-View') ||
                             hasPermission('Quotation-View') || 
-                            hasPermission('Sale-View') 
+                            hasPermission('Sale-View') ||
+                            hasPermission('Sale-Return')
                         ) && (
                             <h2 className="-mx-4 mb-1 flex items-center bg-white-light/30 px-7 py-3 font-extrabold uppercase dark:bg-dark dark:bg-opacity-[0.08]">
                                 <svg
@@ -557,6 +559,24 @@ const Sidebar: React.FC = () => {
                                             <div className="flex items-center">
                                                 <FilePenLine />
                                                 <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Sales</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Sale-Return') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/returnsells"
+                                            className={['returnsells','printsell-return'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <Undo2 />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Return Sales</span>
                                             </div>
                                         </NavLink>
                                     </li>
@@ -773,7 +793,7 @@ const Sidebar: React.FC = () => {
                                         >
                                             <div className="flex items-center">
                                                 <FilePenLine />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Invoice Report</span>
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Sale Report</span>
                                             </div>
                                         </NavLink>
                                     </li>
@@ -791,7 +811,7 @@ const Sidebar: React.FC = () => {
                                         >
                                             <div className="flex items-center">
                                                 <CircleOff />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Cancel Invoice Report</span>
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Cancel Sale Report</span>
                                             </div>
                                         </NavLink>
                                     </li>

@@ -1,6 +1,6 @@
 // src/components/MainCategory.tsx
 import React, { useState, useEffect } from "react";
-import * as apiClient from "@/api/invoice";
+import * as apiClient from "@/api/saleReturn";
 import Pagination from "../components/Pagination"; // Import the Pagination component
 import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -11,7 +11,7 @@ import { toast } from "react-toastify";
 import { useAppContext } from "@/hooks/useAppContext";
 import { format } from 'date-fns';
 import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, NotebookText, MessageCircleOff, Undo2 } from 'lucide-react';
-import { InvoicePaymentType, InvoiceType } from "@/data_types/types";
+import { SaleReturnType, SaleReturnDetailType } from "@/data_types/types";
 import { useSearchParams } from "react-router-dom";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
 import ExportDropdown from "@/components/ExportDropdown";
@@ -27,63 +27,36 @@ dayjs.extend(timezone);
 
 const columns = [
     "No",
-    "Sale Date",
+    "Return No",
     "INV-No",
-    "Sale Type",
     "Customer",
     "Branch",
-    "Status",
+    "Discount",
+    "Tax Rate",
     "Grand Total",
-    "Paid",
-    "Due",
-    "Approved At",
-    "Approved By",
-    "Created At",
-    "Created By",
-    "Updated At",
-    "Updated By",
-    "Actions"
-];
-
-const DEFAULT_VISIBLE_COLUMNS = [
-    "No",
-    "Sale Date",
-    "INV-No",
-    "Sale Type",
-    "Customer",
-    "Branch",
-    "Status",
-    "Grand Total",
-    "Paid",
-    "Due",
+    "Return At",
+    "Return By",
     "Actions"
 ];
 
 const sortFields: Record<string, string> = {
     "No": "id",
-    "Sale Date": "orderDate",
-    "INV-No": "ref",
-    "Sale Type": "OrderSaleType",
-    "Customer": "customerId",
-    "Branch": "branchId",
-    "Status": "status",
+    "Return No": "ref",
+    "INV-No": "order",
+    "Customer": "customer",
+    "Branch": "branch",
+    "Discount": "discount",
+    "Tax Rate": "taxRate",
     "Grand Total": "totalAmount",
-    "Paid": "paidAmount",
-    "Due": "due",
-    "Approved At": "approvedAt",
-    "Approved By": "approvedBy",
-    "Created At": "createdAt",
-    "Created By": "createdBy",
-    "Updated At": "updatedAt",
-    "Updated By": "updatedBy"
+    "Return At": "createdAt",
+    "Return By": "createdBy"
 };
 
-const Invoice: React.FC = () => {
-    const [invoiceData, setInvoiceData] = useState<InvoiceType[]>([]);
+const SaleReturn: React.FC = () => {
+    const [saleReturnData, setSaleReturnData] = useState<SaleReturnType[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isLoadingApprove, setIsLoadingApprove] = useState(false);
     const [isModalPaymentOpen, setIsModalPaymentOpen] = useState(false);
-    const [amountInvoice, setAmountInvoice] = useState<InvoicePaymentType | null>(null);
 
     const [searchParams, setSearchParams] = useSearchParams();
     const search = searchParams.get("search") || "";
@@ -94,7 +67,7 @@ const Invoice: React.FC = () => {
     const sortOrder: "desc" | "asc" = rawSortOrder === "desc" ? "desc" : "asc";
     const [total, setTotal] = useState(0);
     const [selected, setSelected] = useState<number[]>([]);
-    const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE_COLUMNS);
+    const [visibleCols, setVisibleCols] = useState(columns);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteInvoiceId, setDeleteInvoiceId] = useState<number | null>(null);
     const [deleteMessage, setDeleteMessage] = useState("");
@@ -111,17 +84,17 @@ const Invoice: React.FC = () => {
 
     const { hasPermission } = useAppContext();
 
-    const fetchInvoice = async () => {
+    const fetchSaleReturn = async () => {
         setIsLoading(true);
         try {
-            const { data, total } = await apiClient.getAllInvoices(
+            const { data, total } = await apiClient.getAllSaleReturnsWithPagination(
                 sortField,
                 sortOrder,
                 page,
                 search,
                 pageSize
             );
-            setInvoiceData(data || []);
+            setSaleReturnData(data || []);
             setTotal(total || 0);
             setSelected([]);
         } catch (error) {
@@ -132,7 +105,7 @@ const Invoice: React.FC = () => {
     };
 
     useEffect(() => {
-        fetchInvoice();
+        fetchSaleReturn();
     }, [search, page, sortField, sortOrder, pageSize]);
 
     const toggleCol = (col: string) => {
@@ -158,23 +131,17 @@ const Invoice: React.FC = () => {
         }
     };
 
-    const exportData = invoiceData.map((inv, index) => ({
+    const exportData = saleReturnData.map((inv, index) => ({
         "No": (page - 1) * pageSize + index + 1,
-        "Sale Date": inv.orderDate,
-        "INV-No": inv.ref,
-        "Sale Type": inv.OrderSaleType,
+        "Return No": inv.ref,
+        "INV-No": inv.order?.ref,
         "Customer": inv.customers ? inv.customers.name : "N/A",
         "Branch": inv.branch ? inv.branch.name : "",
-        "Status": inv.status,
+        "Discount": inv.discount,
+        "Tax Rate": inv.taxRate,
         "Grand Total": inv.totalAmount,
-        "Paid": inv.paidAmount,
-        "Due": Number(inv.totalAmount - (inv.paidAmount ?? 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','),
-        "Approved At": inv.approvedAt ? dayjs.tz(inv.approvedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : 'N/A',
-        "Approved By": `${inv.approver?.lastName || ''} ${inv.approver?.firstName || 'N/A'}`,
-        "Created At": inv.createdAt ? dayjs.tz(inv.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Created By": `${inv.creator?.lastName || ''} ${inv.creator?.firstName || ''}`,
-        "Updated At": inv.updatedAt ? dayjs.tz(inv.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
-        "Updated By": `${inv.updater?.lastName || ''} ${inv.updater?.firstName || ''}`,
+        "Return At": inv.createdAt ? dayjs.tz(inv.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : '',
+        "Return By": `${inv.creator?.lastName || ''} ${inv.creator?.firstName || ''}`,
     }));
 
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -190,102 +157,30 @@ const Invoice: React.FC = () => {
         setShowDeleteModal(true);
     };
 
-    const submitDeleteInvoice = async () => {
-        if (!deleteInvoiceId) return;
+    // const submitDeleteInvoice = async () => {
+    //     if (!deleteInvoiceId) return;
 
-        if (!deleteMessage.trim()) {
-            toast.error("Please enter delete reason");
-            return;
-        }
+    //     if (!deleteMessage.trim()) {
+    //         toast.error("Please enter delete reason");
+    //         return;
+    //     }
 
-        try {
-            await apiClient.deleteInvoice(deleteInvoiceId, deleteMessage);
+    //     try {
+    //         await apiClient.deleteInvoice(deleteInvoiceId, deleteMessage);
 
-            toast.success("Invoice deleted successfully", {
-                position: "top-right",
-                autoClose: 4000,
-            });
+    //         toast.success("Invoice deleted successfully", {
+    //             position: "top-right",
+    //             autoClose: 4000,
+    //         });
 
-            setShowDeleteModal(false);
-            setDeleteInvoiceId(null);
+    //         setShowDeleteModal(false);
+    //         setDeleteInvoiceId(null);
 
-            fetchInvoice();
-        } catch (err: any) {
-            toast.error(err.message || "Error deleting invoice");
-        }
-    };
-
-    const ApprovedInvoice = async (id: number) => {
-        setIsLoadingApprove(true);
-        try {
-            const ok = await ShowConfirmationMessage("approve");
-
-            if (!ok) {
-                return;
-            }
-
-            await apiClient.ApprovedInvoice(id);
-            toast.success("Sale has approved successfully", {
-                position: "top-right",
-                autoClose: 4000
-            })
-
-            fetchInvoice();
-        } catch (err: any) {
-            console.error("Error approving sale:", err);
-            toast.error(err.message || "Error approving sale", {
-                position: 'top-right',
-                autoClose: 6000
-            });
-        } finally {
-            setIsLoadingApprove(false);
-        }
-    }
-
-    const addPaymentInvoice = (paymentData: InvoicePaymentType) => {
-            setAmountInvoice(paymentData);
-            setIsModalPaymentOpen(true);
-    };
-
-    const handleOnSubmitPayment = async (
-        branchId: number | null, 
-        orderId: number | null, 
-        paidAmount: number | null, 
-        paymentMethodId: number | null, 
-        totalPaid: number, 
-        receive_usd: number | null,
-        receive_khr: number | null,
-        exchangerate: number | null,
-        due_balance: number
-    ) => {
-        try {
-            await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
-            const paymentData: InvoicePaymentType = {
-                branchId: branchId,
-                orderId: orderId,
-                paymentMethodId: paymentMethodId,
-                paidAmount: paidAmount,
-                totalPaid: totalPaid,
-                receive_usd: receive_usd,
-                receive_khr: receive_khr,
-                exchangerate: exchangerate,
-                due_balance: due_balance,
-                createdAt: null,
-                paymentMethods: null,
-            }
-            await apiClient.insertInvoicePayment(paymentData);
-            toast.success("Purchase payment insert successfully", {
-                position: "top-right",
-                autoClose: 2000
-            });
-            fetchInvoice();
-        } catch (error: any) {
-            toast.error(error.message || "Error adding payment", {
-                position: "top-right",
-                autoClose: 2000
-            });
-        }
-    };
+    //         fetchInvoice();
+    //     } catch (err: any) {
+    //         toast.error(err.message || "Error deleting invoice");
+    //     }
+    // };
 
     const handleViewNote = (note: string) => {
         setViewNote(note);
@@ -298,18 +193,6 @@ const Invoice: React.FC = () => {
                 <div className="space-y-6">
                     <div className="panel">
                         <div className="relative">
-                            <div className="px-0">
-                                <div className="md:absolute md:top-0 ltr:md:left-0 rtl:md:right-0">
-                                    <div className="mb-5 flex items-center gap-2">
-                                        {hasPermission('Sale-Create') &&
-                                            <NavLink to="/addsale" className="btn btn-primary gap-2" >
-                                                <Plus />
-                                                Add New
-                                            </NavLink>
-                                        }
-                                    </div>
-                                </div>
-                            </div>
 
                             <div className="dataTable-wrapper dataTable-loading no-footer sortable searchable">
                                 <div className="dataTable-top">
@@ -362,36 +245,17 @@ const Invoice: React.FC = () => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {invoiceData && invoiceData.length > 0 ? (
-                                                    invoiceData.map((rows, index) => (
+                                                {saleReturnData && saleReturnData.length > 0 ? (
+                                                    saleReturnData.map((rows, index) => (
                                                         <tr key={index}>
                                                             {visibleCols.includes("No") && (
                                                                 <td>{(page - 1) * pageSize + index + 1}</td>
                                                             )}
-                                                            {visibleCols.includes("Sale Date") && (
-                                                                <td>{rows.orderDate ? format(new Date(rows.orderDate), 'dd-MMM-yyyy') : ''}</td>
+                                                            {visibleCols.includes("Return No") && (
+                                                                <td>{rows.ref}</td>
                                                             )}
                                                             {visibleCols.includes("INV-No") && (
-                                                                <td className="text-center">
-                                                                    {rows.ref}
-                                                                    {
-                                                                        rows.returnstatus === 1 ? 
-                                                                        <span title="Return">
-                                                                            <Undo2 size={15} color="red" />
-                                                                        </span>
-                                                                        : null
-                                                                    }
-                                                                </td>
-                                                            )}
-                                                            {visibleCols.includes("Sale Type") && (
-                                                                <td>
-                                                                    <span
-                                                                        className={`badge rounded-full px-3 py-1 font-medium cursor-default text-white`}
-                                                                        style={{ backgroundColor: rows.OrderSaleType === "WHOLESALE" ? "#F39EB6" : "#a855f7" }}
-                                                                    >
-                                                                        {rows.OrderSaleType}
-                                                                    </span>
-                                                                </td>
+                                                                <td>{rows.order?.ref}</td>
                                                             )}
                                                             {visibleCols.includes("Customer") && (
                                                                 <td>{rows.customer?.name || "N/A"}</td>
@@ -399,64 +263,20 @@ const Invoice: React.FC = () => {
                                                             {visibleCols.includes("Branch") && (
                                                                 <td>{rows.branch ? rows.branch.name : ""}</td>
                                                             )}
-                                                            {visibleCols.includes("Status") && (
-                                                                <td>
-                                                                    {rows.status === 'PENDING' ? (
-                                                                        hasPermission('Sale-Approve') ? (
-                                                                            <span
-                                                                                className="badge rounded-full bg-warning cursor-pointer"
-                                                                                aria-disabled={isLoadingApprove}
-                                                                                onClick={() => ApprovedInvoice(Number(rows.id))}
-                                                                                title="Click to approve to invoice"
-                                                                            >
-                                                                                {isLoadingApprove ? `${rows.status}...` : rows.status}
-                                                                            </span>
-                                                                        ) : (
-                                                                            <span className="badge rounded-full bg-warning">
-                                                                                {rows.status}
-                                                                            </span>
-                                                                        )
-                                                                    ) : rows.status === 'APPROVED' ? (
-                                                                        <span className="badge rounded-full bg-primary">
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    ) : rows.status === 'COMPLETED' ? (
-                                                                        <span className="badge rounded-full bg-success">
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="badge rounded-full bg-danger" title={rows.delReason}> 
-                                                                            {rows.status}
-                                                                        </span>
-                                                                    )}
-                                                                </td>
+                                                            {visibleCols.includes("Discount") && (
+                                                                <td>$ { Number(rows.discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
+                                                            )}
+                                                            {visibleCols.includes("Tax Rate") && (
+                                                                <td>{ Number(rows.taxRate).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }%</td>
                                                             )}
                                                             {visibleCols.includes("Grand Total") && (
                                                                 <td style={{color: "blue"}}>$ { Number(rows.totalAmount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
                                                             )}
-                                                            {visibleCols.includes("Paid") && (
-                                                                <td style={{color: (rows.totalAmount - (rows.paidAmount ?? 0)) > 0 ? "red" : "green"}}>$ { Number(rows.paidAmount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
-                                                            )}
-                                                            {visibleCols.includes("Due") && (
-                                                                <td style={{color: (rows.totalAmount - (rows.paidAmount ?? 0)) > 0 ? "red" : "black"}}>$ { Number(rows.totalAmount - (rows.paidAmount ?? 0)).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
-                                                            )}
-                                                            {visibleCols.includes("Approved At") && (
-                                                                <td>{rows.approvedAt ? dayjs.tz(rows.approvedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss") : "N/A"}</td>
-                                                            )}
-                                                            {visibleCols.includes("Approved By") && (
-                                                                <td>{rows.approvedAt ? `${rows.approver?.lastName} ${rows.approver?.firstName}` : "N/A"}</td>
-                                                            )}
-                                                            {visibleCols.includes("Created At") && (
+                                                            {visibleCols.includes("Return At") && (
                                                                 <td>{dayjs.tz(rows.createdAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss")}</td>
                                                             )}
-                                                            {visibleCols.includes("Created By") && (
+                                                            {visibleCols.includes("Return By") && (
                                                                 <td>{rows.creator?.lastName} {rows.creator?.firstName}</td>
-                                                            )}
-                                                            {visibleCols.includes("Updated At") && (
-                                                                <td>{dayjs.tz(rows.updatedAt, "Asia/Phnom_Penh").format("DD / MMM / YYYY HH:mm:ss")}</td>
-                                                            )}
-                                                            {visibleCols.includes("Updated By") && (
-                                                                <td>{rows.updater?.lastName} {rows.updater?.firstName}</td>
                                                             )}
                                                             {visibleCols.includes("Actions") && (
                                                                 <td className="text-center">
@@ -466,57 +286,18 @@ const Invoice: React.FC = () => {
                                                                                 <NotebookText color="pink" />
                                                                             </button>
                                                                         }
-                                                                        {hasPermission('Sale-Print') && (
-                                                                            <NavLink to={`/printsale/${rows.id}`} className="hover:text-warning" title="Print Sale">
+                                                                        {hasPermission('Sale-Return-Print') && (
+                                                                            <NavLink to={`/printsell-return/${rows.id}`} className="hover:text-warning" title="Print Sale">
                                                                                 <PrinterCheck color="purple" />
                                                                             </NavLink>
                                                                         )}
-                                                                        {(rows.status === 'APPROVED' || rows.status === 'COMPLETED') && (
-                                                                            <>
-                                                                                {hasPermission('Sale-Payment') && (
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className="hover:text-primary"
-                                                                                        onClick={() =>
-                                                                                            addPaymentInvoice({
-                                                                                                branchId: rows.branchId,
-                                                                                                orderId: Number(rows.id),
-                                                                                                paymentMethodId: 0,
-                                                                                                paidAmount: rows.paidAmount,
-                                                                                                totalPaid: rows.totalAmount,
-                                                                                                createdAt: null,
-                                                                                                paymentMethods: null,
-                                                                                            })
-                                                                                        }
-                                                                                        title="Payment Sale"
-                                                                                    >
-                                                                                        <BanknoteArrowUp color="blue" />
-                                                                                    </button>
-                                                                                )}
-
-                                                                                {hasPermission('Sale-Return') && (
-                                                                                    <NavLink
-                                                                                        to={`/sale-return/${rows.id}`}
-                                                                                        className="hover:text-warning"
-                                                                                        title="Sale Return"
-                                                                                    >
-                                                                                        <Undo2 color="pink" />
-                                                                                    </NavLink>
-                                                                                )}
-                                                                            </>
-                                                                        )}
-                                                                        {hasPermission('Sale-Edit') &&
-                                                                            <NavLink to={`/editsale/${rows.id}`} className="hover:text-warning" title="Edit">
-                                                                                <Pencil color="green" />
-                                                                            </NavLink>
-                                                                        }
-                                                                        {rows.status === 'PENDING' &&
+                                                                        {/* {rows.status === 'APPROVED' &&
                                                                             hasPermission('Sale-Delete') &&
                                                                                 <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteInvoice(rows.id)} title="Delete">
                                                                                     <Trash2 color="red" />
                                                                                 </button>
                                                                             
-                                                                        }
+                                                                        } */}
                                                                     </div>
                                                                 </td>
                                                             )}
@@ -543,13 +324,6 @@ const Invoice: React.FC = () => {
                     </div>
                 </div>
             </div>
-
-            <ModalPayment 
-                isOpen={isModalPaymentOpen}
-                onClose={() => setIsModalPaymentOpen(false)}
-                onSubmit={handleOnSubmitPayment}
-                amountInvoice={amountInvoice}
-            />
 
             {showDeleteModal && (
                 <div className="fixed inset-0 bg-[black]/60 z-[999] overflow-y-auto">
@@ -584,10 +358,10 @@ const Invoice: React.FC = () => {
                                         <FontAwesomeIcon icon={faClose} className='mr-1' />
                                         Discard
                                     </button>
-                                    <button type="submit" onClick={submitDeleteInvoice} className="btn btn-primary ltr:ml-4 rtl:mr-4">
+                                    {/* <button type="submit" onClick={submitDeleteInvoice} className="btn btn-primary ltr:ml-4 rtl:mr-4">
                                         <FontAwesomeIcon icon={faSave} className='mr-1' />
                                         {isLoading ? 'Saving...' : 'Save'}
-                                    </button>
+                                    </button> */}
                                 </div>
                             </div>
                         </div>
@@ -630,4 +404,4 @@ const Invoice: React.FC = () => {
     );
 };
 
-export default Invoice;
+export default SaleReturn;

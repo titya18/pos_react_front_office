@@ -463,6 +463,7 @@ export interface InvoiceType {
     totalAmount: number;
     paidAmount: number | null;
     status: string;
+    returnstatus?: number | null;
     OrderSaleType?: string | null;
     note: string;
     delReason: string;
@@ -738,3 +739,54 @@ export interface ExchangeRateType {
     creator?: UserType | null;
     updater?: UserType | null;
 };
+
+export interface SaleReturnType {
+    id?: number;
+    orderId?: number;
+    branchId: number;
+    customerId: number;
+    ref: string;
+    taxRate?: string | null;
+    taxNet: number | null;
+    discount?: number | null;
+    shipping?: string | null;
+    totalAmount: number;
+    status: string;
+    note: string;
+    delReason: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+    deletedAt?: Date;
+
+    creator?: UserType | null;
+    updater?: UserType | null;
+    deleter?: UserType | null;
+
+    branch: BranchType | null;
+    customer?: CustomerType | null;
+    customers: CustomerType | null;
+
+    order?: InvoiceType | null;
+    items: SaleReturnDetailType[];
+}
+
+export interface SaleReturnDetailType {
+    id: number;
+    saleReturnId: number;
+    saleItemId: number;
+    productId?: number;
+    productVariantId?: number;
+    serviceId?: number;
+    ItemType: string;
+    quantity: number;
+    price: number;
+    taxNet: number;
+    taxMethod: string | null;
+    discount: number;
+    discountMethod: string | null;
+    total: number;
+
+    products?: ProductType | null;
+    productvariants?: ProductVariantType | null;
+    services?: ServiceType | null;
+}

@@ -31,7 +31,10 @@ import QuotationForm from "./pages/quotation/QuotationForm";
 import PrintQuotation from "./pages/quotation/PrintQuotation";
 import Invoice from "./pages/invoice/Invoice";
 import InvoiceForm from "./pages/invoice/InvoiceForm";
+import SaleReturnForm from "./pages/invoice/SaleReturnForm";
+import SaleReturn from "./pages/invoice/SaleReturn";
 import PrintInvoice from "./pages/invoice/PrintInvoice";
+import PrintSaleReturn from "./pages/invoice/PrintSaleReturn";
 import StockSummary from "./pages/stock/StockSummary";
 import StockAdjustment from "./pages/stockadjustment/StockAdjustment";
 import StockAdjustmentForm from "./pages/stockadjustment/StockAdjustmentForm";
@@ -130,6 +133,9 @@ const App: React.FC = () => {
                         <Route path="/addsale" element={<PrivateRoute element={<Layout><InvoiceForm /></Layout>} />} />
                         <Route path="/editsale/:id" element={<PrivateRoute element={<Layout><InvoiceForm /></Layout>} />} />
                         <Route path="/printsale/:id" element={<PrivateRoute element={<Layout><PrintInvoice /></Layout>} />} />
+                        <Route path="/sale-return/:id" element={<PrivateRoute element={<Layout><SaleReturnForm /></Layout>} />} />
+                        <Route path="/returnsells" element={<PrivateRoute element={<Layout><SaleReturn /></Layout>} />} />
+                        <Route path="/printsell-return/:id" element={<PrivateRoute element={<Layout><PrintSaleReturn /></Layout>} />} />
                         {/* Stock Summary */}
                         <Route path="/stocksummary" element={<PrivateRoute element={<Layout><StockSummary /></Layout>} />} />
                         {/* Stock Adjustment */}

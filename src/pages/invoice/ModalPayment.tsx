@@ -324,7 +324,7 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
                                                         </div>
 
                                                         {LastRecord && (
-                                                            hasPermission("Delete-Payment-Invoice") && (
+                                                            hasPermission("Delete-Payment-Sale") && (
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => rows.id && handleDeletePayment(rows.id)}

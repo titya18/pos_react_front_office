@@ -269,7 +269,7 @@ const ReportInvoice: React.FC = () => {
                                     <label>Status</label>
                                     <select value={status} onChange={(e) => updateParams({ status: e.target.value, page: 1 })} className="form-select">
                                         <option value="">All</option>
-                                        <option value="PENDING">Pending</option>
+                                        {/* <option value="PENDING">Pending</option> */}
                                         <option value="APPROVED">Approved</option>
                                         <option value="COMPLETED">Completed</option>
                                     </select>
@@ -471,8 +471,8 @@ const ReportInvoice: React.FC = () => {
                                                                                 <NotebookText color="pink" />
                                                                             </button>
                                                                         }
-                                                                        {hasPermission('Invoice-Print') && (
-                                                                            <NavLink to={`/printinvoice/${rows.id}`} className="hover:text-warning" title="Print Invoice">
+                                                                        {hasPermission('Sale-Print') && (
+                                                                            <NavLink to={`/printsale/${rows.id}`} className="hover:text-warning" title="Print Invoice">
                                                                                 <PrinterCheck color="purple" />
                                                                             </NavLink>
                                                                         )}
