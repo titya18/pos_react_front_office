@@ -9,7 +9,8 @@ import {
     StockRequestType,
     StockReturnType,
     ExpenseType,
-    IncomeType
+    IncomeType,
+    SaleReturnType
 } from "../data_types/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
@@ -106,6 +107,28 @@ interface ReportPurchaseResponse {
         totalPaidAmount: number;
         totalRemainAmount: number;
     };
+}
+
+interface ReportSaleReturnsponse {
+    data: SaleReturnType[];
+    total: number;
+    summary: {
+        totalNumberSaleReturn: number;
+        totalAmount: number;
+    };
+}
+
+interface ReportSaleReturnParams {
+    sortField?: string | null;
+    sortOrder?: "asc" | "desc" | null;
+    page: number;
+    pageSize: number;
+    searchTerm?: string | null;
+
+    // new filters
+    startDate?: string; // YYYY-MM-DD
+    endDate?: string;   // YYYY-MM-DD
+    branchId?: number;
 }
 
 export const getAllReportInvoices = async ({
@@ -689,5 +712,51 @@ export const getAllReportIncomes = async ({
     return {
         data: result.data || [],
         total: result.total || 0,
+    };
+};
+
+export const getAllReportSaleReturs = async ({
+    sortField,
+    sortOrder,
+    page,
+    pageSize,
+    searchTerm,
+    startDate,
+    endDate,
+    branchId
+}: ReportSaleReturnParams): Promise<ReportSaleReturnsponse> => {
+
+    const params = new URLSearchParams();
+
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+
+    if (searchTerm) params.set("searchTerm", searchTerm);
+    if (sortField && sortOrder) {
+        params.set("sortField", sortField);
+        params.set("sortOrder", sortOrder);
+    }
+
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    if (branchId) params.set("branchId", String(branchId));
+
+    const url = `${API_BASE_URL}/api/report/reportSalesReturns?${params.toString()}`;
+
+    const response = await fetch(url, { credentials: "include" });
+
+    if (!response.ok) {
+        throw new Error("Failed to fetch sale return report");
+    }
+
+    const result = await response.json();
+
+    return {
+        data: result.data || [],
+        total: result.total || 0,
+        summary: result.summary || {
+            totalNumberSaleReturn: 0,
+            totalAmount: 0,
+        },
     };
 };

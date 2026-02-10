@@ -348,11 +348,11 @@ const User: React.FC = () => {
                                                                                 <Pencil color="green" />
                                                                             </NavLink>
                                                                         }
-                                                                        {hasPermission('User-Delete') && (user?.roleType === 'ADMIN') &&
+                                                                        {/* {hasPermission('User-Delete') && (user?.roleType === 'ADMIN') &&
                                                                             <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteUser(rows.id)} title="Delete">
                                                                                 <Trash2 color="red" />
                                                                             </button>
-                                                                        }
+                                                                        } */}
                                                                     </div>
                                                                 </td>
                                                             )}

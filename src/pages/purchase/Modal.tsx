@@ -44,6 +44,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                 total: clickData?.total ?? (Number(data.quantity) || 0) * (Number(data.cost) || 0),
                 products: clickData?.products ?? null,
                 productvariants: clickData?.productvariants ?? null,
+                stocks: clickData?.stocks ?? 0,
             };
 
             await onSubmit(payload);
@@ -73,9 +74,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                     </div>
                     <form onSubmit={handleSubmit(handleFormSubmit)}>
                         <div className="p-5">
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-5">
                                 <div>
-                                    <label htmlFor="module">Product Cost <sup>*</sup></label>
+                                    <label htmlFor="module">Product Cost <sup className="text-danger text-md">*</sup></label>
                                     <input
                                         type="text"
                                         placeholder="Enter Product's cost"
@@ -100,7 +101,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                                 </div>
 
                                 <div>
-                                    <label htmlFor="module">Quantity <sup>*</sup></label>
+                                    <label htmlFor="module">Quantity <sup className="text-danger text-md">*</sup></label>
                                     <input
                                         type="text"
                                         placeholder="Enter quantity"
@@ -123,7 +124,18 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                                     />
                                     {errors.quantity && <p className='error_validate'>{errors.quantity.message}</p>}
                                 </div>
-
+                                <div>
+                                    <label htmlFor="module">Stock On Hand</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter quantity"
+                                        className="form-input w-full"
+                                        disabled
+                                        value={clickData?.stocks ?? 0}
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
                                 <div>
                                     <label htmlFor="module">Tax Type</label>
                                     <select 

@@ -212,6 +212,7 @@ const ReportPaymentInvoice: React.FC = () => {
                                         <option value="">All</option>
                                         <option value="PAID">Paid</option>
                                         <option value="CANCELLED">Cancelled</option>
+                                        <option value="REFUND">Refund</option>
                                     </select>
                                 </div>
                                 {(user?.roleType === "ADMIN") &&

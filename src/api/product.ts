@@ -52,6 +52,16 @@ export const upsertProduct = async (productData: ProductType): Promise<ProductTy
     formData.append("name", data.name);
     formData.append("note", data.note);
 
+    // Start! I extend these for merge product variant with product
+    formData.append("productType", data.productType ?? "New");
+    formData.append("unitId", (data.unitId ?? 0).toString());
+    formData.append("barcode", data.barcode ?? "");
+    formData.append("sku", data.sku ?? "");
+    formData.append("purchasePrice", ((data.purchasePrice ?? 0) as number).toString());
+    formData.append("retailPrice", (data.retailPrice ?? 0).toString());
+    formData.append("wholeSalePrice", (data.wholeSalePrice ?? 0).toString());
+    formData.append("variantValueIds", JSON.stringify(data.variantValueIds));
+
     // Append images if they exist
     if (image) {
         image.forEach((image) => {

@@ -619,7 +619,7 @@ const PrintPurchase: React.FC = () => {
           },
           
           items: purchase.purchaseDetails?.map((item: any, index: number) => ({
-            description: item.products.name + ' ' + item.productvariants?.name || `Item ${index + 1}`,
+            description: item.productvariants?.productType === "New" ? item.products.name : item.products.name + " (" + item.productvariants?.productType + ")" || `Item ${index + 1}` ,
             qty: item.quantity,
             taxNet: item.taxNet,
             taxMethod: item.taxMethod,

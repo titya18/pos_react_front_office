@@ -19,7 +19,7 @@ dayjs.extend(timezone);
 const columns = [
   "No",
   "Product",
-  "Variant",
+  // "Variant",
   "Attributes",
   "SKU",
   "Barcode",
@@ -33,7 +33,7 @@ const columns = [
 
 const sortFields: Record<string, string> = {
   Product: "productName",
-  Variant: "variantName",
+  // Variant: "variantName",
   Attributes: "attributes",
   SKU: "sku",
   Barcode: "barcode",
@@ -129,7 +129,7 @@ const StockSummary: React.FC = () => {
     return {
       No: i + 1,
       Product: r.productName,
-      Variant: r.variantName,
+      // Variant: r.variantName,
       Attributes: Object.entries(groupedAttrs)
         .map(([name, values]) => `${name}: ${Array.from(values).join(", ")}`)
         .join("; "),
@@ -222,8 +222,8 @@ const StockSummary: React.FC = () => {
                                         rows.map((r, i) => (
                                           <tr key={`${r.variantId}-${r.branchName}`}>
                                             {visibleCols.includes("No") && <td>{(page - 1) * pageSize + i + 1}</td>}
-                                            {visibleCols.includes("Product") && <td>{r.productName}</td>}
-                                            {visibleCols.includes("Variant") && <td>{r.variantName}</td>}
+                                            {visibleCols.includes("Product") && <td>{r.productName} {r.productType === "New" ? "" : `(${r.productType})`}</td>}
+                                            {/* {visibleCols.includes("Variant") && <td>{r.variantName}</td>} */}
                                             {visibleCols.includes("Attributes") && (
                                               <td className="flex flex-wrap gap-1">
                                                 {(() => {

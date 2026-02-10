@@ -48,7 +48,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                 total: clickData?.total ?? (Number(data.quantity) || 0) * (Number(data.price) || 0),
                 products: clickData?.products ?? null,
                 productvariants: clickData?.productvariants ?? null,
-                services: clickData?.services ?? null
+                services: clickData?.services ?? null,
+                stocks: clickData?.stocks ?? 0,
             };
 
             await onSubmit(payload);
@@ -84,7 +85,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                     </div>
                     <form onSubmit={handleSubmit(handleFormSubmit)}>
                         <div className="p-5">
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
+                            <div className={"grid grid-cols-1 gap-4 mb-5" + (clickData?.ItemType === "PRODUCT" ? " sm:grid-cols-3" : " sm:grid-cols-2")}>
                                 <div>
                                     <label htmlFor="module">
                                         {
@@ -141,6 +142,22 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                                     />
                                     {errors.quantity && <p className='error_validate'>{errors.quantity.message}</p>}
                                 </div>
+
+                                {clickData?.ItemType === "PRODUCT" &&
+                                    <div>
+                                        <label htmlFor="module">Stock On Hand</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter quantity"
+                                            className="form-input w-full"
+                                            disabled
+                                            value={clickData?.stocks ?? 0}
+                                        />
+                                    </div>
+                                }
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
                                 <div>
                                     <label htmlFor="module">Tax Type</label>

@@ -143,7 +143,20 @@ export interface ProductType {
     brand?: BrandType;
     brands: BrandType;
     imagesToDelete?: string[];
-    productVariants?: ProductVariantType[];
+    productvariants?: ProductVariantType[];
+
+    // I extent these for merge product variant with product
+    productType?: string | 'New',
+    unitId?: number | null,
+    sku?: string,
+    barcode?: string | null,
+    purchasePrice?: number | string,
+    retailPrice?: number | string,
+    wholeSalePrice?: number | string,
+    // MULTIPLE attributes (Color + Size + Material ...)
+    variantAttributeIds?: number[];
+    // MULTIPLE values (Red, Blue, XL, Cotton ...)
+    variantValueIds?: number[];
 }
 
 export interface VarientAttributeType {
@@ -162,12 +175,15 @@ export interface VarientAttributeType {
 export interface VariantValueType {
     id?: number;
     value: string;
+
+    variantAttributeId?: number;
 }
 
 export interface ProductVariantType {
     id: number;
     productId: number,
     unitId: number | null,
+    productType?: string | 'New',
     sku: string,
     barcode: string | null,
     name: string,
@@ -188,18 +204,24 @@ export interface ProductVariantType {
     units?: UnitData;
     products?: ProductType | null;
 
+    productVariantValues?: ProductVariantValuesType[];
+
     // MULTIPLE attributes (Color + Size + Material ...)
     variantAttributeIds?: number[];
     // MULTIPLE values (Red, Blue, XL, Cotton ...)
     variantValueIds?: number[];
     // Returned from backend (expand join table)
     variantValues?: VariantValueType[];
+
+    stocks?: StockType | null;
 };
 
 export interface ProductVariantValuesType {
     id: number;
     productVariantId: number;
     variantValueId: number;
+
+    variantValue?: VariantValueType;
 }
 
 export enum MovementType {
@@ -252,6 +274,7 @@ export interface StockSummaryItem {
 export interface StockSummaryRow {
   productName: string;
   variantName: string;
+productType?: string;
   sku: string;
   barcode: string;
   branchName: string;
@@ -314,6 +337,7 @@ export interface PurchaseDetailType {
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
+    stocks?: number | null;
 }
 
 export interface PaymentType {
@@ -380,6 +404,7 @@ export interface ServiceType {
     creator?: UserType | null;
     updater?: UserType | null;
     deleter?: UserType | null;
+    stocks?: number | null;
 }
 
 export interface QuotationType {
@@ -435,6 +460,7 @@ export interface QuotationDetailType {
     products?: ProductType | null;
     productvariants?: ProductVariantType | null;
     services?: ServiceType | null;
+    stocks?: number | null;
 }
 
 export interface CustomerType {
@@ -503,6 +529,7 @@ export interface InvoiceDetailType {
     products?: ProductType | null;
     productvariants?: ProductVariantType | null;
     services?: ServiceType | null;
+    stocks?: number | null;
 }
 
 export interface StockAdjustmentType {

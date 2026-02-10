@@ -756,7 +756,8 @@ const Sidebar: React.FC = () => {
                         {(
                             hasPermission('Sale-Report') ||
                             hasPermission('Cancel-Sale') ||
-                            hasPermission('Payment-Report') ||
+                            hasPermission('Sale-Return-Report') ||
+                            hasPermission('Payment-Sale-Report') ||
                             hasPermission('Purchase-Report') ||
                             hasPermission('Payment-Purchase-Report') ||
                             hasPermission('Quotation-Report') ||
@@ -819,7 +820,25 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
-                        {hasPermission('Payment-Report') &&
+                        {hasPermission('Sale-Return-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/reportSaleReturn"
+                                            className={['reportSaleReturn'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <FilePenLine />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Sale Return Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Payment-Sale-Report') &&
                             <li className="nav-item">
                                 <ul>
                                     <li className="nav-item" onClick={() => handleToggleMenu(null)}>
@@ -829,7 +848,7 @@ const Sidebar: React.FC = () => {
                                         >
                                             <div className="flex items-center">
                                                 <CircleDollarSign />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Payment Report</span>
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Payment Sale Report</span>
                                             </div>
                                         </NavLink>
                                     </li>

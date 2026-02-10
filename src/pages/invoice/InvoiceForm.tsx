@@ -141,29 +141,56 @@ const InvoiceForm: React.FC = () => {
         // Don't regenerate when editing invoice
         if (id) return;
 
-        // Determine branch based on role
-        const effectiveBranchId =
-            user?.roleType === "USER"
-                ? user.branchId
-                : branchId;
+        const run = async () => {
+            // Determine branch based on role
+            const effectiveBranchId =
+                user?.roleType === "USER"
+                    ? user.branchId
+                    : branchId;
 
-        // No branch → no ref
-        if (!effectiveBranchId) {
-            setValue("ref", "");
-            return;
-        }
+            // No branch → no ref
+            if (!effectiveBranchId) {
+                setValue("ref", "");
+                return;
+            }
 
-        getNextInvoiceRef(Number(effectiveBranchId))
-            .then((data) => {
-                const refValue = (data && typeof data === "object" && "ref" in data)
-                    ? (data as any).ref
-                    : String(data || "");
-                setValue("ref", refValue);
-            })
-            .catch(() => {
-                toast.error("Failed to generate invoice number");
-            });
+            getNextInvoiceRef(Number(effectiveBranchId))
+                .then((data) => {
+                    const refValue = (data && typeof data === "object" && "ref" in data)
+                        ? (data as any).ref
+                        : String(data || "");
+                    setValue("ref", refValue);
+                })
+                .catch(() => {
+                    toast.error("Failed to generate invoice number");
+                });
 
+            if (invoiceDetails.length > 0) {
+                const ok = await ShowConfirmationMessage(
+                    "change_branch"
+                );
+
+                if (!ok) {
+                    // revert UI
+                    setValue("OrderSaleType", prevOrderSaleType.current, {
+                        shouldDirty: false,
+                    });
+                    return;
+                }
+                setInvoiceDetails([]);
+
+                setValue("shipping", null, { shouldDirty: false });
+                setValue("discount", null, { shouldDirty: false });
+                setValue("taxRate", null, { shouldDirty: false });
+
+                setGrandTotal(0);
+                setShipping(0);
+                setDiscount(0);
+                setTaxRate(0);
+            }
+            setSearchTerm("");
+        };
+        run();
     }, [branchId, user, id, setValue]);
 
 
@@ -257,24 +284,41 @@ const InvoiceForm: React.FC = () => {
             return;
         }
 
+        const selectedBranchId =
+            user?.roleType === "USER"
+                ? user.branchId
+                : watch("branchId");
+
+        if (!selectedBranchId) {
+            toast.error("No branch selected", {
+                position: "top-right",
+                autoClose: 4000
+            });
+            return;
+        };
+
         try {
-            const response = await searchProduct(term); // Fetch products first
+            const response = await searchProduct(term, selectedBranchId); // Fetch products first
             // Check for exact match
             // Check for exact match in fresh response
-            const exactMatch = response.find(
+            const matches = response.filter(
                 (p: ProductVariantType) => p.barcode === term || p.sku === term
             );
 
-            if (exactMatch) {
-                // Add to purchaseDetails directly
-                addToCartDirectly(exactMatch, "PRODUCT");
-                setSearchTerm(""); // Clear search
-                setShowSuggestions(false); // Hide suggestions
-            } else {
-                
+            if (matches.length === 0) {
+                // No match → show suggestions
                 setProductResults(response);
                 setShowSuggestions(true);
+            } else if (matches.length === 1) {
+                // Only 1 match → auto add
+                addToCartDirectly(matches[0], "PRODUCT");
+            } else {
+                // Multiple matches → show modal to select New / SecondHand
+                setProductResults(matches);
+                setShowSuggestions(true); // You can also use a modal instead of dropdown
             }
+
+            setSearchTerm(""); // Clear input after handling
         } catch (error) {
             console.error("Error fetching products:", error);
         }
@@ -342,6 +386,13 @@ const InvoiceForm: React.FC = () => {
                 discount: 0,
                 discountMethod: "Fixed",
             }),
+            stocks: Number(
+                Array.isArray(variant.stocks)
+                    ? (variant.stocks[0]?.quantity ?? 0)
+                    : (typeof variant.stocks === 'number'
+                        ? variant.stocks
+                        : (variant.stocks && (variant.stocks as any).quantity) ?? 0)
+            ) || 0,
         };
     
         const existingIndex = invoiceDetails.findIndex(
@@ -456,6 +507,7 @@ const InvoiceForm: React.FC = () => {
                     discount: InvoiceDetailData.discount,
                     discountMethod: InvoiceDetailData.discountMethod,
                 }),
+                stocks: InvoiceDetailData.stocks ?? 0,
             };
             
             var existingIndex = 0;
@@ -670,7 +722,8 @@ const InvoiceForm: React.FC = () => {
             taxMethod: newDetail.taxMethod,
             discount: newDetail.discount,
             discountMethod: newDetail.discountMethod,
-            total: newDetail.total
+            total: newDetail.total,
+            stocks: newDetail.stocks,
         });
         setIsModalOpen(true);
     }
@@ -842,10 +895,16 @@ const InvoiceForm: React.FC = () => {
                                                             taxMethod: "Include", // Default tax method
                                                             discount: 0,
                                                             discountMethod: "Fixed",
-                                                            total: 0
+                                                            total: 0,
+                                                            stocks: Number(
+                                                                Array.isArray(variants.stocks)
+                                                                    ? (variants.stocks[0]?.quantity ?? 0)
+                                                                    : (variants.stocks?.quantity ?? 0)
+                                                            ) || 0,
                                                         })}
                                                     >
-                                                        {variants.products?.name} - {variants.name+' - '+variants.barcode}
+                                                        {/* {variants.products?.name} - {variants.name+' - '+variants.barcode} */}
+                                                        {variants.products?.name+' - '+variants.barcode} ({variants.productType})
                                                     </li>
                                                 ))}
                                             </ul>
@@ -919,6 +978,9 @@ const InvoiceForm: React.FC = () => {
                                             <th>Net Unit Cost</th>
                                             {/* <th>Stock</th> */}
                                             <th>Qty</th>
+                                            {statusValue == "PENDING" && 
+                                                <th>Qty On Hand</th>
+                                            }
                                             <th>Discount</th>
                                             <th>Tax</th>
                                             <th>SubTotal</th>
@@ -933,7 +995,7 @@ const InvoiceForm: React.FC = () => {
                                                     <p>
                                                         {detail.ItemType === "PRODUCT" ?
                                                             <>
-                                                                { detail.products?.name } - { detail.productvariants?.name }
+                                                                { detail.products?.name } ({ detail.productvariants?.productType })
                                                             </>
                                                             :
                                                             <>
@@ -985,6 +1047,9 @@ const InvoiceForm: React.FC = () => {
                                                         </button>
                                                     </div>
                                                 </td>
+                                                {statusValue == "PENDING" && 
+                                                    <td>{ detail.stocks }</td>
+                                                }
                                                 <td>$ {
                                                         detail.discount <= 0 
                                                             ? 0
@@ -1013,22 +1078,22 @@ const InvoiceForm: React.FC = () => {
                                     </tbody>
                                     <tfoot className="mt-5">
                                         <tr>
-                                            <td colSpan={6}></td>
+                                            <td colSpan={statusValue == "PENDING" ? 7 : 6}></td>
                                             <td style={{padding: "8px 5px"}}>Order Tax</td>
                                             <td>{ taxRate }%</td>
                                         </tr>
                                         <tr>
-                                            <td colSpan={6}></td>
+                                            <td colSpan={statusValue == "PENDING" ? 7 : 6}></td>
                                             <td style={{padding: "8px 5px", background: "#fff"}}>Discount</td>
                                             <td style={{background: "#fff"}}>$ { Number(discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
                                         </tr>
                                         {/* <tr>
-                                            <td colSpan={6}></td>
+                                            <td colSpan={statusValue == "PENDING" ? 7 : 6}></td>
                                             <td style={{padding: "8px 5px"}}>Shipping</td>
                                             <td>$ { Number(shipping).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
                                         </tr> */}
                                         <tr>
-                                            <td colSpan={6}></td>
+                                            <td colSpan={statusValue == "PENDING" ? 7 : 6}></td>
                                             <td style={{padding: "8px 5px", background: "#fff"}}><b>Grand Total</b></td>
                                             <td style={{background: "#fff"}}><b>$ { Number(grandTotal).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</b></td>
                                         </tr>

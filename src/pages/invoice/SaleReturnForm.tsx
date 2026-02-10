@@ -384,7 +384,7 @@ const SaleReturn: React.FC = () => {
                                                 <tr key={index}>
                                                     <td>{index + 1}</td>
                                                     <td>
-                                                        <p>{detail.ItemType === "PRODUCT" ? `${detail.products?.name} - ${detail.productvariants?.name}` : detail.services?.name}</p>
+                                                        <p>{detail.ItemType === "PRODUCT" ? detail.productvariants?.productType === "New" ? detail.products?.name : detail.products?.name + " (" + detail.productvariants?.productType + ")" : detail.services?.name}</p>
                                                         <p className="text-center"><span className="badge badge-outline-primary rounded-full">{detail.ItemType === "PRODUCT" ? detail.productvariants?.barcode : detail.services?.serviceCode}</span></p>
                                                     </td>
                                                     <td>$ {detail.discountMethod === "Fixed" ? (detail.price - detail.discount).toFixed(2) : (detail.price * ((100 - detail.discount) / 100)).toFixed(2)}</td>

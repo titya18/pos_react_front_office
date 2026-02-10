@@ -61,8 +61,8 @@ const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
             color: '#64748b',
             lineHeight: '1.5'
           }}>
-            <div>#48 Borey Angkor PP, St. Angkor Blvd</div>
-            <div>Sangkat Toul Sangke, Khan Russeykeo, Phnom Penh</div>
+            <div>អាសយដ្ឋាន៖ ផ្ទះ#៤៨ ផ្លូវបុរីអង្គរ (បុរីអង្គរភ្នំពេញ) ភូមិបឹងរាំង សង្កាត់ទួលសង្កែទី២ ខណ្ឌឬស្សីកែវ រាជធានីភ្នំពេញ</div>
+            <div>Address N<sup>o</sup> #48, St. Borey Angkor (Borey Angkor Phnom Penh) Sangkat Tuol Sangke 2, Khan Russeykeo, Phnom Penh</div>
             <div>Phone: +855 (12) 699 975 / +855 (16) 589 299</div>
             <div>Email: sales@izooms.com.kh</div>
           </div>
@@ -627,7 +627,7 @@ const PrintInvoice: React.FC = () => {
           },
           
           items: invoice.items?.map((item: any, index: number) => ({
-            description: item.ItemType === "PRODUCT" ? item.products.name + ' ' + item.productvariants?.name || `Item ${index + 1}` : item.services?.name,
+            description: item.ItemType === "PRODUCT" ? item.productvariants?.productType === "New" ? item.products.name : item.products.name + " (" + item.productvariants?.productType + ")" || `Item ${index + 1}` : item.services?.name,
             qty: item.quantity,
             taxNet: item.taxNet,
             taxMethod: item.taxMethod,

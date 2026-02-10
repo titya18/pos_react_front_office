@@ -9,7 +9,7 @@ import Pagination from "../components/Pagination";
 import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
 import Modal from "./Modal";
 import { NavLink, useSearchParams } from "react-router-dom";
-import { ProductType } from "@/data_types/types";
+import { ProductType, VariantValueType } from "@/data_types/types";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
 import ExportDropdown from "@/components/ExportDropdown";
 import { Pencil, Settings, Trash2 } from "lucide-react";
@@ -50,7 +50,25 @@ const sortFields: Record<string, string> = {
 const Product: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [products, setProducts] = useState<ProductType[]>([]);
-    const [selectProduct, setSelectProduct] = useState<{ id: number | undefined, categoryId: number | null, brandId: number | null, name: string, note: string, isActive: string, image: File[] | null } | null>(null);
+    const [selectProduct, setSelectProduct] = useState<{ 
+        id: number | undefined, 
+        categoryId: number | null, 
+        brandId: number | null, 
+        name: string, 
+        note: string, 
+        isActive: string, 
+        image: File[] | null, 
+        productType: string | 'New',
+        unitId: number | null, 
+        barcode: string | null, 
+        sku: string, 
+        purchasePrice: number | string, 
+        retailPrice: number | string, 
+        wholeSalePrice: number | string, 
+        variantAttributeIds?: number[], 
+        variantValueIds?: number[]
+    } | null>(null);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     const [searchParams, setSearchParams] = useSearchParams();
@@ -138,7 +156,25 @@ const Product: React.FC = () => {
 
     const queryClient = useQueryClient();
 
-    const handleAddorEditProduct = async (id: number | null, categoryId: number | null, brandId: number | null, name: string, note: string, isActive: string, image: File[] | null, imagesToDelete: string[]) => {
+    const handleAddorEditProduct = async (
+        id: number | null, 
+        categoryId: number | null, 
+        brandId: number | null, 
+        name: string, 
+        note: string, 
+        isActive: string, 
+        image: File[] | null, 
+        imagesToDelete: string[],
+        unitId: number | null,
+        barcode: string | null,
+        productType: string | 'New',
+        sku: string,
+        purchasePrice: number | string,
+        retailPrice: number | string,
+        wholeSalePrice: number | string,
+        variantAttributeIds?: number[] | null,     
+        variantValueIds?: number[]    
+    ) => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
             const productData: ProductType = {
@@ -151,13 +187,23 @@ const Product: React.FC = () => {
                 note,
                 isActive: 1,
                 image,
-                imagesToDelete
+                imagesToDelete,
+
+                productType: productType,
+                unitId: unitId ?? 0, // Fallback to 0 if null
+                barcode: barcode ?? '',
+                sku,
+                purchasePrice,
+                retailPrice,
+                wholeSalePrice,
+                variantAttributeIds: variantAttributeIds ?? undefined,
+                variantValueIds: variantValueIds ?? [],
             };
 
             await apiClient.upsertProduct(productData);
             toast.success(id ? "Product updated successfully" : "Product created successfully", {
                 position: "top-right",
-                autoClose: 2000
+                autoClose: 4000
             });
             fetchProduct();
             setIsModalOpen(false);
@@ -166,26 +212,79 @@ const Product: React.FC = () => {
             if (error.message) {
                 toast.error(error.message, {
                     position: "top-right",
-                    autoClose: 2000
+                    autoClose: 4500
                 });
             } else {
                 toast.error("Error adding/editting iterm", {
                     position: "top-right",
-                    autoClose: 2000
+                    autoClose: 4500
                 });
             }
         }
     };
 
-    const handleEditClick = (productData: ProductType) => {
+    // Old for not yet merge product variant with product
+    // const handleEditClick = (productData: ProductType) => {
+    //     setSelectProduct({
+    //         id: productData.id,
+    //         categoryId: productData.categoryId,
+    //         brandId: productData.brandId,
+    //         name: productData.name,
+    //         note: productData.note,
+    //         isActive: String(productData.isActive),
+    //         image: productData.image,
+
+    //         unitId: productData.unitId ?? null,
+    //         barcode: productData.barcode ?? null,
+    //         sku: productData.sku ?? '',
+    //         purchasePrice: productData.purchasePrice ?? 0,
+    //         retailPrice: productData.retailPrice ?? 0,
+    //         wholeSalePrice: productData.wholeSalePrice ?? 0,
+    //         variantAttributeIds: productData.variantAttributeIds ?? undefined,
+    //         variantValueIds: productData.variantValueIds ?? [],
+    //     });
+    //     console.log("Selected product for editing:", productData);
+    //     setIsModalOpen(true);
+    // };
+
+    const handleEditClick = async(productData: ProductType) => {
+        if (productData.id === undefined) {
+            toast.error("Product ID is missing", {
+                position: "top-right",
+                autoClose: 2000
+            });
+            return;
+        }
+        const getProduct = await apiClient.getProductById(productData.id);
+        const variant = getProduct.productvariants?.[0];
+
+        const variantAttributeIds =
+            variant?.productVariantValues
+                ?.map(v => v.variantValue?.variantAttributeId)
+                .filter((id): id is number => typeof id === "number") ?? [];
+
+        const variantValueIds =
+            variant?.productVariantValues
+                ?.map(v => v.variantValueId) ?? [];
         setSelectProduct({
-            id: productData.id,
-            categoryId: productData.categoryId,
-            brandId: productData.brandId,
-            name: productData.name,
-            note: productData.note,
-            isActive: String(productData.isActive),
-            image: productData.image,
+            id: getProduct.id,
+            categoryId: getProduct.categoryId,
+            brandId: getProduct.brandId,
+            name: getProduct.name,
+            note: getProduct.note,
+            isActive: String(getProduct.isActive),
+            image: getProduct.image,
+
+            productType: getProduct.productvariants && getProduct.productvariants.length > 0 ? (getProduct.productvariants[0].productType ?? 'New') : 'New',
+            unitId: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].unitId : null,
+            barcode: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].barcode : null,
+            sku: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].sku : '',
+            purchasePrice: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].purchasePrice ?? 0 : 0,
+            retailPrice: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].retailPrice ?? 0 : 0,
+            wholeSalePrice: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].wholeSalePrice ?? 0 : 0,
+            
+            variantAttributeIds,
+            variantValueIds,
         });
         setIsModalOpen(true);
     };

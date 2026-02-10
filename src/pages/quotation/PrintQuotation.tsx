@@ -560,7 +560,7 @@ const PrintQuotation: React.FC = () => {
           },
           
           items: quotation.quotationDetails?.map((item: any, index: number) => ({
-            description: item.ItemType === "PRODUCT" ? item.products.name + ' ' + item.productvariants?.name || `Item ${index + 1}` : item.services?.name,
+            description: item.ItemType === "PRODUCT" ? item.productvariants?.productType === "New" ? item.products.name : item.products.name + " (" + item.productvariants?.productType + ")" || `Item ${index + 1}` : item.services?.name,
             qty: item.quantity,
             taxNet: item.taxNet,
             taxMethod: item.taxMethod,

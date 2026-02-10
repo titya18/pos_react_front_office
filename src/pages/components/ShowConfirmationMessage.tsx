@@ -11,6 +11,8 @@ const ShowDeleteConfirmation = async (textData: string): Promise<boolean> => {
                     "To convert this quotation to invoice?" 
                     : textData === "approve"
                     ? "To approve this invoice. Continue?"
+                    : textData === "change_branch"
+                    ? "Changing branch will clear all items. Continue?"
                     : "Changing price type will clear all items. Continue?"}
             </div>
         `,
