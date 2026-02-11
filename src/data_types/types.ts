@@ -565,6 +565,7 @@ export interface StockAdjustmentDetailType {
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
+    stocks?: number | null;
 }
 
 export interface StockTransferType {
@@ -605,6 +606,7 @@ export interface StockTransferDetailType {
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
+    stocks?: number | null;
 }
 
 export interface StockRequestType {
@@ -641,6 +643,7 @@ export interface StockRequestDetailType {
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
+    stocks?: number | null;
 }
 
 export interface StockReturnType {
@@ -677,6 +680,7 @@ export interface StockReturnDetailType {
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
+    stocks?: number | null;
 }
 
 export interface ExpenseType {

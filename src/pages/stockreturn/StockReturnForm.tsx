@@ -82,21 +82,92 @@ const StockRequestForm: React.FC = () => {
         fetchStockReturn();
     }, [fetchBranches, fetchStockReturn]);
 
+    const branchId = watch("branchId");
+            
+    useEffect(() => {
+        setReturnDetails([]);
+        setSearchTerm("");
+    }, [branchId]);
+
     // Fetch products as the user types
     const handleSearch = async (term: string) => {
         if (term.trim() === "") {
             setProductResults([]);
+            setShowSuggestions(false);
             return;
         }
 
+        const selectedBranchId =
+            user?.roleType === "USER"
+                ? user.branchId
+                : watch("branchId");
+
+        if (!selectedBranchId) {
+            toast.error("No branch selected", {
+                position: "top-right",
+                autoClose: 4000
+            });
+            return;
+        };
+
         try {
-            const response = await searchProduct(term);
-            // const data = await response.json();
-            setProductResults(response);
-            setShowSuggestions(true);
+            const response = await searchProduct(term, selectedBranchId);
+
+            // Find all matches for this barcode/sku
+            const matches = response.filter(
+                (p: ProductVariantType) => p.barcode === term || p.sku === term
+            );
+
+            if (matches.length === 0) {
+                // No match → show suggestions
+                setProductResults(response);
+                setShowSuggestions(true);
+            } else if (matches.length === 1) {
+                // Only 1 match → auto add
+                addToCartDirectly(matches[0]);
+            } else {
+                // Multiple matches → show modal to select New / SecondHand
+                setProductResults(matches);
+                setShowSuggestions(true); // You can also use a modal instead of dropdown
+            }
+
+            setSearchTerm(""); // Clear input after handling
         } catch (error) {
             console.error("Error fetching products:", error);
         }
+    };
+
+    const addToCartDirectly = (variant: ProductVariantType) => {
+        const newDetail: StockReturnDetailType = {
+            id: 0,
+            productId: variant.products?.id || 0,
+            productVariantId: variant.id,
+            products: variant.products || null,
+            productvariants: variant,
+            quantity: 1, 
+            stocks: Number(
+                Array.isArray(variant.stocks)
+                    ? (variant.stocks[0]?.quantity ?? 0)
+                    : (variant.stocks?.quantity ?? 0)
+            ) || 0,
+        };
+
+        const existingIndex = returnDetails.findIndex(
+            (item) => item.productVariantId === newDetail.productVariantId
+        );
+
+        let updatedDetails = [...returnDetails];
+
+        if (existingIndex !== -1) {
+            // Increase quantity if already in cart
+            const currentQty = Number(updatedDetails[existingIndex].quantity) || 0;
+            updatedDetails[existingIndex].quantity = currentQty + 1;
+        } else {
+            // Add new product
+            updatedDetails.push(newDetail);
+        }
+
+        setReturnDetails(updatedDetails);
     };
 
     const handleFocus = () => {
@@ -129,7 +200,8 @@ const StockRequestForm: React.FC = () => {
             productVariantId: Detail.productVariantId ?? 0,
             quantity: Detail.quantity ?? 1,
             products: Detail.products ?? null,
-            productvariants: Detail.productvariants ?? null
+            productvariants: Detail.productvariants ?? null,
+            stocks: Detail.stocks ?? 0,
         };
 
         const existingIndex = returnDetails.findIndex(
@@ -373,9 +445,15 @@ const StockRequestForm: React.FC = () => {
                                                     products: variants.products || null,
                                                     productvariants: variants,
                                                     quantity: 1, // Default quantity for a new item
+                                                    stocks: Number(
+                                                        Array.isArray(variants.stocks)
+                                                            ? (variants.stocks[0]?.quantity ?? 0)
+                                                            : (variants.stocks?.quantity ?? 0)
+                                                    ) || 0,
                                                 })}
                                             >
-                                                {variants.products?.name} - {variants.name+' - '+variants.barcode}
+                                                {/* {variants.products?.name} - {variants.name+' - '+variants.barcode} */}
+                                                {variants.products?.name+' - '+variants.barcode} ({variants.productType})
                                             </li>
                                         ))}
                                     </ul>
@@ -389,6 +467,9 @@ const StockRequestForm: React.FC = () => {
                                             <th>Product</th>
                                             {/* <th>Stock</th> */}
                                             <th>Qty</th>
+                                            {statusValue == "PENDING" && 
+                                                <th>Qty On Hand</th>
+                                            }
                                             <th></th>
                                         </tr>
                                     </thead>
@@ -421,6 +502,9 @@ const StockRequestForm: React.FC = () => {
                                                         </button>
                                                     </div>
                                                 </td>
+                                                {statusValue == "PENDING" && 
+                                                    <td>{ detail.stocks }</td>
+                                                }
                                                 <td>
                                                     <button type="button" onClick={() => removeProductFromCart(index)} className="hover:text-danger" title="Delete">
                                                         <Trash2 color="red" />

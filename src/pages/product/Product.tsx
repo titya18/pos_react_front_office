@@ -467,11 +467,11 @@ const Product: React.FC = () => {
                                                                 {visibleCols.includes("Actions") && (
                                                                     <td>
                                                                         <div className="flex gap-2">
-                                                                            {hasPermission('Product-Variant-View') &&
+                                                                            {/* {hasPermission('Product-Variant-View') &&
                                                                                 <NavLink to={`/productvariant/${rows.id}`} title="Product Variants">
                                                                                     <Settings color="blue" />
                                                                                 </NavLink>
-                                                                            }
+                                                                            } */}
                                                                             {hasPermission('Product-Edit') &&
                                                                                 <button type="button" className="hover:text-warning" onClick={() => handleEditClick(rows)} title="Edit">
                                                                                     <Pencil color="green" />
