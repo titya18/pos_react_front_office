@@ -136,13 +136,14 @@ const StockAdjustmentForm: React.FC = () => {
             } else if (matches.length === 1) {
                 // Only 1 match → auto add
                 addToCartDirectly(matches[0]);
+                setSearchTerm("");
             } else {
                 // Multiple matches → show modal to select New / SecondHand
                 setProductResults(matches);
                 setShowSuggestions(true); // You can also use a modal instead of dropdown
             }
 
-            setSearchTerm(""); // Clear input after handling
+            // setSearchTerm(""); // Clear input after handling
         } catch (error) {
             console.error("Error fetching products:", error);
         }
