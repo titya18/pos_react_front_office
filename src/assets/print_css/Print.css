@@ -1,4 +1,20 @@
+/* ================= KHMER FONT EMBED ================= */
+@font-face {
+  font-family: "KhmerOSMuolLight";
+  src: url("/admin_assets/fonts/KhmerOSMuolLight.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Optional helper class */
+.khmer-muol {
+  font-family: "KhmerOSMuolLight", serif;
+}
+
+
+/* ================= PRINT STYLE ================= */
 @media print {
+
   /* iOS Safari FIX for fixed / overlay UI */
   nav,
   .sticky {
@@ -15,7 +31,7 @@
 
   @page {
     size: A4;
-    margin: 10mm;
+    margin: 0;
   }
 
   html, body {
@@ -24,6 +40,7 @@
     background: white !important;
     height: auto !important;
     overflow: visible !important;
+    zoom: 0.98;   /* shrink slightly */
   }
 
   /* ================= HIDE UI ================= */
@@ -44,12 +61,21 @@
 
   /* ================= INVOICE ================= */
   .invoice-container {
-    width: 190mm;
+    width: 100%;
     margin: 0 auto !important;
-    padding: 0 !important;
+    padding: 5mm!important;
     background: white !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+  }
+
+  /* ================= COMPANY KHMER TITLE ================= */
+  .company-khmer {
+    font-family: "KhmerOSMuolLight", serif !important;
+    font-size: 22px !important;
+    font-weight: normal !important; /* Muol should not use bold */
+    color: #ffab93 !important;
+    margin-bottom: 15px !important;
   }
 
   /* ================= TABLE ================= */
@@ -70,7 +96,7 @@
 
   /* Smaller font ONLY for items */
   .items-section table {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .items-section th {
@@ -79,12 +105,12 @@
   }
 
   .items-section td {
-    font-size: 10px;
+    font-size: 11px;
     padding: 4px 8px !important;
   }
 
   .items-section td span {
-    font-size: 9px !important;
+    font-size: 10px !important;
   }
 
   /* ================= BLOCK SAFETY ================= */
@@ -92,6 +118,6 @@
   .address-section,
   .totals-section,
   .terms-notes-section {
-    page-break-inside: avoid;
+    break-inside: auto;
   }
 }

@@ -1,12 +1,12 @@
 import React, { useRef, useEffect, useState } from "react";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
-import * as apiClient from "../../api/quotation";
-import "./dateStyle.css";
+import * as apiClient from "../../api/purchase";
 import "@/assets/print_css/Print.css";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
+import { add } from "date-fns";
 import { Print } from "@mui/icons-material";
 import { ArrowLeft } from "lucide-react";
 
@@ -14,12 +14,78 @@ import { ArrowLeft } from "lucide-react";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+// Sample data structure matching your image
+// const sampleData = {
+//   invoiceNumber: "INV0001",
+//   invoiceDate: "Sep 24, 2024",
+//   invoiceFor: "Design & development of Website",
+  
+//   from: {
+//     name: "Thomas Lawler",
+//     address: "2077 Chicago Avenue Orosi, CA 93647",
+//     email: "Tarala2445@example.com",
+//     phone: "+1 987 654 3210"
+//   },
+  
+//   to: {
+//     name: "Carl Evans",
+//     address: "3103 Trainer Avenue Peoria, IL 61602",
+//     email: "Sara_inc34@example.com",
+//     phone: "+1 987 471 6589"
+//   },
+  
+//   items: [
+//     { description: "UX Strategy", qty: 1, cost: 500, discount: 100, total: 500 },
+//     { description: "Design System", qty: 1, cost: 5000, discount: 100, total: 5000 },
+//     { description: "Brand Guidelines", qty: 1, cost: 5000, discount: 100, total: 5000 },
+//     { description: "Social Media Template", qty: 1, cost: 5000, discount: 100, total: 5000 }
+//   ],
+  
+//   totals: {
+//     subtotal: 5500,
+//     discount: 400,
+//     vat: 275,
+//     total: 5775
+//   },
+  
+//   notes: "Please quote invoice number when remitting funds.",
+//   terms: "Please pay within 15 days from the date of invoice, overdue interest @ 14% will be charged on delayed payments.",
+//   paymentMethod: "Payment Made Via bank transfer / Cheque in the name of Thomas Lawler",
+//   bankDetails: {
+//     bankName: "HDFC Bank",
+//     accountNumber: "45366287987",
+//     ifsc: "HDFC0018159"
+//   }
+// };
+
+// Invoice Header Component
+// const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
+//   return (
+//     <div className="invoice-header" style={{ marginBottom: '20px' }}>
+//       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+//         <div>
+//           <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>Invoice</div>
+//           <div style={{ fontSize: '14px', color: '#666', marginTop: '5px' }}>
+//             Invoice #{data.invoiceNumber} • Created Date: {data.invoiceDate}
+//           </div>
+//         </div>
+//         <div style={{ textAlign: 'right' }}>
+//           <img 
+//             src="/admin_assets/images/logo.svg" 
+//             alt="Logo" 
+//             style={{ height: '50px' }}
+//           />
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
 const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
   return (
     <div className="invoice-header" style={{ 
-      marginBottom: '20px',
+      marginBottom: '30px',
       borderBottom: '2px solid #ffab93',
-      paddingBottom: '10px'
+      paddingBottom: '20px'
     }}>
       <div style={{ 
         display: 'flex', 
@@ -37,72 +103,88 @@ const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
               src={`${import.meta.env.BASE_URL}admin_assets/images/izoom-logo.png`} 
               alt="Logo" 
               style={{ 
-                height: '80px',
+                height: '40px',
                 marginRight: '15px'
               }}
             />
+            {/* <div>
+              <div style={{ 
+                fontSize: '28px',
+                fontWeight: '800',
+                color: '#1e293b',
+                letterSpacing: '-0.5px',
+                textTransform: 'uppercase',
+                margin: '0 auto'
+              }}>
+                Invoice
+              </div>
+            </div> */}
+          </div>
+          
+          <div style={{ 
+            fontSize: '14px',
+            color: '#64748b',
+            lineHeight: '1.5'
+          }}>
+            <div>#48 Borey Angkor PP, St. Angkor Blvd</div>
+            <div>Sangkat Toul Sangke, Khan Russeykeo, Phnom Penh</div>
+            <div>Phone: +855 (11) 589 299 / +855 (16) 589 299</div>
+            <div>Email: sales@izooms.com.kh</div>
           </div>
         </div>
         
         {/* Right side - Invoice details */}
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '10px 20px 20px 20px',
-            minWidth: '100px',
-          }}
-        >
-          <div
-            className="khmer-muol"
-            style={{
-              fontSize: '16px',
-              color: '#000000',
-              marginBottom: '10px',
-            }}
-          >
-            ក្រុមហ៊ុន អាយហ៊្សូម សឹលូសិន ឯ.ក
+        <div style={{ 
+          textAlign: 'right',
+          // backgroundColor: '#f8fafc',
+          padding: '20px',
+          // borderRadius: '8px',
+          minWidth: '100px',
+          // border: '1px solid #e2e8f0'
+        }}>
+          <div style={{ 
+            fontSize: '22px',
+            fontWeight: '700',
+            color: '#ffab93',
+            marginBottom: '15px'
+          }}>
+            PURCHASE
           </div>
+          
+          <div style={{ 
+            display: 'grid',
+            gridTemplateColumns: 'auto 1fr',
+            gap: '8px 15px',
+            fontSize: '14px'
+          }}>
+            <div style={{ color: '#64748b', fontWeight: '500' }}>Purchase #:</div>
+            <div style={{ fontWeight: '600', color: '#1e293b' }}>{data.invoiceNumber}</div>
+            
+            <div style={{ color: '#64748b', fontWeight: '500' }}>Date:</div>
+            <div style={{ fontWeight: '600', color: '#1e293b' }}>{dayjs.tz(data.invoiceDate, "Asia/Phnom_Penh").format("DD / MMM / YYYY")}</div>
+            
+            <div style={{ color: '#64748b', fontWeight: '500' }}>Due Date:</div>
+            <div style={{ fontWeight: '600', color: '#1e293b' }}>
+              {dayjs.tz(data.invoiceDate, "Asia/Phnom_Penh").add(7, "day").format("DD / MMM / YYYY")}
 
-          <div
-            style={{
-              fontSize: '14px',
-            }}
-          >
-            <div
-              style={{
-                color: '#000000',
-                fontWeight: 900,
-                fontSize: '14px',
-                fontFamily: '"Times New Roman", Times, serif',
-                marginBottom: '5px',
-              }}
-            >
-              iZOOM SOLUTIONS CO., LTD
             </div>
-
-            <div
-              style={{
-                color: '#000000',
-                fontSize: '13px',
-                fontFamily: '"Times New Roman", Times, serif',
-              }}
-            >
-              លេខអត្តសញ្ញាណកម្ម អតប <b>(VATTIN) K008-902305248</b>
-            </div>
+            
+            {/* <div style={{ color: '#64748b', fontWeight: '500' }}>Status:</div>
+            <div>
+              <span style={{
+                backgroundColor: data.status === 'paid' ? '#10b981' : '#f59e0b',
+                color: 'white',
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: '600',
+                display: 'inline-block'
+              }}>
+                {data.status === 'paid' ? 'PAID' : 'PENDING'}
+              </span>
+            </div> */}
           </div>
         </div>
-
-      </div>
-      <div style={{ 
-        fontSize: '13px',
-        color: '#555',
-        marginTop: '5px',
-        lineHeight: '1.5'
-      }}>
-        <div>អាសយដ្ឋាន៖ ផ្ទះ#៤៨ ផ្លូវបុរីអង្គរ (បុរីអង្គរភ្នំពេញ) ភូមិបឹងរាំង សង្កាត់ទួលសង្កែទី២ ខណ្ឌឬស្សីកែវ រាជធានីភ្នំពេញ</div>
-        <div>Address N<sup>o</sup> #48, St. Borey Angkor (Borey Angkor Phnom Penh) Sangkat Tuol Sangke 2, Khan Russeykeo, Phnom Penh</div>
-        <div>ទូរស័ព្ទលេខ/Telephone : +855 16 589 299</div>
-        {/* <div>Email: sales@izooms.com.kh</div> */}
       </div>
     </div>
   );
@@ -111,140 +193,52 @@ const InvoiceHeader: React.FC<{ data: any }> = ({ data }) => {
 // From/To Address Component
 const AddressSection: React.FC<{ data: any }> = ({ data }) => {
   return (
-    <>
-      <div 
-        className="khmer-muol"
-        style={{
-          fontSize: '16px',
-          color: '#000000',
-          marginBottom: '0px',
-          textAlign: 'center',
-        }}
-      >
-        សម្រង់តម្លៃ
-      </div>
-      <div 
-        className="khmer-muol"
-        style={{
-          fontSize: '16px',
-          color: '#000000',
-          marginBottom: '10px',
-          textAlign: 'center',
-          fontWeight: 'bold',
-        }}
-      >
-        QUOTATION
-      </div>
-
-      <div
-        style={{
-          // backgroundColor: "#f1f1f1",
-          padding: "5px 0px 0px 0px",
-          marginBottom: "5px",
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: "14px",
-        }}
-      >
-        {/* LEFT */}
-        <div style={{ width: "60%" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "200px 10px 1fr",
-              marginBottom: "10px",
-              fontWeight: "bold",
-            }}
-          >
-            <div>អតិថិជន/Customer</div>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "200px 10px 1fr",
-              marginBottom: "5px",
-              fontSize: "12px",
-            }}
-          >
-            <div>ឈ្មោះក្រុមហ៊ុន ឬអតិថិជន <br/>Company Name or Customer</div>
-            <div 
-              style={{
-                paddingTop: "10px"
-              }}
-            >:</div>
-            <div 
-              style={{
-                paddingTop: "10px"
-              }}
-            >
-              {data.to.name}
-            </div>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "200px 10px 1fr",
-              marginBottom: "5px",
-              fontSize: "12px",
-            }}
-          >
-            <div>អាសយដ្ឋាន/Address</div>
-            <div>:</div>
-            <div>{data.to.address}</div>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "200px 10px 1fr",
-              marginBottom: "5px",
-              fontSize: "12px",
-            }}
-          >
-            <div>ទូរស័ព្ទលេខ/Telephone N°</div>
-            <div>:</div>
-            <div>{data.to.phone}</div>
-          </div>
+    <div className="address-section" style={{ 
+      display: 'flex', 
+      justifyContent: 'space-between',
+      marginBottom: '15px',
+      paddingBottom: '20px',
+      borderBottom: '1px solid #e0e6ed'
+    }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px', color: '#333' }}>
+          From
         </div>
-
-        {/* RIGHT */}
-        <div style={{ width: "35%" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "120px 10px 1fr",
-              marginBottom: "10px",
-              fontWeight: "bold",
-            }}
-          >
-            <div>លេខសម្រង់តម្លៃ ៖</div>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "110px 10px 1fr",
-              marginBottom: "5px",
-              fontSize: "12px",
-            }}
-          >
-            <div>Quotation N<sup>o</sup></div>
-            <div>:</div>
-            <div>{data.invoiceNumber}</div>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "110px 10px 1fr",
-              marginBottom: "5px",
-              fontSize: "12px",
-            }}
-          >
-            <div>កាលបរិច្ឆេទ/Date</div>
-            <div>:</div>
-            <div>{data.invoiceDate}</div>
-          </div>
+        <div style={{ fontSize: '14px', color: '#555' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.from.name}</div>
+          <div>{data.from.address}</div>
+          <div>{data.from.addressLine2}</div>
+          <div>Email: {data.from.email}</div>
+          <div>Phone: {data.from.phone}</div>
         </div>
       </div>
-    </>
+      
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px', color: '#333' }}>
+          To
+        </div>
+        <div style={{ fontSize: '14px', color: '#555' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.to.name}</div>
+          <div>{data.to.address}</div>
+          <div>Email: {data.to.email}</div>
+          <div>Phone: {data.to.phone}</div>
+        </div>
+      </div>
+      
+      {/* <div style={{ width: '200px', textAlign: 'right' }}>
+        <div style={{ 
+          backgroundColor: '#10b981',
+          color: 'white',
+          padding: '5px 10px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          display: 'inline-block',
+          fontWeight: 'bold'
+        }}>
+          <span style={{ marginRight: '5px' }}>●</span> Paid
+        </div>
+      </div> */}
+    </div>
   );
 };
 
@@ -259,72 +253,61 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
 
   return (
     <div className="items-section" style={{ marginBottom: '0px' }}>
-      {/* <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>
-        Invoice For: <span style={{ fontWeight: 'normal' }}>Invoice Items</span>
-      </div> */}
+      <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>
+        Invoice For: <span style={{ fontWeight: 'normal' }}>Purchase Items</span>
+      </div>
       
       <table style={{ 
         width: '100%', 
         borderCollapse: 'collapse',
-        border: '1px solid #e0e6ed',
-        fontSize: '14px'
+        border: '1px solid #e0e6ed'
       }}>
         <thead>
-          <tr>
-            <th style={{
-              background: "#f5cfc5",
-              padding: "12px 15px",
-              textAlign: "left",
-              fontWeight: "bold",
-              color: "#333",
-              borderRight: "1px solid #e0e6ed",
-              textAlignLast: "center"
-            }}>បរិយាយមុខទំនិញ <br/> Item Description</th>
-            <th style={{
-              background: "#f5cfc5",
-              padding: "12px 15px",
-              textAlign: "left",
-              fontWeight: "bold",
-              color: "#333",
-              borderRight: "1px solid #e0e6ed",
-              textAlignLast: "center"
-            }}>ថ្លៃឯកតា <br/> Unit Cost</th>
-            <th style={{
-              background: "#f5cfc5",
-              padding: "12px 15px",
-              textAlign: "left",
-              fontWeight: "bold",
-              color: "#333",
-              borderRight: "1px solid #e0e6ed",
-              textAlignLast: "center"
-            }}>បរិមាណ <br/> Qty</th>
-            <th style={{
-              background: "#f5cfc5",
-              padding: "12px 15px",
-              textAlign: "left",
-              fontWeight: "bold",
-              color: "#333",
-              borderRight: "1px solid #e0e6ed",
-              textAlignLast: "center"
-            }}>បញ្ចុះតម្លៃ <br/> Discount</th>
-            <th style={{
-              background: "#f5cfc5",
-              padding: "12px 15px",
-              textAlign: "left",
-              fontWeight: "bold",
-              color: "#333",
-              borderRight: "1px solid #e0e6ed",
-              textAlignLast: "center"
-            }}>អាករ <br/> Tax</th>
-            <th style={{
-              background: "#f5cfc5",
-              padding: "12px 15px",
-              textAlign: "left",
-              fontWeight: "bold",
-              color: "#333",
-              borderRight: "1px solid #e0e6ed",
-              textAlignLast: "center"
-            }}>តម្លៃ <br/> Total</th>
+          <tr style={{ 
+            backgroundColor: '#f8f9fa',
+            borderBottom: '1px solid #e0e6ed'
+          }}>
+            <th style={{ 
+              padding: '12px 15px',
+              textAlign: 'left',
+              fontWeight: 'bold',
+              color: '#333',
+              borderRight: '1px solid #e0e6ed'
+            }}>Item Description</th>
+            <th style={{ 
+              padding: '12px 15px',
+              textAlign: 'right',
+              fontWeight: 'bold',
+              color: '#333',
+              borderRight: '1px solid #e0e6ed'
+            }}>Unit Cost</th>
+            <th style={{ 
+              padding: '12px 15px',
+              textAlign: 'right',
+              fontWeight: 'bold',
+              color: '#333',
+              borderRight: '1px solid #e0e6ed'
+            }}>Qty</th>
+            <th style={{ 
+              padding: '12px 15px',
+              textAlign: 'right',
+              fontWeight: 'bold',
+              color: '#333',
+              borderRight: '1px solid #e0e6ed'
+            }}>Discount</th>
+            <th style={{ 
+              padding: '12px 15px',
+              textAlign: 'right',
+              fontWeight: 'bold',
+              color: '#333',
+              borderRight: '1px solid #e0e6ed'
+            }}>Tax</th>
+            <th style={{ 
+              padding: '12px 15px',
+              textAlign: 'right',
+              fontWeight: 'bold',
+              color: '#333'
+            }}>Total</th>
           </tr>
         </thead>
         <tbody>
@@ -339,7 +322,7 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
                 borderBottom: index < items.length - 1 ? '1px solid #e0e6ed' : 'none'
               }}>
                 <td style={{ 
-                  padding: '0px 15px',
+                  padding: '3px 15px',
                   borderRight: '1px solid #e0e6ed'
                 }}>
                   <div style={{ fontWeight: 'bold' }}>
@@ -347,17 +330,17 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
                   </div>
                 </td>
                 <td style={{ 
-                  padding: '0px 15px',
+                  padding: '3px 15px',
                   textAlign: 'right',
                   borderRight: '1px solid #e0e6ed'
                 }}>{formatCurrency(cost)}</td>
                 <td style={{ 
-                  padding: '0px 15px',
+                  padding: '3px 15px',
                   textAlign: 'right',
                   borderRight: '1px solid #e0e6ed'
                 }}>{qty}</td>
                 <td style={{ 
-                  padding: '0px 15px',
+                  padding: '3px 15px',
                   textAlign: 'right',
                   borderRight: '1px solid #e0e6ed'
                 }}>
@@ -369,7 +352,7 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
                         ? 0
                         : item.discountMethod === "Fixed" 
                             ? Number(item.discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                            : Number(item.cost - (item.cost * ((100 - item.discount) / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                            : Number(item.cost - (item.cost * ((100 - item.discount) / 100)))
                   }
                 </td>
                 <td style={{ 
@@ -420,7 +403,7 @@ const TotalsSection: React.FC<{ totals: any }> = ({ totals }) => {
             padding: '10px 0',
             borderBottom: '1px solid #e0e6ed'
           }}>
-            <span>សរុប/Sub Total</span>
+            <span>Sub Total</span>
             <span style={{ fontWeight: 'bold' }}>${subtotal.toFixed(2)}</span>
           </div>
 
@@ -430,7 +413,7 @@ const TotalsSection: React.FC<{ totals: any }> = ({ totals }) => {
             padding: '10px 0',
             borderBottom: '1px solid #e0e6ed'
           }}>
-            <span>អាករលើតម្លែបន្ថែម/Order Tax</span>
+            <span>Order Tax</span>
             <span style={{ fontWeight: 'bold' }}>{orderTax}%</span>
           </div>
           
@@ -440,7 +423,7 @@ const TotalsSection: React.FC<{ totals: any }> = ({ totals }) => {
             padding: '10px 0',
             borderBottom: '1px solid #e0e6ed'
           }}>
-            <span>បញ្ចុះតម្លៃ/Discount</span>
+            <span>Discount</span>
             <span style={{ fontWeight: 'bold' }}>${discount.toFixed(2)}</span>
           </div>
           
@@ -459,7 +442,7 @@ const TotalsSection: React.FC<{ totals: any }> = ({ totals }) => {
             justifyContent: 'space-between',
             padding: '15px 0'
           }}>
-            <span style={{ fontSize: '18px', fontWeight: 'bold' }}>សរុបរួម/Total Amount</span>
+            <span style={{ fontSize: '18px', fontWeight: 'bold' }}>Total Amount</span>
             <span style={{ fontSize: '18px', fontWeight: 'bold' }}>${total.toFixed(2)}</span>
           </div>
         </div>
@@ -511,7 +494,7 @@ const TermsNotesSection: React.FC<{ data: any }> = ({ data }) => {
       {/* ----------- CUSTOMER SIGNATURE ----------- */}
       <div style={{ width: "200px", textAlign: "center" }}>
         <div style={{ marginBottom: "50px" }}>
-          Customer Signature
+          Supplier Signature
         </div>
         <div
           style={{
@@ -520,7 +503,7 @@ const TermsNotesSection: React.FC<{ data: any }> = ({ data }) => {
             marginBottom: "5px",
           }}
         >
-          {data.customerName}
+          {data.supplierName}
         </div>
       </div>
 
@@ -585,12 +568,12 @@ const InvoiceFooter: React.FC<{ data: any }> = ({ data }) => {
 };
 
 // Main PrintPurchase Component
-const PrintQuotation: React.FC = () => {
+const PrintPurchase: React.FC = () => {
   const printRef = useRef<HTMLDivElement>(null);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   
-  const [quotationData, setQuotationData] = useState<any>(null);
+  const [purchaseData, setPurchaseData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -599,13 +582,13 @@ const PrintQuotation: React.FC = () => {
   };
 
   useEffect(() => {
-    const fetchQuotation = async () => {
+    const fetchPurchase = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const quotation = await apiClient.getQuotationByid(Number(id));
+        const purchase = await apiClient.getPurchaseByid(Number(id));
 
-        const sumtotal = quotation.quotationDetails?.reduce(
+        const sumtotal = purchase.purchaseDetails?.reduce(
           (sum: number, item: any) => sum + parseFloat(item.total ?? 0),
           0
         ) || 0;
@@ -613,21 +596,12 @@ const PrintQuotation: React.FC = () => {
 
         // Transform API data to match our structure
         const transformedData = {
-          invoiceNumber: quotation.ref || "QR-00001",
-          invoiceDate: quotation.quotationDate
-            ? (() => {
-                const d = new Date(quotation.quotationDate);
-                const day = String(d.getDate()).padStart(2, "0");
-                const month = d.toLocaleString("en-US", { month: "short" });
-                const year = d.getFullYear();
-                return `${day}-${month}-${year}`;
-              })()
-            : "06-Dec-2026",
-          invoiceFor: "Quotation Items",
-          quoteSaleType: quotation.QuoteSaleType,
-          lastName: quotation.creator?.lastName || "",
-          firstName: quotation.creator?.firstName || "",
-          customerName: quotation.customers?.name || "Customer",
+          invoiceNumber: purchase.ref || "INV0001",
+          invoiceDate: purchase.purchaseDate ? new Date(purchase.purchaseDate).toLocaleDateString() : "Sep 24, 2024",
+          invoiceFor: "Purchase Items",
+          lastName: purchase.creator?.lastName || "",
+          firstName: purchase.creator?.firstName || "",
+          supplierName: purchase.suppliers?.name || "Supplier",
           
           from: {
             name: "IZOOM",
@@ -638,14 +612,14 @@ const PrintQuotation: React.FC = () => {
           },
           
           to: {
-            name: quotation.customers?.name || "Customer",
-            address: quotation.customers?.address || "Customer Address",
-            email: quotation.customers?.email || "customer@email.com",
-            phone: quotation.customers?.phone || "+1 987 654 3210"
+            name: purchase.suppliers?.name || "Supplier",
+            address: purchase.suppliers?.address || "Supplier Address",
+            email: purchase.suppliers?.email || "supplier@email.com",
+            phone: purchase.suppliers?.phone || "+1 987 654 3210"
           },
           
-          items: quotation.quotationDetails?.map((item: any, index: number) => ({
-            description: item.ItemType === "PRODUCT" ? item.productvariants?.productType === "New" ? item.products.name : item.products.name + " (" + item.productvariants?.productType + ")" || `Item ${index + 1}` : item.services?.name,
+          items: purchase.purchaseDetails?.map((item: any, index: number) => ({
+            description: item.productvariants?.productType === "New" ? item.products.name : item.products.name + " (" + item.productvariants?.productType + ")" || `Item ${index + 1}` ,
             qty: item.quantity,
             taxNet: item.taxNet,
             taxMethod: item.taxMethod,
@@ -657,13 +631,13 @@ const PrintQuotation: React.FC = () => {
           
           totals: {
             subtotal: sumtotal,
-            orderTax: quotation.taxRate || 0,
-            discount: quotation.discount || 0,
-            shipping: quotation.shipping || 0,
-            total: quotation.grandTotal || 0
+            orderTax: purchase.taxRate || 0,
+            discount: purchase.discount || 0,
+            shipping: purchase.shipping || 0,
+            total: purchase.grandTotal || 0
           },
           
-          notes: quotation.note,
+          notes: purchase.note || "",
           terms: "Please pay within 15 days from the date of invoice, overdue interest @ 14% will be charged on delayed payments.",
           paymentMethod: "Payment Made Via bank transfer / Cheque",
           bankDetails: {
@@ -673,22 +647,22 @@ const PrintQuotation: React.FC = () => {
           }
         };
 
-        setQuotationData(transformedData);
+        setPurchaseData(transformedData);
       } catch (err: any) {
-        setError(err.message || "Error fetching quotation");
-        toast.error(err.message || "Error fetching quotation", {
+        setError(err.message || "Error fetching purchase");
+        toast.error(err.message || "Error fetching purchase", {
           position: "top-right",
           autoClose: 2000,
         });
         // Fallback to sample data
-        // setQuotationData(sampleData);
+        // setPurchaseData(sampleData);
       } finally {
         setIsLoading(false);
       }
     };
 
     if (id) {
-      fetchQuotation();
+      fetchPurchase();
     } else {
       // For testing without API call
       // setPurchaseData(sampleData);
@@ -704,8 +678,8 @@ const PrintQuotation: React.FC = () => {
     return <div>Error: {error}</div>;
   }
 
-  if (!quotationData) {
-    return <div>No quotation data found.</div>;
+  if (!purchaseData) {
+    return <div>No purchase data found.</div>;
   }
 
   return (
@@ -756,7 +730,7 @@ const PrintQuotation: React.FC = () => {
             gap: '5px'
           }}
         >
-          <Print /> Print Quotation
+          <Print /> Print Purchase
         </button>
       </div>
       
@@ -770,15 +744,15 @@ const PrintQuotation: React.FC = () => {
           boxShadow: '0 2px 10px rgba(0,0,0,0.1)'
         }}
       >
-        <InvoiceHeader data={quotationData} />
-        <AddressSection data={quotationData} />
-        <InvoiceItemsTable items={quotationData.items} />
-        <TotalsSection totals={quotationData.totals} />
-        <TermsNotesSection data={quotationData} />
-        {/* <InvoiceFooter data={quotationData} /> */}
+        <InvoiceHeader data={purchaseData} />
+        <AddressSection data={purchaseData} />
+        <InvoiceItemsTable items={purchaseData.items} />
+        <TotalsSection totals={purchaseData.totals} />
+        <TermsNotesSection data={purchaseData} />
+        {/* <InvoiceFooter data={purchaseData} /> */}
       </div>
     </>
   );
 };
 
-export default PrintQuotation;
+export default PrintPurchase;

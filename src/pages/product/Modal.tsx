@@ -506,7 +506,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                                             type="text" 
                                             placeholder="Enter sku's code" 
                                             className="form-input"
-                                            {...register("sku", { required: "This field is required" })} 
+                                            {...register("sku")} 
                                             onChange={(e) => handleSkuChange(e.target.value)}
                                         />
                                         {errors.sku && <p className='error_validate'>{errors.sku.message}</p>}
@@ -517,7 +517,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                                             type="text" 
                                             placeholder="Enter Variant's barcode" 
                                             className="form-input"
-                                            {...register("barcode", { required: "This field is required" })} 
+                                            {...register("barcode")} 
                                             onChange={(e) => handleBarcodeChange(e.target.value)}
                                         />
                                         {errors.barcode && <p className='error_validate'>{errors.barcode.message}</p>}

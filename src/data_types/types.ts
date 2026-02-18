@@ -302,6 +302,7 @@ export interface PurchaseType {
     shipping?: string | null;
     grandTotal: number;
     paidAmount: number | null;
+    exchangeRate?: number | null;
     status: string;
     note: string;
     delReason: string;
@@ -487,6 +488,7 @@ export interface InvoiceType {
     discount?: number | null;
     shipping?: string | null;
     totalAmount: number;
+    exchangeRate?: number | null;
     paidAmount: number | null;
     status: string;
     returnstatus?: number | null;
