@@ -47,6 +47,11 @@ const sortFields: Record<string, string> = {
     "Updated By": "updatedBy"
 };
 
+type ProductStock = {
+    branchId: number;
+    quantity: number;
+};
+
 const Product: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [products, setProducts] = useState<ProductType[]>([]);
@@ -66,7 +71,8 @@ const Product: React.FC = () => {
         retailPrice: number | string, 
         wholeSalePrice: number | string, 
         variantAttributeIds?: number[], 
-        variantValueIds?: number[]
+        variantValueIds?: number[],
+        stocks?: ProductStock[]
     } | null>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -173,7 +179,8 @@ const Product: React.FC = () => {
         retailPrice: number | string,
         wholeSalePrice: number | string,
         variantAttributeIds?: number[] | null,     
-        variantValueIds?: number[]    
+        variantValueIds?: number[],
+        stocks?: ProductStock[]   
     ) => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
@@ -198,6 +205,8 @@ const Product: React.FC = () => {
                 wholeSalePrice,
                 variantAttributeIds: variantAttributeIds ?? undefined,
                 variantValueIds: variantValueIds ?? [],
+
+                stocks: stocks ?? [],
             };
 
             await apiClient.upsertProduct(productData);
@@ -285,6 +294,11 @@ const Product: React.FC = () => {
             
             variantAttributeIds,
             variantValueIds,
+
+            stocks: Array.isArray(variant?.stocks) ? variant.stocks.map((s: any) => ({
+                branchId: s.branchId,
+                quantity: Number(s.quantity)
+            })) : [],
         });
         setIsModalOpen(true);
     };

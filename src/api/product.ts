@@ -57,6 +57,10 @@ export const upsertProduct = async (productData: ProductType): Promise<ProductTy
     formData.append("unitId", (data.unitId ?? 0).toString());
     formData.append("barcode", data.barcode ?? "");
     formData.append("sku", data.sku ?? "");
+    
+     // NEW MULTI BRANCH STOCK
+    formData.append("stocks", JSON.stringify(data.stocks ?? []));
+
     formData.append("purchasePrice", ((data.purchasePrice ?? 0) as number).toString());
     formData.append("retailPrice", (data.retailPrice ?? 0).toString());
     formData.append("wholeSalePrice", (data.wholeSalePrice ?? 0).toString());

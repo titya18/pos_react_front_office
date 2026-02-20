@@ -121,6 +121,11 @@ export interface UnitData {
     name: string;
 };
 
+export type ProductStock = {
+    branchId: number;
+    quantity: number;
+};
+
 export interface ProductType {
     id?: number;
     categoryId: number;
@@ -157,6 +162,9 @@ export interface ProductType {
     variantAttributeIds?: number[];
     // MULTIPLE values (Red, Blue, XL, Cotton ...)
     variantValueIds?: number[];
+
+    branchId?: number | null;
+    stocks: ProductStock[];
 }
 
 export interface VarientAttributeType {

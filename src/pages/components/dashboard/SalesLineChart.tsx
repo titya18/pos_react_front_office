@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import dayjs from "dayjs";
 
 const SalesLineChart = ({ invoices }: any) => {
@@ -8,10 +8,14 @@ const SalesLineChart = ({ invoices }: any) => {
   }));
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-lg">
-      <h3 className="font-semibold mb-2 text-gray-700">Sales Trend</h3>
+    <div className="bg-white rounded-2xl shadow-md hover:shadow-lg transition p-6 border border-gray-100">
+      <h3 className="text-lg font-semibold text-gray-800 mb-4">
+        Sales Trend
+      </h3>
+
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
@@ -20,8 +24,7 @@ const SalesLineChart = ({ invoices }: any) => {
             dataKey="amount"
             stroke="#3B82F6"
             strokeWidth={3}
-            dot={{ r: 5, fill: "#2563EB" }}
-            activeDot={{ r: 6, fill: "#2563EB" }}
+            dot={{ r: 4 }}
           />
         </LineChart>
       </ResponsiveContainer>

@@ -2,16 +2,22 @@ import React, { useEffect, useState } from "react";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faClose } from '@fortawesome/free-solid-svg-icons';
 import { useAppContext } from "../../hooks/useAppContext";
-import { useForm, FormProvider } from "react-hook-form";
+import { useForm, useFieldArray, FormProvider } from "react-hook-form";
 import { getAllCategories } from "../../api/category";
 import { getAllBrands } from "../../api/brand";
 import { FileRejection, useDropzone } from "react-dropzone";
 
-import { ProductVariantType, UnitData, VarientAttributeType } from "../../data_types/types";
+import { ProductVariantType, UnitData, VarientAttributeType, BranchType } from "../../data_types/types";
+import { getAllBranches } from "@/api/branch";
 import { getAllUnits } from "../../api/unit";
 import { getAllVarientAttributes } from "../../api/varientAttribute";
 import MultiSelectVariant from "./MultiSelectVariant";
 import Select from "react-select";
+
+type ProductStock = {
+    branchId: number;
+    quantity: number;
+};
 
 interface ModalProps {
     isOpen: boolean;
@@ -34,7 +40,9 @@ interface ModalProps {
         retailPrice: number | string, 
         wholeSalePrice: number | string,
         variantAttributeIds?: number[] | null,   
-        variantValueIds?: number[]  
+        variantValueIds?: number[],
+        
+        stocks?: ProductStock[],
     ) => void;
     product?: { 
         id: number | undefined, 
@@ -55,6 +63,8 @@ interface ModalProps {
         variantAttributeId?: number | null;
         variantAttributeIds?: number[];
         variantValueIds?: number[];
+        branchId?: number | null;
+        stocks?: Array<{ branchId: number; quantity: string | number }> | null;
     } | null;
 };
 
@@ -76,6 +86,9 @@ export interface ProductFormData {
     variantAttributeId?: number | null;
     variantAttributeIds?: number[];
     variantValueIds?: number[];
+
+    branchId?: number | null;
+    stocks?: Array<{ branchId: number; quantity: string | number }> | null;
 };
 
 export interface CategoryData {
@@ -90,6 +103,7 @@ export interface BrandData {
 };
 
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => {
+    const [branches, setBranches] = useState<BranchType[]>([]);
     const [categories, setCategories] = useState<CategoryData[]>([]);
     const [brands, setBrands] = useState<BrandData[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -108,11 +122,30 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
     const [units, setUnits] = useState<UnitData[]>([]);
     const [variantAttributes, setVariantAttributes] = useState<VarientAttributeType[]>([]);
 
-    const methods = useForm<ProductFormData>();
-    const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = methods;
+    const methods = useForm<ProductFormData>({
+        defaultValues: { stocks: [] }
+    });
+    const { control, register, handleSubmit, setValue, watch, reset, formState: { errors } } = methods;
+
+    const { fields, replace } = useFieldArray({
+        control,
+        name: "stocks"
+    });
 
     const { hasPermission } = useAppContext();
     const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+
+    const fetchBranches = async () => {
+        setIsLoading(true);
+        try {
+            const data = await getAllBranches();
+            setBranches(data as BranchType[]);
+        } catch (error) {
+            console.error("Error fetching branch:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const fetchCategories = async () => {
         setIsLoading(true);
@@ -164,13 +197,38 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
     };
     // End!
 
+    // useEffect(() => {
+    //     if (branches.length > 0) {
+    //         const initialStocks = branches.map(branch => ({
+    //             branchId: branch.id ?? 0,
+    //             quantity: 0
+    //         }));
+
+    //         setValue("stocks", initialStocks);
+    //     }
+    // }, [branches, setValue]);
+
     useEffect(() => {
+        fetchBranches();
         fetchCategories();
         fetchBrands();
         fetchUnits();
         fetchVariantAttributes(); 
+
+         // Only run after branches are fetched and modal is open
+    if (!isOpen || branches.length === 0) return;
         
         if (product) {
+
+            // Editing product
+            const stockData = branches.map(branch => {
+                const existing = product.stocks?.find(s => s.branchId === branch.id);
+                return {
+                    branchId: branch.id,
+                    quantity: existing ? Number(existing.quantity) : 0
+                };
+            });
+
             setSkuLocked(true);
             setBarcodeLocked(true);
 
@@ -190,6 +248,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                 wholeSalePrice: product.wholeSalePrice ?? '',
                 variantAttributeIds: product.variantAttributeIds ?? [],
                 variantValueIds: product.variantValueIds ?? [],
+
+                stocks: stockData,
             });
     
             if (product.image) {
@@ -220,6 +280,11 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
             setSkuLocked(false);
             setBarcodeLocked(false);
 
+            const initialStocks = branches.map(branch => ({
+                branchId: branch.id,
+                quantity: 0
+            }));
+
             reset({
                 categoryId: null,
                 brandId: null,
@@ -235,12 +300,14 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                 wholeSalePrice: "",
                 variantAttributeIds: [],
                 variantValueIds: [],
+
+                stocks: initialStocks,
             });
             setVariantValues([]);
             setExistingImages([]);
             setImagePreview(null);
         }
-    }, [product, setValue, reset]);
+    }, [product, setValue, reset, isOpen, branches.length]);
 
     // Reset dropzone states and input
     const resetDropzoneOrFormData = () => {
@@ -317,6 +384,12 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
 
             // Combine converted existing images and new images
             const combinedImages = [...convertedExistingImages, ...newImages];
+
+             // Convert stocks quantity to number
+            const stocks: ProductStock[] = (data.stocks || []).map(s => ({
+                branchId: s.branchId,
+                quantity: Number(s.quantity) || 0, // ✅ convert to number
+            }));
     
             await onSubmit(
                 product?.id || null, 
@@ -336,7 +409,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                 data.retailPrice || '',
                 data.wholeSalePrice || '',
                 data.variantAttributeIds ?? null,     
-                data.variantValueIds 
+                data.variantValueIds ,
+
+                stocks
             );
     
             resetDropzoneOrFormData();
@@ -521,6 +596,45 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                                             onChange={(e) => handleBarcodeChange(e.target.value)}
                                         />
                                         {errors.barcode && <p className='error_validate'>{errors.barcode.message}</p>}
+                                    </div>
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className="font-semibold mb-2 block">Stock Per Branch</label>
+
+                                    <div className="space-y-3">
+                                        {branches.map((branch, index) => (
+                                            <div key={branch.id} className="flex items-center gap-4">
+
+                                                <input
+                                                    type="hidden"
+                                                    {...register(`stocks.${index}.branchId`, {
+                                                        valueAsNumber: true
+                                                    })}
+                                                />
+
+                                                <div className="w-1/2">
+                                                    <input
+                                                        type="text"
+                                                        value={branch.name}
+                                                        disabled
+                                                        className="form-input bg-gray-100"
+                                                    />
+                                                </div>
+
+                                                <div className="w-1/2">
+                                                    <input
+                                                        type="number"
+                                                        step="0"
+                                                        {...register(`stocks.${index}.quantity`, {
+                                                            valueAsNumber: true
+                                                        })}
+                                                        className="form-input"
+                                                    />
+                                                </div>
+
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
 

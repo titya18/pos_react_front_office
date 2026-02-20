@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const SalesBarChart = ({ purchases }: any) => {
   const data = purchases.map((p: any) => ({
@@ -7,21 +7,18 @@ const SalesBarChart = ({ purchases }: any) => {
   }));
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow-lg">
-      <h3 className="font-semibold mb-2 text-gray-700">Purchases</h3>
+    <div className="bg-white rounded-2xl shadow-md hover:shadow-lg transition p-6 border border-gray-100">
+      <h3 className="text-lg font-semibold text-gray-800 mb-4">
+        Purchases
+      </h3>
+
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="reference" hide />
           <YAxis />
           <Tooltip />
-          <Bar dataKey="amount" fill="url(#colorBar)" radius={[4, 4, 0, 0]}>
-            <defs>
-              <linearGradient id="colorBar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#34D399" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="#10B981" stopOpacity={0.6} />
-              </linearGradient>
-            </defs>
-          </Bar>
+          <Bar dataKey="amount" fill="#10B981" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
