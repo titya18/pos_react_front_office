@@ -292,7 +292,11 @@ const Brand: React.FC = () => {
                                                             )}
                                                             {visibleCols.includes("Image") && (
                                                                 <td>
-                                                                    <img src={`${API_BASE_URL}/${rows.image}`} alt={rows.en_name} width="50" />
+                                                                    <img
+                                                                        src={`${API_BASE_URL}/${(rows.image ? rows.image : rows.image) || 'images/products/noimage.png'}`}
+                                                                        alt={rows.en_name}
+                                                                        width="50"
+                                                                    />
                                                                 </td>
                                                             )}
                                                             {visibleCols.includes("Name") && (
