@@ -261,11 +261,11 @@ const Role: React.FC = () => {
                                                                                 <Pencil color="green" />
                                                                             </NavLink>
                                                                         }
-                                                                        {hasPermission('Role-Delete') &&
+                                                                        {/* {hasPermission('Role-Delete') &&
                                                                             <button type="button" className="hover:text-danger" onClick={() => row.id && handleDeleteRole(row.id)} title="Delete">
                                                                                 <Trash2 color="red" />
                                                                             </button>
-                                                                        }
+                                                                        } */}
                                                                     </div>
                                                                 </td>
                                                             )}

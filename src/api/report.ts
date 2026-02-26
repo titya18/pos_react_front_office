@@ -107,6 +107,7 @@ interface ReportPurchaseResponse {
         totalPaidAmount: number;
         totalRemainAmount: number;
     };
+    growth: number | null; // new field for growth percentage
 }
 
 interface ReportSaleReturnsponse {
@@ -393,6 +394,7 @@ export const getAllReportPurchases = async ({
             totalPaidAmount: 0,
             totalRemainAmount: 0,
         },
+        growth: result.growth ?? null,
     };
 };
 
