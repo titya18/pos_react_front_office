@@ -132,6 +132,47 @@ interface ReportSaleReturnParams {
     branchId?: number;
 }
 
+export interface DashboardTopSellingProductType {
+    rank: number;
+    productVariantId: number;
+    productId: number;
+    productName: string;
+    variantName: string;
+    sku: string;
+    barcode?: string | null;
+    totalQty: number;
+    totalRevenue: number;
+    currentStock: number;
+    stockAlert: number;
+    branch: {
+        id: number;
+        name: string;
+    };
+}
+
+export interface DashboardLowStockProductType {
+    productVariantId: number;
+    productId: number;
+    productName: string;
+    variantName: string;
+    sku: string;
+    barcode?: string | null;
+    currentStock: number;
+    stockStatus: "OUT_OF_STOCK" | "LOW_STOCK";
+    branch?: {
+        id: number;
+        name: string;
+    } | null;
+}
+
+interface DashboardWidgetParams {
+    startDate?: string;
+    endDate?: string;
+    branchId?: number;
+    limit?: number;
+    threshold?: number;
+}
+
 export const getAllReportInvoices = async ({
     sortField,
     sortOrder,
@@ -717,7 +758,7 @@ export const getAllReportIncomes = async ({
     };
 };
 
-export const getAllReportSaleReturs = async ({
+export const getAllReportSaleReturns = async ({
     sortField,
     sortOrder,
     page,
@@ -760,5 +801,71 @@ export const getAllReportSaleReturs = async ({
             totalNumberSaleReturn: 0,
             totalAmount: 0,
         },
+    };
+};
+
+export const getDashboardTopSellingProducts = async ({
+    startDate,
+    endDate,
+    branchId,
+    limit = 10,
+}: DashboardWidgetParams): Promise<{
+    data: DashboardTopSellingProductType[];
+    total: number;
+}> => {
+    const params = new URLSearchParams();
+
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    if (branchId) params.set("branchId", String(branchId));
+    params.set("limit", String(limit));
+
+    const url = `${API_BASE_URL}/api/report/dashboardTopSellingProducts?${params.toString()}`;
+
+    const response = await fetch(url, { credentials: "include" });
+
+    if (!response.ok) {
+        throw new Error("Failed to fetch top selling products");
+    }
+
+    const result = await response.json();
+
+    return {
+        data: result.data || [],
+        total: result.total || 0,
+    };
+};
+
+export const getDashboardLowStockProducts = async ({
+    branchId,
+    limit = 10,
+    threshold = 5,
+}: DashboardWidgetParams): Promise<{
+    data: DashboardLowStockProductType[];
+    total: number;
+    mode: "branch" | "all";
+    threshold: number;
+}> => {
+    const params = new URLSearchParams();
+
+    if (branchId) params.set("branchId", String(branchId));
+    params.set("limit", String(limit));
+    params.set("threshold", String(threshold));
+
+    const url = `${API_BASE_URL}/api/report/dashboardLowStockProducts?${params.toString()}`;
+
+    const response = await fetch(url, { credentials: "include" });
+
+    if (!response.ok) {
+        throw new Error("Failed to fetch low stock products");
+    }
+
+    const result = await response.json();
+
+    return {
+        data: result.data || [],
+        total: result.total || 0,
+        mode: result.mode || "all",
+        threshold: result.threshold || threshold,
     };
 };

@@ -337,36 +337,71 @@ const QuotationForm: React.FC = () => {
         const productVariant = variant as ProductVariantType;
         const serviceVariant = variant as ServiceType;
 
-        const priceValue = isProduct ? Number(productVariant.purchasePrice) || 0 : Number(serviceVariant.price) || 0;
+        const priceValue = isProduct
+            ? Number(productVariant.purchasePrice) || 0
+            : Number(serviceVariant.price) || 0;
+
+        const baseUnitId = isProduct ? (productVariant.baseUnitId ?? null) : null;
+
+        const unitOptions =
+            isProduct
+            ? (productVariant.unitOptions ?? []) // ✅ must exist from API (see notes below)
+            : [];
+
+        const defaultUnitId =
+            isProduct
+            ? (baseUnitId ?? (unitOptions[0]?.id ?? null))
+            : null;
+
+        const defaultUnitName =
+            isProduct
+            ? (unitOptions.find(u => u.id === defaultUnitId)?.name ?? null)
+            : null;
+
+        const defaultUnitQty = 1;
 
         const newDetail: QuotationDetailType = {
             id: 0,
             quotationId: 0,
+
             productId: isProduct ? (productVariant.products?.id || 0) : 0,
             productVariantId: isProduct ? productVariant.id : 0,
             products: isProduct ? (productVariant.products || null) : null,
             productvariants: isProduct ? productVariant : null,
+
             services: !isProduct ? serviceVariant : null,
             serviceId: !isProduct ? serviceVariant.id : 0,
+
             ItemType: dataType,
-            quantity: 1,
+
+            // ✅ UOM fields
+            unitId: isProduct ? defaultUnitId : null,
+            unitQty: isProduct ? defaultUnitQty : null,
+            unitName: isProduct ? defaultUnitName : null,
+            unitOptions: isProduct ? unitOptions : [],
+
+            // ✅ keep quantity for old UI, but for PRODUCT we set it = unitQty
+            quantity: isProduct ? defaultUnitQty : 1,
+
             cost: priceValue,
+            costPerBaseUnit: 0,
             taxNet: 0,
             taxMethod: "Include",
             discount: 0,
             discountMethod: "Fixed",
             total: calculateTotal({
                 cost: priceValue,
-                quantity: 1,
+                quantity: isProduct ? defaultUnitQty : 1,
                 taxNet: 0,
                 taxMethod: "Include",
                 discount: 0,
                 discountMethod: "Fixed",
             }),
+
             stocks: Number(
                 Array.isArray(variant.stocks)
                     ? (variant.stocks[0]?.quantity ?? 0)
-                    : (typeof variant.stocks === 'number'
+                    : (typeof variant.stocks === "number"
                         ? variant.stocks
                         : (variant.stocks && (variant.stocks as any).quantity) ?? 0)
             ) || 0,
@@ -460,30 +495,50 @@ const QuotationForm: React.FC = () => {
 
     const handleOnSubmit = async (QuotationDetailData: QuotationDetailType) => {
         try {
+            const isProduct = QuotationDetailData.ItemType === "PRODUCT";
             const newDetail: QuotationDetailType = {
-                id: QuotationDetailData.id ?? 0, // Default to 0 if id is null
+                id: QuotationDetailData.id ?? 0,
                 quotationId: QuotationDetailData.quotationId ?? 0,
-                productId: QuotationDetailData.productId ?? 0, // Provide defaults for other nullable fields
+
+                productId: QuotationDetailData.productId ?? 0,
                 productVariantId: QuotationDetailData.productVariantId ?? 0,
                 serviceId: QuotationDetailData.serviceId ?? 0,
+
                 ItemType: QuotationDetailData.ItemType,
-                quantity: QuotationDetailData.quantity ?? 1,
-                cost: QuotationDetailData.cost ? QuotationDetailData.cost : 0,
-                taxNet: QuotationDetailData.taxNet ?? 0,
-                taxMethod: QuotationDetailData.taxMethod ?? null,
-                discount: QuotationDetailData.discount ?? 0,
-                discountMethod: QuotationDetailData.discountMethod ?? null,
+
+                // ✅ KEEP UNIT FIELDS (THIS IS THE MAIN FIX)
+                unitId: isProduct ? (QuotationDetailData.unitId ?? null) : null,
+                unitQty: isProduct ? Number(QuotationDetailData.unitQty ?? QuotationDetailData.quantity ?? 1) : null,
+                baseQty: isProduct ? Number(QuotationDetailData.baseQty ?? 0) : null,
+                unitName: isProduct ? (QuotationDetailData.unitName ?? null) : null,
+                unitOptions: isProduct ? (QuotationDetailData.unitOptions ?? []) : [],
+
+                // ✅ keep quantity synced with unitQty for products
+                quantity: isProduct
+                    ? Number(QuotationDetailData.unitQty ?? QuotationDetailData.quantity ?? 1)
+                    : Number(QuotationDetailData.quantity ?? 1),
+
+                cost: Number(QuotationDetailData.cost) || 0,
+                costPerBaseUnit: Number(QuotationDetailData.costPerBaseUnit) || 0,
+
+                taxNet: Number(QuotationDetailData.taxNet) || 0,
+                taxMethod: QuotationDetailData.taxMethod ?? "Include",
+
+                discount: Number(QuotationDetailData.discount) || 0,
+                discountMethod: QuotationDetailData.discountMethod ?? "Fixed",
+
                 products: QuotationDetailData.products ?? null,
                 productvariants: QuotationDetailData.productvariants ?? null,
                 services: QuotationDetailData.services ?? null,
+
                 total: calculateTotal({
-                    cost: QuotationDetailData.cost,
-                    quantity: QuotationDetailData.quantity,
-                    taxNet: QuotationDetailData.taxNet,
-                    taxMethod: QuotationDetailData.taxMethod,
-                    discount: QuotationDetailData.discount,
-                    discountMethod: QuotationDetailData.discountMethod,
+                    ...QuotationDetailData,
+                    // ✅ ensure total uses correct qty
+                    quantity: isProduct
+                    ? Number(QuotationDetailData.unitQty ?? QuotationDetailData.quantity ?? 1)
+                    : Number(QuotationDetailData.quantity ?? 1),
                 }),
+
                 stocks: QuotationDetailData.stocks ?? 0,
             };
             
@@ -511,7 +566,10 @@ const QuotationForm: React.FC = () => {
             }
 
             // Recalculate grand total
-            const totalSum = sumTotal([...quotationDetails, newDetail]);
+            const totalSum = sumTotal(existingIndex !== -1
+                ? quotationDetails.map((d, i) => i === existingIndex ? newDetail : d)
+                : [...quotationDetails, newDetail]
+            );
             setGrandTotal(totalSum);
 
             setIsModalOpen(false);
@@ -532,79 +590,109 @@ const QuotationForm: React.FC = () => {
     };
 
     const increaseQuantity = (index: number) => {
-        // Create a copy of the current quotationDetails array
-        const updatedDetails = [...quotationDetails];
-        
-        // Get the current detail object
-        const detail = updatedDetails[index];
+        const updated = [...quotationDetails];
+        const d = updated[index];
 
-        // Ensure quantity is a number before performing the increment
-        const currentQuantity = Number(detail.quantity) || 0; // Convert to number
-    
-        // Increase the quantity if it's less than the maximum allowed (25)
-        if (detail.quantity < 25) {
-            // Create a new detail object with updated quantity and total
-            const updatedDetail = {
-                ...detail,
-                quantity: currentQuantity + 1,
-                total: calculateTotal({ ...detail, quantity: currentQuantity + 1 }), // Recalculate total after quantity change
+        const currentQty = Number(d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity) || 0;
+
+        if (currentQty < 25) {
+            const nextQty = currentQty + 1;
+
+            const nextDetail: QuotationDetailType = {
+            ...d,
+            unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+            quantity: nextQty, // ✅ keep quantity in sync for totals/UI
+            total: calculateTotal({ ...d, quantity: nextQty }),
             };
-    
-            // Replace the old detail with the updated one
-            updatedDetails[index] = updatedDetail;
-    
-            // Update the state with the new array
-            setQuotationDetails(updatedDetails);
+
+            updated[index] = nextDetail;
+            setQuotationDetails(updated);
         }
     };
-    
+
     const decreaseQuantity = (index: number) => {
-        const updatedDetails = [...quotationDetails];
-        const detail = updatedDetails[index];
-        
-        // Ensure quantity is a number before performing the increment
-        const currentQuantity = Number(detail.quantity) || 0; // Convert to number
+        const updated = [...quotationDetails];
+        const d = updated[index];
 
-        if (detail.quantity > 1) {
-            const updatedDetail = {
-                ...detail,
-                quantity: currentQuantity - 1,
-                total: calculateTotal({ ...detail, quantity: currentQuantity - 1 }), // Recalculate total after quantity change
+        const currentQty = Number(d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity) || 0;
+
+        if (currentQty > 1) {
+            const nextQty = currentQty - 1;
+
+            const nextDetail: QuotationDetailType = {
+            ...d,
+            unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+            quantity: nextQty,
+            total: calculateTotal({ ...d, quantity: nextQty }),
             };
-    
-            updatedDetails[index] = updatedDetail;
-            setQuotationDetails(updatedDetails);
+
+            updated[index] = nextDetail;
+            setQuotationDetails(updated);
         }
     };
     
-    const calculateTotal = (detail: Partial<QuotationDetailType>): number => {
-        const cost = Number(detail.cost) || 0; // Product cost
-        const quantity = Number(detail.quantity) || 0; // Quantity
-        const discount = Number(detail.discount) || 0; // discount value
-        const taxNet = Number(detail.taxNet) || 0; // Tax value
+    // const calculateTotal = (detail: Partial<QuotationDetailType>): number => {
+    //     const cost = Number(detail.cost) || 0; // Product cost
+    //     const quantity = Number(detail.quantity) || 0; // Quantity
+    //     const discount = Number(detail.discount) || 0; // discount value
+    //     const taxNet = Number(detail.taxNet) || 0; // Tax value
       
-        // Determine discount method (default to no discount if null)
-        const discountedPrice = detail.discountMethod === "Percent"
-          ? cost * ((100 - discount) / 100) // Apply percentage discount
-          : detail.discountMethod === "Fixed"
-          ? cost - discount // Apply flat discount
-          : cost; // No discount applied
+    //     // Determine discount method (default to no discount if null)
+    //     const discountedPrice = detail.discountMethod === "Percent"
+    //       ? cost * ((100 - discount) / 100) // Apply percentage discount
+    //       : detail.discountMethod === "Fixed"
+    //       ? cost - discount // Apply flat discount
+    //       : cost; // No discount applied
       
-        // Determine tax method (default to no tax if null)
-        let priceAfterTax = discountedPrice;
-        if (detail.taxMethod === "Include") {
-          // Tax is included in the cost, no additional tax is applied
-          priceAfterTax = discountedPrice;
-        } else if (detail.taxMethod === "Exclude") {
-          // Tax is added to the discounted price
-          priceAfterTax = discountedPrice + (discountedPrice * (taxNet / 100));
-        }
+    //     // Determine tax method (default to no tax if null)
+    //     let priceAfterTax = discountedPrice;
+    //     if (detail.taxMethod === "Include") {
+    //       // Tax is included in the cost, no additional tax is applied
+    //       priceAfterTax = discountedPrice;
+    //     } else if (detail.taxMethod === "Exclude") {
+    //       // Tax is added to the discounted price
+    //       priceAfterTax = discountedPrice + (discountedPrice * (taxNet / 100));
+    //     }
       
-        // Calculate total
-        return quantity * priceAfterTax;
-    }; 
+    //     // Calculate total
+    //     return quantity * priceAfterTax;
+    // }; 
+
+    const calculateTotal = (detail: Partial<QuotationDetailType>) => {
     
-    const sumTotal = (details: { total: string | number }[]) => {
+        const cost = Number(detail.cost) || 0
+        const qty = Number((detail as any).unitQty ?? detail.quantity ?? 0)
+
+        const discount = Number(detail.discount) || 0
+        const taxRate = Number(detail.taxNet) || 0
+
+        let priceAfterDiscount = cost
+
+        // discount
+        if (detail.discountMethod === "Percent") {
+            priceAfterDiscount = cost * (1 - discount / 100)
+        } else if (detail.discountMethod === "Fixed") {
+            priceAfterDiscount = cost - discount
+        }
+
+        let taxAmount = 0
+        let unitTotal = priceAfterDiscount
+
+        if (detail.taxMethod === "Exclude") {
+            taxAmount = priceAfterDiscount * taxRate / 100
+            unitTotal = priceAfterDiscount + taxAmount
+        }
+
+        if (detail.taxMethod === "Include") {
+            const priceWithoutTax = priceAfterDiscount / (1 + taxRate / 100)
+            taxAmount = priceAfterDiscount - priceWithoutTax
+            unitTotal = priceAfterDiscount
+        }
+
+        return unitTotal * qty
+    }
+    
+    const sumTotal = (details: QuotationDetailType[]) => {
         return details.reduce((sum, item) => {
             const sanitizedTotal = parseFloat(String(item.total).replace(/^0+/, "")) || 0;
             return sum + sanitizedTotal;
@@ -689,11 +777,18 @@ const QuotationForm: React.FC = () => {
             productVariantId: newDetail.productVariantId,
             products: newDetail.products || null,
             productvariants: newDetail.productvariants || null,
+
+            // ✅ remember unit fields
+            unitId: newDetail.unitId ?? (newDetail.productvariants as any)?.baseUnitId ?? null,
+            unitQty: newDetail.unitQty ?? newDetail.quantity ?? 1,
+            baseQty: newDetail.baseQty ?? null,
+
             services: newDetail.services || null,
             serviceId: newDetail.serviceId || 0,
             ItemType: newDetail.ItemType,
             quantity: newDetail.quantity,
             cost: newDetail.cost,
+            costPerBaseUnit: newDetail.costPerBaseUnit,
             taxNet: newDetail.taxNet,
             taxMethod: newDetail.taxMethod,
             discount: newDetail.discount,
@@ -885,8 +980,15 @@ const QuotationForm: React.FC = () => {
                                                             products: variants.products || null,
                                                             productvariants: variants,
                                                             ItemType: "PRODUCT",
-                                                            quantity: 1, // Default quantity for a new item
+                                                            
+                                                            // ✅ UOM defaults
+                                                            unitOptions: variants.unitOptions ?? [],
+                                                            unitId: variants.baseUnitId ?? variants.baseUnit?.id ?? (variants.unitOptions?.[0]?.id ?? null),
+                                                            unitQty: 1,
+                                                            quantity: 1, // keep old field in sync
+
                                                             cost: quoteSaleType === "RETAIL" ? Number(variants.retailPrice) : Number(variants.wholeSalePrice) || 0, // Default cost
+                                                            costPerBaseUnit: 0,
                                                             taxNet: 0, // Default taxNet
                                                             taxMethod: "Include", // Default tax method
                                                             discount: 0,
@@ -950,11 +1052,19 @@ const QuotationForm: React.FC = () => {
                                                             ItemType: "SERVICE",
                                                             quantity: 1, // Default quantity for a new item
                                                             cost: Number(service.price) || 0, // Default cost
+                                                            costPerBaseUnit: 0,
                                                             taxNet: 0, // Default taxNet
                                                             taxMethod: "Include", // Default tax method
                                                             discount: 0,
                                                             discountMethod: "Fixed",
-                                                            total: 0
+                                                            total: calculateTotal({
+                                                                cost: Number(service.price) || 0,
+                                                                quantity: 1,
+                                                                taxNet: 0,
+                                                                taxMethod: "Include",
+                                                                discount: 0,
+                                                                discountMethod: "Fixed",
+                                                            }),
                                                         })}
                                                     >
                                                         {service.name} - {service.serviceCode}
@@ -1054,13 +1164,38 @@ const QuotationForm: React.FC = () => {
                                                                 : Number(detail.cost - (detail.cost * ((100 - detail.discount) / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                                                       }
                                                 </td>
-                                                <td>$&nbsp;
-                                                    { 
-                                                        detail.discountMethod === "Fixed" 
-                                                        ? Number(detail.quantity * ((detail.cost - detail.discount) * (detail.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                                        : Number(detail.quantity * ((detail.cost * ((100 - detail.discount) / 100)) * (detail.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                                    }
-                                                    <br/>
+                                                <td>
+                                                    {(() => {
+                                                        const cost = Number(detail.cost) || 0;
+
+                                                        const qty =
+                                                        detail.ItemType === "PRODUCT"
+                                                            ? Number(detail.unitQty ?? detail.quantity ?? 0)
+                                                            : Number(detail.quantity ?? 0);
+
+                                                        const discount = Number(detail.discount) || 0;
+                                                        const taxRate = Number(detail.taxNet) || 0;
+
+                                                        let priceAfterDiscount = cost;
+
+                                                        if (detail.discountMethod === "Percent") {
+                                                            priceAfterDiscount = cost * (1 - discount / 100);
+                                                        } else {
+                                                            priceAfterDiscount = cost - discount;
+                                                        }
+
+                                                        let tax = 0;
+
+                                                        if (detail.taxMethod === "Exclude") {
+                                                            tax = (priceAfterDiscount * taxRate) / 100;
+                                                        } else if (detail.taxMethod === "Include") {
+                                                            const priceWithoutTax = priceAfterDiscount / (1 + taxRate / 100);
+                                                            tax = priceAfterDiscount - priceWithoutTax;
+                                                        }
+
+                                                        return (tax * qty).toFixed(2);
+                                                    })()}
+                                                    <br />
                                                     <span className="text-xs">({detail.taxMethod})</span>
                                                 </td>
                                                 <td>$ { Number(detail.total).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>

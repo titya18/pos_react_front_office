@@ -36,7 +36,7 @@ const columns = [
     "Grand Total",
     "Return At",
     "Return By",
-    "Actions"
+    "Note/Print"
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = [
@@ -50,7 +50,7 @@ const DEFAULT_VISIBLE_COLUMNS = [
     "Grand Total",
     "Return At",
     "Return By",
-    "Actions"
+    "Note/Print"
 ];
 
 const sortFields: Record<string, string> = {
@@ -129,7 +129,7 @@ const SaleReturn: React.FC = () => {
                 branchId
             };
 
-            const { data, total: totalResult, summary } = await apiClient.getAllReportSaleReturs(params);
+            const { data, total: totalResult, summary } = await apiClient.getAllReportSaleReturns(params);
             setSaleReturnData(data || []);
             setTotal(totalResult || 0);
             setSelected([]);

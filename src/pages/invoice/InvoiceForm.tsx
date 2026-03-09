@@ -26,6 +26,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FilePenLine, Pencil, Plus, Trash2 } from 'lucide-react';
 import { get } from "http";
 import Product from "../product/Product";
+import { set } from "date-fns";
 
 const InvoiceForm: React.FC = () => {
     // Customer is a React component (Element); it doesn't return methods — provide a local handler for CustomerModal instead.
@@ -361,36 +362,71 @@ const InvoiceForm: React.FC = () => {
         const productVariant = variant as ProductVariantType;
         const serviceVariant = variant as ServiceType;
 
-        const priceValue = isProduct ? Number(productVariant.purchasePrice) || 0 : Number(serviceVariant.price) || 0;
+        const priceValue = isProduct
+            ? Number(productVariant.purchasePrice) || 0
+            : Number(serviceVariant.price) || 0;
+
+        const baseUnitId = isProduct ? (productVariant.baseUnitId ?? null) : null;
+
+        const unitOptions =
+            isProduct
+            ? (productVariant.unitOptions ?? []) // ✅ must exist from API (see notes below)
+            : [];
+
+        const defaultUnitId =
+            isProduct
+            ? (baseUnitId ?? (unitOptions[0]?.id ?? null))
+            : null;
+
+        const defaultUnitName =
+            isProduct
+            ? (unitOptions.find(u => u.id === defaultUnitId)?.name ?? null)
+            : null;
+
+        const defaultUnitQty = 1;
 
         const newDetail: InvoiceDetailType = {
             id: 0,
             orderId: 0,
+
             productId: isProduct ? (productVariant.products?.id || 0) : 0,
             productVariantId: isProduct ? productVariant.id : 0,
             products: isProduct ? (productVariant.products || null) : null,
             productvariants: isProduct ? productVariant : null,
+
             services: !isProduct ? serviceVariant : null,
             serviceId: !isProduct ? serviceVariant.id : 0,
+
             ItemType: dataType,
-            quantity: 1, 
+
+            // ✅ UOM fields
+            unitId: isProduct ? defaultUnitId : null,
+            unitQty: isProduct ? defaultUnitQty : null,
+            unitName: isProduct ? defaultUnitName : null,
+            unitOptions: isProduct ? unitOptions : [],
+
+            // ✅ keep quantity for old UI, but for PRODUCT we set it = unitQty
+            quantity: isProduct ? defaultUnitQty : 1,
+
             price: priceValue,
+            costPerBaseUnit: 0,
             taxNet: 0,
             taxMethod: "Include",
             discount: 0,
             discountMethod: "Fixed",
             total: calculateTotal({
                 price: priceValue,
-                quantity: 1,
+                quantity: isProduct ? defaultUnitQty : 1,
                 taxNet: 0,
                 taxMethod: "Include",
                 discount: 0,
                 discountMethod: "Fixed",
             }),
+
             stocks: Number(
                 Array.isArray(variant.stocks)
                     ? (variant.stocks[0]?.quantity ?? 0)
-                    : (typeof variant.stocks === 'number'
+                    : (typeof variant.stocks === "number"
                         ? variant.stocks
                         : (variant.stocks && (variant.stocks as any).quantity) ?? 0)
             ) || 0,
@@ -484,30 +520,50 @@ const InvoiceForm: React.FC = () => {
 
     const handleOnSubmit = async (InvoiceDetailData: InvoiceDetailType) => {
         try {
+            const isProduct = InvoiceDetailData.ItemType === "PRODUCT";
             const newDetail: InvoiceDetailType = {
-                id: InvoiceDetailData.id ?? 0, // Default to 0 if id is null
+                id: InvoiceDetailData.id ?? 0,
                 orderId: InvoiceDetailData.orderId ?? 0,
-                productId: InvoiceDetailData.productId ?? 0, // Provide defaults for other nullable fields
+
+                productId: InvoiceDetailData.productId ?? 0,
                 productVariantId: InvoiceDetailData.productVariantId ?? 0,
                 serviceId: InvoiceDetailData.serviceId ?? 0,
+
                 ItemType: InvoiceDetailData.ItemType,
-                quantity: InvoiceDetailData.quantity ?? 1,
-                price: InvoiceDetailData.price ? InvoiceDetailData.price : 0,
-                taxNet: InvoiceDetailData.taxNet ?? 0,
-                taxMethod: InvoiceDetailData.taxMethod ?? null,
-                discount: InvoiceDetailData.discount ?? 0,
-                discountMethod: InvoiceDetailData.discountMethod ?? null,
+
+                // ✅ KEEP UNIT FIELDS (THIS IS THE MAIN FIX)
+                unitId: isProduct ? (InvoiceDetailData.unitId ?? null) : null,
+                unitQty: isProduct ? Number(InvoiceDetailData.unitQty ?? InvoiceDetailData.quantity ?? 1) : null,
+                baseQty: isProduct ? Number(InvoiceDetailData.baseQty ?? 0) : null,
+                unitName: isProduct ? (InvoiceDetailData.unitName ?? null) : null,
+                unitOptions: isProduct ? (InvoiceDetailData.unitOptions ?? []) : [],
+
+                // ✅ keep quantity synced with unitQty for products
+                quantity: isProduct
+                    ? Number(InvoiceDetailData.unitQty ?? InvoiceDetailData.quantity ?? 1)
+                    : Number(InvoiceDetailData.quantity ?? 1),
+
+                price: Number(InvoiceDetailData.price) || 0,
+                costPerBaseUnit: Number(InvoiceDetailData.costPerBaseUnit) || 0,
+
+                taxNet: Number(InvoiceDetailData.taxNet) || 0,
+                taxMethod: InvoiceDetailData.taxMethod ?? "Include",
+
+                discount: Number(InvoiceDetailData.discount) || 0,
+                discountMethod: InvoiceDetailData.discountMethod ?? "Fixed",
+
                 products: InvoiceDetailData.products ?? null,
                 productvariants: InvoiceDetailData.productvariants ?? null,
                 services: InvoiceDetailData.services ?? null,
+
                 total: calculateTotal({
-                    price: InvoiceDetailData.price,
-                    quantity: InvoiceDetailData.quantity,
-                    taxNet: InvoiceDetailData.taxNet,
-                    taxMethod: InvoiceDetailData.taxMethod,
-                    discount: InvoiceDetailData.discount,
-                    discountMethod: InvoiceDetailData.discountMethod,
+                    ...InvoiceDetailData,
+                    // ✅ ensure total uses correct qty
+                    quantity: isProduct
+                    ? Number(InvoiceDetailData.unitQty ?? InvoiceDetailData.quantity ?? 1)
+                    : Number(InvoiceDetailData.quantity ?? 1),
                 }),
+
                 stocks: InvoiceDetailData.stocks ?? 0,
             };
             
@@ -535,7 +591,10 @@ const InvoiceForm: React.FC = () => {
             }
 
             // Recalculate grand total
-            const totalSum = sumTotal([...invoiceDetails, newDetail]);
+            const totalSum = sumTotal(existingIndex !== -1
+                ? invoiceDetails.map((d, i) => i === existingIndex ? newDetail : d)
+                : [...invoiceDetails, newDetail]
+            );
             setGrandTotal(totalSum);
 
             setIsModalOpen(false);
@@ -556,79 +615,81 @@ const InvoiceForm: React.FC = () => {
     };
 
     const increaseQuantity = (index: number) => {
-        // Create a copy of the current invoiceDetails array
-        const updatedDetails = [...invoiceDetails];
-        
-        // Get the current detail object
-        const detail = updatedDetails[index];
+        const updated = [...invoiceDetails];
+        const d = updated[index];
 
-        // Ensure quantity is a number before performing the increment
-        const currentQuantity = Number(detail.quantity) || 0; // Convert to number
-    
-        // Increase the quantity if it's less than the maximum allowed (25)
-        if (detail.quantity < 25) {
-            // Create a new detail object with updated quantity and total
-            const updatedDetail = {
-                ...detail,
-                quantity: currentQuantity + 1,
-                total: calculateTotal({ ...detail, quantity: currentQuantity + 1 }), // Recalculate total after quantity change
+        const currentQty = Number(d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity) || 0;
+
+        if (currentQty < 25) {
+            const nextQty = currentQty + 1;
+
+            const nextDetail: InvoiceDetailType = {
+            ...d,
+            unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+            quantity: nextQty, // ✅ keep quantity in sync for totals/UI
+            total: calculateTotal({ ...d, quantity: nextQty }),
             };
-    
-            // Replace the old detail with the updated one
-            updatedDetails[index] = updatedDetail;
-    
-            // Update the state with the new array
-            setInvoiceDetails(updatedDetails);
+
+            updated[index] = nextDetail;
+            setInvoiceDetails(updated);
         }
     };
-    
+
     const decreaseQuantity = (index: number) => {
-        const updatedDetails = [...invoiceDetails];
-        const detail = updatedDetails[index];
-        
-        // Ensure quantity is a number before performing the increment
-        const currentQuantity = Number(detail.quantity) || 0; // Convert to number
+        const updated = [...invoiceDetails];
+        const d = updated[index];
 
-        if (detail.quantity > 1) {
-            const updatedDetail = {
-                ...detail,
-                quantity: currentQuantity - 1,
-                total: calculateTotal({ ...detail, quantity: currentQuantity - 1 }), // Recalculate total after quantity change
+        const currentQty = Number(d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity) || 0;
+
+        if (currentQty > 1) {
+            const nextQty = currentQty - 1;
+
+            const nextDetail: InvoiceDetailType = {
+            ...d,
+            unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+            quantity: nextQty,
+            total: calculateTotal({ ...d, quantity: nextQty }),
             };
-    
-            updatedDetails[index] = updatedDetail;
-            setInvoiceDetails(updatedDetails);
+
+            updated[index] = nextDetail;
+            setInvoiceDetails(updated);
         }
     };
     
-    const calculateTotal = (detail: Partial<InvoiceDetailType>): number => {
-        const price = Number(detail.price) || 0; // Product cost
-        const quantity = Number(detail.quantity) || 0; // Quantity
-        const discount = Number(detail.discount) || 0; // discount value
-        const taxNet = Number(detail.taxNet) || 0; // Tax value
-      
-        // Determine discount method (default to no discount if null)
-        const discountedPrice = detail.discountMethod === "Percent"
-          ? price * ((100 - discount) / 100) // Apply percentage discount
-          : detail.discountMethod === "Fixed"
-          ? price - discount // Apply flat discount
-          : price; // No discount applied
-      
-        // Determine tax method (default to no tax if null)
-        let priceAfterTax = discountedPrice;
-        if (detail.taxMethod === "Include") {
-          // Tax is included in the price, no additional tax is applied
-          priceAfterTax = discountedPrice;
-        } else if (detail.taxMethod === "Exclude") {
-          // Tax is added to the discounted price
-          priceAfterTax = discountedPrice + (discountedPrice * (taxNet / 100));
+    const calculateTotal = (detail: Partial<InvoiceDetailType>) => {
+        const cost = Number(detail.price) || 0
+        const qty = Number((detail as any).unitQty ?? detail.quantity ?? 0)
+
+        const discount = Number(detail.discount) || 0
+        const taxRate = Number(detail.taxNet) || 0
+
+        let priceAfterDiscount = cost
+
+        // discount
+        if (detail.discountMethod === "Percent") {
+            priceAfterDiscount = cost * (1 - discount / 100)
+        } else if (detail.discountMethod === "Fixed") {
+            priceAfterDiscount = cost - discount
         }
-      
-        // Calculate total
-        return quantity * priceAfterTax;
-    }; 
+
+        let taxAmount = 0
+        let unitTotal = priceAfterDiscount
+
+        if (detail.taxMethod === "Exclude") {
+            taxAmount = priceAfterDiscount * taxRate / 100
+            unitTotal = priceAfterDiscount + taxAmount
+        }
+
+        if (detail.taxMethod === "Include") {
+            const priceWithoutTax = priceAfterDiscount / (1 + taxRate / 100)
+            taxAmount = priceAfterDiscount - priceWithoutTax
+            unitTotal = priceAfterDiscount
+        }
+
+        return unitTotal * qty
+    } 
     
-    const sumTotal = (details: { total: string | number }[]) => {
+    const sumTotal = (details: InvoiceDetailType[]) => {
         return details.reduce((sum, item) => {
             const sanitizedTotal = parseFloat(String(item.total).replace(/^0+/, "")) || 0;
             return sum + sanitizedTotal;
@@ -677,7 +738,7 @@ const InvoiceForm: React.FC = () => {
                 orderDate: undefined,
                 branchId: undefined,
                 ref: undefined,
-                customerId: undefined,
+                customerId: undefined, 
                 taxRate: undefined,
                 taxNet: undefined,
                 discount: undefined,
@@ -714,11 +775,18 @@ const InvoiceForm: React.FC = () => {
             productVariantId: newDetail.productVariantId,
             products: newDetail.products || null,
             productvariants: newDetail.productvariants || null,
+
+            // ✅ remember unit fields
+            unitId: newDetail.unitId ?? (newDetail.productvariants as any)?.baseUnitId ?? null,
+            unitQty: newDetail.unitQty ?? newDetail.quantity ?? 1,
+            baseQty: newDetail.baseQty ?? null,
+
             services: newDetail.services || null,
             serviceId: newDetail.serviceId || 0,
             ItemType: newDetail.ItemType,
             quantity: newDetail.quantity,
             price: newDetail.price,
+            costPerBaseUnit: newDetail.costPerBaseUnit,
             taxNet: newDetail.taxNet,
             taxMethod: newDetail.taxMethod,
             discount: newDetail.discount,
@@ -892,6 +960,7 @@ const InvoiceForm: React.FC = () => {
                                                             ItemType: "PRODUCT",
                                                             quantity: 1, // Default quantity for a new item
                                                             price: OrderSaleType === "RETAIL" ? Number(variants.retailPrice) : Number(variants.wholeSalePrice) || 0, // Default cost
+                                                            costPerBaseUnit: 0,
                                                             taxNet: 0, // Default taxNet
                                                             taxMethod: "Include", // Default tax method
                                                             discount: 0,
@@ -955,11 +1024,19 @@ const InvoiceForm: React.FC = () => {
                                                             ItemType: "SERVICE",
                                                             quantity: 1, // Default quantity for a new item
                                                             price: Number(service.price) || 0, // Default cost
+                                                            costPerBaseUnit: 0,
                                                             taxNet: 0, // Default taxNet
                                                             taxMethod: "Include", // Default tax method
                                                             discount: 0,
                                                             discountMethod: "Fixed",
-                                                            total: 0
+                                                            total: calculateTotal({
+                                                                price: Number(service.price) || 0,
+                                                                quantity: 1,
+                                                                taxNet: 0,
+                                                                taxMethod: "Include",
+                                                                discount: 0,
+                                                                discountMethod: "Fixed",
+                                                            }),
                                                         })}
                                                     >
                                                         {service.name} - {service.serviceCode}
@@ -1059,13 +1136,38 @@ const InvoiceForm: React.FC = () => {
                                                                 : Number(detail.price - (detail.price * ((100 - detail.discount) / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                                                       }
                                                 </td>
-                                                <td>$&nbsp;
-                                                    { 
-                                                        detail.discountMethod === "Fixed" 
-                                                        ? Number(detail.quantity * ((detail.price - detail.discount) * (detail.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                                        : Number(detail.quantity * ((detail.price * ((100 - detail.discount) / 100)) * (detail.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                                    }
-                                                    <br/>
+                                                <td>
+                                                    {(() => {
+                                                        const cost = Number(detail.price) || 0;
+
+                                                        const qty =
+                                                        detail.ItemType === "PRODUCT"
+                                                            ? Number(detail.unitQty ?? detail.quantity ?? 0)
+                                                            : Number(detail.quantity ?? 0);
+
+                                                        const discount = Number(detail.discount) || 0;
+                                                        const taxRate = Number(detail.taxNet) || 0;
+
+                                                        let priceAfterDiscount = cost;
+
+                                                        if (detail.discountMethod === "Percent") {
+                                                            priceAfterDiscount = cost * (1 - discount / 100);
+                                                        } else {
+                                                            priceAfterDiscount = cost - discount;
+                                                        }
+
+                                                        let tax = 0;
+
+                                                        if (detail.taxMethod === "Exclude") {
+                                                            tax = (priceAfterDiscount * taxRate) / 100;
+                                                        } else if (detail.taxMethod === "Include") {
+                                                            const priceWithoutTax = priceAfterDiscount / (1 + taxRate / 100);
+                                                            tax = priceAfterDiscount - priceWithoutTax;
+                                                        }
+
+                                                        return (tax * qty).toFixed(2);
+                                                    })()}
+                                                    <br />
                                                     <span className="text-xs">({detail.taxMethod})</span>
                                                 </td>
                                                 <td>$ { Number(detail.total).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>

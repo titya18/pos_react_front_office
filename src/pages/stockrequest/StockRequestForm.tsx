@@ -1,45 +1,211 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft, faSave, faCirclePlus } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faSave } from "@fortawesome/free-solid-svg-icons";
 import { NavLink, useNavigate, useParams } from "react-router-dom";
-import { BranchType, ProductVariantType, StockRequestType, StockRequestDetailType } from "@/data_types/types";
+import {
+    BranchType,
+    ProductVariantType,
+    StockRequestType,
+    StockRequestDetailType,
+} from "@/data_types/types";
 import { getAllBranches } from "@/api/branch";
 import { searchProduct } from "@/api/searchProduct";
 import { upsertRequest, getStockRequestById } from "@/api/stockRequest";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
-import { useAppContext } from '@/hooks/useAppContext';
+import { useAppContext } from "@/hooks/useAppContext";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useQueryClient } from "@tanstack/react-query";
-import { FilePenLine, Pencil, Plus, Trash2 } from 'lucide-react';
+import { FilePenLine, Plus, Trash2 } from "lucide-react";
 import ShowWarningMessage from "../components/ShowWarningMessage";
-import { get } from "http";
-import { set } from "date-fns";
+
+type RawUnitRow = {
+    unitId?: number;
+    id?: number;
+    unitName?: string;
+    name?: string;
+    operationValue?: number | string;
+    operator?: string;
+    isBaseUnit?: boolean;
+    isBase?: boolean;
+    Units?: {
+        id?: number;
+        name?: string;
+    };
+    unit?: {
+        id?: number;
+        name?: string;
+    };
+};
+
+type VariantUnitType = {
+    unitId: number;
+    unitName: string;
+    operationValue: number;
+    operator?: string;
+    isBaseUnit?: boolean;
+};
+
+type ProductVariantWithUnits = ProductVariantType & {
+    unitOptions?: {
+        unitId: number;
+        unitName: string;
+        operationValue: number;
+        isBaseUnit?: boolean;
+        operator?: string;
+    }[];
+    units?: RawUnitRow[];
+    productUnitRelations?: RawUnitRow[];
+    products?: any;
+};
 
 const StockRequestForm: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const [isLoading, setIsLoading] = useState(false);
-    const [braches, setBranches] = useState<BranchType[]>([]);
-    // const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [productResults, setProductResults] = useState<ProductVariantType[]>([]);
-    const [requestDetails, setRequestDetails] = useState<StockRequestDetailType[]>([]);
-    const [clickData, setClickData] = useState<StockRequestDetailType | null>(null);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    const [statusValue, setStatusValue] = useState<string>("PENDING");
-
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
-
     const { user, hasPermission } = useAppContext();
 
-    const navigate = useNavigate(); // Initialize useNavigate
+    const [isLoading, setIsLoading] = useState(false);
+    const [branches, setBranches] = useState<BranchType[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [productResults, setProductResults] = useState<ProductVariantWithUnits[]>([]);
+    const [requestDetails, setRequestDetails] = useState<StockRequestDetailType[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [statusValue, setStatusValue] = useState<string>("PENDING");
+    const [branchInitialized, setBranchInitialized] = useState(false);
 
-    // const navigate = useNavigate()
+    const {
+        control,
+        register,
+        handleSubmit,
+        setValue,
+        watch,
+        reset,
+        formState: { errors },
+    } = useForm<StockRequestType>();
 
-    const { control, register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<StockRequestType> ();
+    const wrapperStyle = useMemo(() => ({ width: "100%" }), []);
+    const branchId = watch("branchId");
+
+    const normalizeUnit = (raw: RawUnitRow): VariantUnitType | null => {
+        const unitId = Number(raw.unitId ?? raw.id ?? raw.unit?.id ?? raw.Units?.id ?? 0);
+        const unitName =
+            raw.unitName ??
+            raw.name ??
+            raw.unit?.name ??
+            raw.Units?.name ??
+            "";
+
+        const operationValue = Number(raw.operationValue ?? 1) || 1;
+        const isBaseUnit = Boolean(raw.isBaseUnit ?? raw.isBase ?? false);
+
+        if (!unitId || !unitName) return null;
+
+        return {
+            unitId,
+            unitName,
+            operationValue,
+            operator: raw.operator ?? "*",
+            isBaseUnit,
+        };
+    };
+
+    const getVariantUnits = (variant: ProductVariantType | null | undefined): VariantUnitType[] => {
+        const v = variant as ProductVariantWithUnits | null | undefined;
+        if (!v) return [];
+
+        if (Array.isArray(v.unitOptions) && v.unitOptions.length > 0) {
+            return v.unitOptions.map((u) => ({
+                unitId: Number(u.unitId),
+                unitName: String(u.unitName),
+                operationValue: Number(u.operationValue ?? 1),
+                isBaseUnit: Boolean(u.isBaseUnit),
+                operator: u.operator ?? "*",
+            }));
+        }
+
+        const rawUnits: RawUnitRow[] = [
+            ...(Array.isArray(v.units) ? v.units : []),
+            ...(Array.isArray(v.productUnitRelations) ? v.productUnitRelations : []),
+            ...(Array.isArray(v.products?.productUnitRelations) ? v.products.productUnitRelations : []),
+            ...(Array.isArray(v.products?.units) ? v.products.units : []),
+        ];
+
+        const normalized = rawUnits
+            .map(normalizeUnit)
+            .filter((u): u is VariantUnitType => u !== null);
+
+        const unique = normalized.filter(
+            (item, index, arr) =>
+                arr.findIndex((x) => x.unitId === item.unitId) === index
+        );
+
+        return unique;
+    };
+
+    const getDefaultUnitData = (variant: ProductVariantType | null | undefined) => {
+        const units = getVariantUnits(variant);
+        const defaultUnit = units.find((u) => u.isBaseUnit) || units[0] || null;
+
+        return {
+            unitId: defaultUnit?.unitId ?? null,
+            unitName: defaultUnit?.unitName ?? "",
+            operationValue: Number(defaultUnit?.operationValue ?? 1) || 1,
+            operator: defaultUnit?.operator ?? "*",
+        };
+    };
+
+    const calculateBaseQty = (
+        unitQty: number | string | null | undefined,
+        operationValue: number,
+        operator: string = "*"
+    ) => {
+        const qty = Number(unitQty ?? 0);
+        const opValue = Number(operationValue || 1);
+
+        if (operator === "/") {
+            return opValue === 0 ? 0 : qty / opValue;
+        }
+
+        return qty * opValue;
+    };
+
+    const getSelectedUnit = (detail: StockRequestDetailType): VariantUnitType | null => {
+        const units = getVariantUnits(detail.productvariants);
+        return units.find((u) => Number(u.unitId) === Number(detail.unitId ?? 0)) || null;
+    };
+
+    const recalcDetailBaseQty = (detail: StockRequestDetailType): StockRequestDetailType => {
+        const selectedUnit = getSelectedUnit(detail);
+        const operationValue = Number(selectedUnit?.operationValue ?? 1) || 1;
+        const operator = selectedUnit?.operator ?? "*";
+
+        const baseQty = calculateBaseQty(detail.unitQty, operationValue, operator);
+
+        return {
+            ...detail,
+            baseQty,
+            quantity: baseQty, // legacy mirror
+        };
+    };
+
+    const getDisplayStockInSelectedUnit = (detail: StockRequestDetailType) => {
+        const selectedUnit = getSelectedUnit(detail);
+        const operationValue = Number(selectedUnit?.operationValue ?? 1) || 1;
+        const operator = selectedUnit?.operator ?? "*";
+        const stockBaseQty = Number(detail.stocks ?? 0);
+
+        if (!operationValue) return 0;
+
+        const result =
+            operator === "/"
+                ? stockBaseQty * operationValue
+                : stockBaseQty / operationValue;
+
+        return Number(result.toFixed(4));
+    };
 
     const fetchBranches = useCallback(async () => {
         setIsLoading(true);
@@ -51,56 +217,62 @@ const StockRequestForm: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [id, setValue]);
+    }, []);
 
-    const fetchStockRequst = useCallback(async () => {
-        if (id) { // Only fetch when 'id' is available and not already fetching
-            setIsLoading(true);
-            try {
-                if (id) {
-                    const requestData: StockRequestType = await getStockRequestById(parseInt(id, 10));
-                    await fetchBranches();
-                    setValue("branchId", requestData.branchId);
-                    setValue("requestDate", requestData.requestDate
-                        ? new Date(requestData.requestDate).toISOString()
-                        : null
-                    );
-                    setValue("StatusType", requestData.StatusType);
-                    setValue("note", requestData.note);
-                    // Update adjustmentDetails only if it has changed
-                    // if (JSON.stringify(adjustmentData.adjustmentDetails) !== JSON.stringify(adjustmentDetails)) {
-                        setRequestDetails(requestData.requestDetails);
-                    // }
-                    // console.log("adjustmentData:", adjustmentData.adjustmentDetails);
-                    setStatusValue(requestData.StatusType);
-                }
-            } catch (error) {
-                console.error("Error fetching stock request:", error);
-            } finally {
-                setIsLoading(false);
-                // setIsFetching(false); // Reset fetching flag after completion
-            }
+    const fetchStockRequest = useCallback(async () => {
+        if (!id) return;
+
+        setIsLoading(true);
+        try {
+            const requestData: StockRequestType = await getStockRequestById(parseInt(id, 10));
+            await fetchBranches();
+
+            setValue("branchId", requestData.branchId);
+            setValue(
+                "requestDate",
+                requestData.requestDate
+                    ? new Date(requestData.requestDate).toISOString()
+                    : null
+            );
+            setValue("StatusType", requestData.StatusType);
+            setValue("note", requestData.note);
+
+            setRequestDetails(
+                (requestData.requestDetails || []).map((detail) => ({
+                    ...detail,
+                    unitId: detail.unitId ?? null,
+                    unitQty: detail.unitQty ?? 1,
+                    baseQty: detail.baseQty ?? detail.quantity ?? 1,
+                    quantity: detail.quantity ?? Number(detail.baseQty ?? 1),
+                }))
+            );
+
+            setStatusValue(requestData.StatusType);
+        } catch (error) {
+            console.error("Error fetching stock request:", error);
+            toast.error("Failed to fetch stock request");
+        } finally {
+            setIsLoading(false);
         }
-    }, [id, setValue]);
+    }, [id, setValue, fetchBranches]);
 
     useEffect(() => {
-        // // Call all fetch functions
-        // const fetchData = async () => {
-        //     await Promise.all([fetchBranches(), fetchSuppliers(), fetchPurchase()]);
-        // };
-        // fetchData();
         fetchBranches();
-        fetchStockRequst();
-    }, [fetchBranches, fetchStockRequst]);
+        fetchStockRequest();
+    }, [fetchBranches, fetchStockRequest]);
 
-    const branchId = watch("branchId");
-        
     useEffect(() => {
-        setRequestDetails([]);
-        setSearchTerm("");
-    }, [branchId]);
+        if (!branchInitialized) {
+            setBranchInitialized(true);
+            return;
+        }
 
-    // Fetch products as the user types
+        if (!id) {
+            setRequestDetails([]);
+            setSearchTerm("");
+        }
+    }, [branchId, id, branchInitialized]);
+
     const handleSearch = async (term: string) => {
         if (term.trim() === "") {
             setProductResults([]);
@@ -116,467 +288,667 @@ const StockRequestForm: React.FC = () => {
         if (!selectedBranchId) {
             toast.error("No branch selected", {
                 position: "top-right",
-                autoClose: 4000
+                autoClose: 4000,
             });
             return;
-        };
+        }
 
         try {
-            const response = await searchProduct(term, selectedBranchId);
+            const response = (await searchProduct(term, selectedBranchId)) as ProductVariantWithUnits[];
 
-            // Find all matches for this barcode/sku
             const matches = response.filter(
-                (p: ProductVariantType) => p.barcode === term || p.sku === term
+                (p) => p.barcode === term || p.sku === term
             );
 
             if (matches.length === 0) {
-                // No match → show suggestions
                 setProductResults(response);
                 setShowSuggestions(true);
             } else if (matches.length === 1) {
-                // Only 1 match → auto add
                 addToCartDirectly(matches[0]);
                 setSearchTerm("");
+                setShowSuggestions(false);
             } else {
-                // Multiple matches → show modal to select New / SecondHand
                 setProductResults(matches);
-                setShowSuggestions(true); // You can also use a modal instead of dropdown
+                setShowSuggestions(true);
             }
-
-            // setSearchTerm(""); // Clear input after handling
         } catch (error) {
             console.error("Error fetching products:", error);
+            toast.error("Failed to search product");
         }
-    };
-
-    const addToCartDirectly = (variant: ProductVariantType) => {
-        const newDetail: StockRequestDetailType = {
-            id: 0,
-            productId: variant.products?.id || 0,
-            productVariantId: variant.id,
-            products: variant.products || null,
-            productvariants: variant,
-            quantity: 1, 
-            stocks: Number(
-                Array.isArray(variant.stocks)
-                    ? (variant.stocks[0]?.quantity ?? 0)
-                    : (variant.stocks?.quantity ?? 0)
-            ) || 0,
-        };
-
-        const existingIndex = requestDetails.findIndex(
-            (item) => item.productVariantId === newDetail.productVariantId
-        );
-
-        let updatedDetails = [...requestDetails];
-
-        if (existingIndex !== -1) {
-            // Increase quantity if already in cart
-            const currentQty = Number(updatedDetails[existingIndex].quantity) || 0;
-            updatedDetails[existingIndex].quantity = currentQty + 1;
-        } else {
-            // Add new product
-            updatedDetails.push(newDetail);
-        }
-
-        setRequestDetails(updatedDetails);
     };
 
     const handleFocus = () => {
-        // Clear suggestions when focusing on the input box
         setShowSuggestions(false);
-      };
+    };
 
-    // Handle typing in search bar
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const term = e.target.value;
         setSearchTerm(term);
         handleSearch(term);
     };
 
-    // Function to add or update a product detail
-    const addOrUpdateRequestDetail = async (Detail: StockRequestDetailType) => {
-        // Find if the product already exists in the array
-        const existingIndexData = requestDetails.findIndex(
-            (item) => item.productVariantId === Detail.productVariantId
-        );
-        if (existingIndexData !== -1) {
-            await ShowWarningMessage("Product already in cart");
-            return;
-        }
-        // console.log("ddfd:", newDetail);
-
-        const newDetail: StockRequestDetailType = {
-            id: Detail.id ?? 0, // Default to 0 if id is null
-            productId: Detail.productId ?? 0, // Provide defaults for other nullable fields
-            productVariantId: Detail.productVariantId ?? 0,
-            quantity: Detail.quantity ?? 1,
-            products: Detail.products ?? null,
-            productvariants: Detail.productvariants ?? null,
-            stocks: Detail.stocks ?? 0,
-        };
+    const addToCartDirectly = (variant: ProductVariantWithUnits) => {
+        const stockQty =
+            Number(
+                Array.isArray(variant.stocks)
+                    ? (variant.stocks[0] as any)?.quantity ?? 0
+                    : (variant.stocks as any)?.quantity ?? 0
+            ) || 0;
 
         const existingIndex = requestDetails.findIndex(
-            (item) => item.productVariantId === newDetail.productVariantId
+            (item) => item.productVariantId === variant.id
         );
 
         if (existingIndex !== -1) {
-            // Product exists; update its data
-            const updatedDetails = [...requestDetails];
-            updatedDetails[existingIndex] = { ...newDetail }; // Replace with the new data
-            setRequestDetails(updatedDetails);
-        } else {
-            // Product does not exist; add it
-            setRequestDetails([...requestDetails, newDetail]);
+            toast.warning("Product already added");
+            return;
         }
 
-        setSearchTerm(""); // Clear search
-        setShowSuggestions(false); // Hide suggestions
+        const defaultUnit = getDefaultUnitData(variant);
+
+        const newDetail: StockRequestDetailType = {
+            id: 0,
+            productId: variant.products?.id || 0,
+            productVariantId: variant.id,
+            products: variant.products || null,
+            productvariants: variant,
+            stocks: stockQty,
+            unitId: defaultUnit.unitId,
+            unitQty: 1,
+            baseQty: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
+            quantity: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
+        };
+
+        setRequestDetails((prev) => [...prev, newDetail]);
     };
 
-    const increaseQuantity = (index: number) => {
-        // Create a copy of the current purchaseDetails array
-        const updatedDetails = [...requestDetails];
-        
-        // Get the current detail object
-        const detail = updatedDetails[index];
+    const addOrUpdateRequestDetail = async (detail: StockRequestDetailType) => {
+        const exists = requestDetails.find(
+            (item) => item.productVariantId === detail.productVariantId
+        );
 
-        // Ensure quantity is a number before performing the increment
-        const currentQuantity = Number(detail.quantity) || 0; // Convert to number
-    
-        // Increase the quantity if it's less than the maximum allowed (25)
-        if (detail.quantity < 25) {
-            // Create a new detail object with updated quantity and total
-            const updatedDetail = {
-                ...detail,
-                quantity: currentQuantity + 1,
-            };
-    
-            // Replace the old detail with the updated one
-            updatedDetails[index] = updatedDetail;
-    
-            // Update the state with the new array
-            setRequestDetails(updatedDetails);
+        if (exists) {
+            await ShowWarningMessage("Product already in cart");
+            return;
         }
+
+        const variant = detail.productvariants;
+        const defaultUnit = getDefaultUnitData(variant);
+
+        const newDetail: StockRequestDetailType = {
+            id: detail.id ?? 0,
+            productId: detail.productId ?? 0,
+            productVariantId: detail.productVariantId ?? 0,
+            products: detail.products ?? null,
+            productvariants: detail.productvariants ?? null,
+            stocks: detail.stocks ?? 0,
+            unitId: defaultUnit.unitId,
+            unitQty: 1,
+            baseQty: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
+            quantity: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
+        };
+
+        setRequestDetails((prev) => [...prev, newDetail]);
+        setSearchTerm("");
+        setShowSuggestions(false);
     };
-    
-    const decreaseQuantity = (index: number) => {
-        const updatedDetails = [...requestDetails];
-        const detail = updatedDetails[index];
-        
-        // Ensure quantity is a number before performing the increment
-        const currentQuantity = Number(detail.quantity) || 0; // Convert to number
 
-        if (detail.quantity > 1) {
-            const updatedDetail = {
-                ...detail,
-                quantity: currentQuantity - 1,
-            };
-    
-            updatedDetails[index] = updatedDetail;
-            setRequestDetails(updatedDetails);
+    const handleUnitChange = (index: number, unitId: number) => {
+        setRequestDetails((prev) =>
+            prev.map((detail, i) => {
+                if (i !== index) return detail;
+
+                const updated = {
+                    ...detail,
+                    unitId,
+                };
+
+                return recalcDetailBaseQty(updated);
+            })
+        );
+    };
+
+    const handleUnitQtyChange = (index: number, value: string) => {
+        let cleaned = value.replace(/[^0-9.]/g, "");
+        const parts = cleaned.split(".");
+
+        if (parts.length > 2) {
+            cleaned = `${parts[0]}.${parts.slice(1).join("")}`;
         }
+
+        setRequestDetails((prev) =>
+            prev.map((detail, i) => {
+                if (i !== index) return detail;
+
+                const updated = {
+                    ...detail,
+                    unitQty: cleaned,
+                };
+
+                return recalcDetailBaseQty(updated);
+            })
+        );
+    };
+
+    const increaseUnitQty = (index: number) => {
+        setRequestDetails((prev) =>
+            prev.map((detail, i) => {
+                if (i !== index) return detail;
+
+                const currentQty = Number(detail.unitQty ?? 0);
+                const updated = {
+                    ...detail,
+                    unitQty: currentQty + 1,
+                };
+
+                return recalcDetailBaseQty(updated);
+            })
+        );
+    };
+
+    const decreaseUnitQty = (index: number) => {
+        setRequestDetails((prev) =>
+            prev.map((detail, i) => {
+                if (i !== index) return detail;
+
+                const currentQty = Number(detail.unitQty ?? 0);
+                const nextQty = currentQty > 1 ? currentQty - 1 : 1;
+
+                const updated = {
+                    ...detail,
+                    unitQty: nextQty,
+                };
+
+                return recalcDetailBaseQty(updated);
+            })
+        );
     };
 
     const removeProductFromCart = (index: number) => {
-        const updatedDetails = requestDetails.filter((_, i) => i !== index);
-        setRequestDetails(updatedDetails);
+        setRequestDetails((prev) => prev.filter((_, i) => i !== index));
     };
 
     const onSubmit: SubmitHandler<StockRequestType> = async (formData) => {
         setIsLoading(true);
+
         try {
+            if (requestDetails.length === 0) {
+                toast.error("Please add at least one product");
+                setIsLoading(false);
+                return;
+            }
+
+            for (const row of requestDetails) {
+                if (!row.unitId) {
+                    toast.error(`Please select unit for product ${row.products?.name || ""}`);
+                    setIsLoading(false);
+                    return;
+                }
+
+                if (!row.unitQty || Number(row.unitQty) <= 0) {
+                    toast.error(`Please enter valid quantity for product ${row.products?.name || ""}`);
+                    setIsLoading(false);
+                    return;
+                }
+
+                if (!row.baseQty || Number(row.baseQty) <= 0) {
+                    toast.error(`Invalid base quantity for product ${row.products?.name || ""}`);
+                    setIsLoading(false);
+                    return;
+                }
+
+                if (
+                    formData.StatusType === "APPROVED" &&
+                    Number(row.baseQty) > Number(row.stocks ?? 0)
+                ) {
+                    toast.error(`Insufficient stock for ${row.products?.name || ""}`);
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
+
+            const cleanedDetails: StockRequestDetailType[] = requestDetails.map((detail) => ({
+                id: detail.id ?? 0,
+                productId: Number(detail.productId),
+                productVariantId: Number(detail.productVariantId),
+                unitId: detail.unitId ? Number(detail.unitId) : null,
+                unitQty: detail.unitQty != null ? Number(detail.unitQty) : 0,
+                baseQty: detail.baseQty != null ? Number(detail.baseQty) : 0,
+                quantity: detail.baseQty != null ? Number(detail.baseQty) : 0,
+                products: detail.products ?? null,
+                productvariants: detail.productvariants ?? null,
+                stocks: detail.stocks ?? 0,
+            }));
+
             const requestData: StockRequestType = {
                 id: id ? Number(id) : undefined,
                 ref: "",
-                branchId: formData.branchId ?? user?.branchId,
+                branchId: Number(formData.branchId ?? user?.branchId),
                 requestBy: Number(user?.id),
-                branch: { id: formData.branchId ?? 0, name: "Default Branch", address: "Default Address"},
+                branch: {
+                    id: Number(formData.branchId ?? 0),
+                    name: "Default Branch",
+                    address: "Default Address",
+                },
                 requestDate: formData.requestDate,
                 StatusType: formData.StatusType,
                 note: formData.note,
                 delReason: "",
-                requestDetails: requestDetails
-            }
-            await upsertRequest(requestData);
-            toast.success(id ? "Stock Request updated successfully" : "Stock Request created successfully", {
-                position: "top-right",
-                autoClose: 2000
-            });
+                requestDetails: cleanedDetails,
+            };
 
-            // Reset form data and purchaseDetails
+            await upsertRequest(requestData);
+
+            toast.success(
+                id ? "Stock Request updated successfully" : "Stock Request created successfully",
+                {
+                    position: "top-right",
+                    autoClose: 2000,
+                }
+            );
+
             reset({
                 id: undefined,
                 branchId: undefined,
                 requestDate: undefined,
                 StatusType: undefined,
                 note: undefined,
-                requestDetails: []
+                requestDetails: [],
             });
 
-            // Redirect to the specified URL
+            setRequestDetails([]);
             navigate("/stockrequest");
-
         } catch (err: any) {
-            if (err.message) {
-                toast.error(err.message, {
-                    position: 'top-right',
-                    autoClose: 2000
-                });
-            } else {
-                toast.error("Error adding/editing stock request", {
-                    position: 'top-right',
-                    autoClose: 4000
-                });
-            }
+            toast.error(err.message || "Error adding/editing stock request", {
+                position: "top-right",
+                autoClose: 3000,
+            });
         } finally {
             setIsLoading(false);
         }
-    }
-
-    const wrapperStyle = {
-        width: "100%",
     };
 
     return (
-        <>
-            <div className="panel">
-                <div className="mb-5">
-                    <h5 className="flex items-center text-lg font-semibold dark:text-white-light">
-                        { id ? <FilePenLine /> : <Plus /> }
-                        { id ? " Update Stock Request" : " Add Stock Request" }
-                    </h5>
-                </div>
-                <div className="mb-5">
-                    <form onSubmit={handleSubmit(onSubmit)}>
-                        <div className="mb-5">
-                            {/* {user?.roleType === "USER" && !user?.branchId &&
-                                <div className="mb-5">
-                                    <label>Branch <span className="text-danger text-md">*</span></label>
-                                    <select 
-                                        id="branch" className="form-input" 
-                                        {...register("branchId", { 
-                                            required: "Branch is required"
-                                        })} 
+        <div className="panel">
+            <div className="mb-5">
+                <h5 className="flex items-center text-lg font-semibold dark:text-white-light gap-2">
+                    {id ? <FilePenLine /> : <Plus />}
+                    {id ? "Update Stock Request" : "Add Stock Request"}
+                </h5>
+            </div>
+
+            <div className="mb-5">
+                <form onSubmit={handleSubmit(onSubmit)}>
+                    <div className="mb-5">
+                        <div
+                            className={`grid grid-cols-1 gap-4 ${
+                                user?.roleType === "ADMIN" ? "sm:grid-cols-2" : "sm:grid-cols-1"
+                            } mb-5`}
+                        >
+                            {user?.roleType === "ADMIN" && (
+                                <div>
+                                    <label>
+                                        Branch <span className="text-danger text-md">*</span>
+                                    </label>
+                                    <select
+                                        id="branch"
+                                        className="form-input"
+                                        {...register("branchId", {
+                                            required: "Branch is required",
+                                        })}
                                     >
                                         <option value="">Select a branch</option>
-                                        {braches.map((option) => (
+                                        {branches.map((option) => (
                                             <option key={option.id} value={option.id}>
                                                 {option.name}
                                             </option>
                                         ))}
                                     </select>
-                                    {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
+                                    {errors.branchId && (
+                                        <span className="error_validate">{errors.branchId.message}</span>
+                                    )}
                                 </div>
-                            } */}
-                            <div className={`grid grid-cols-1 gap-4 ${ user?.roleType === "ADMIN" ? 'sm:grid-cols-2' : 'sm:grid-cols-1' } mb-5`}>
-                                {user?.roleType === "ADMIN" &&
-                                    <div>
-                                        <label>Branch <span className="text-danger text-md">*</span></label>
-                                        <select 
-                                            id="branch" className="form-input" 
-                                            {...register("branchId", { 
-                                                required: "Branch is required"
-                                            })} 
-                                        >
-                                            <option value="">Select a branch</option>
-                                            {braches.map((option) => (
-                                            <option key={option.id} value={option.id}>
-                                                {option.name}
-                                            </option>
-                                            ))}
-                                        </select>
-                                        {errors.branchId && <span className="error_validate">{errors.branchId.message}</span>}
-                                    </div>
-                                }
-                                <div style={wrapperStyle}>
-                                    <label htmlFor="date-picker">Select a Date: <span className="text-danger text-md">*</span></label>
-                                    <LocalizationProvider dateAdapter={AdapterDateFns}>
-                                        <Controller
-                                            name="requestDate"
-                                            control={control}
-                                            rules={{ required: "Request date is required" }}
-                                            render={({ field }) => (
-                                                <DatePicker
-                                                    value={field.value ? new Date(field.value as string) : null}
-                                                    onChange={(date) => field.onChange(date)}
-                                                    minDate={new Date()}
-                                                    slotProps={{
-                                                        textField: {
-                                                            fullWidth: true,
-                                                            error: !!errors.requestDate,
-                                                        },
-                                                    }}
-                                                />
-                                            )}
-                                        />
-                                    </LocalizationProvider>
-                                    {errors.requestDate && <span className="error_validate">{errors.requestDate.message}</span>}
-                                </div>
-                            </div>
-                            <div className="mb-5">
-                                <label>Product <span className="text-danger text-md">*</span></label>
-                                <div className="relative">
-                                    <input type="text" placeholder="Scan/Search Product by Code Or Name" className="peer form-input bg-gray-100 placeholder:tracking-widest ltr:pl-9 ltr:pr-9 rtl:pl-9 rtl:pr-9 sm:bg-transparent ltr:sm:pr-4 rtl:sm:pl-4" value={searchTerm} onChange={handleInputChange} onFocus={handleFocus} />
-                                    <button type="button" className="absolute inset-0 h-9 w-9 appearance-none peer-focus:text-primary ltr:right-auto rtl:left-auto">
-                                        <svg className="mx-auto" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <circle cx="11.5" cy="11.5" r="9.5" stroke="currentColor" strokeWidth="1.5" opacity="0.5"></circle>
-                                            <path d="M18.5 18.5L22 22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path>
-                                        </svg>
-                                    </button>
-                                </div>
-                                {/* Dropdown for suggestions */}
-                                {showSuggestions && productResults.length > 0 && (
-                                    <ul
-                                        style={{
-                                            listStyle: "none",
-                                            border: "1px solid #ccc",
-                                            padding: 0,
-                                            margin: 0,
-                                            position: "absolute",
-                                            backgroundColor: "white",
-                                            zIndex: 10,
-                                            maxHeight: "200px",
-                                            overflowY: "auto",
-                                            width: "100%",
-                                        }}
-                                    >
-                                        {productResults.map((variants) => (
-                                            <li
-                                                key={variants.id}
-                                                style={{
-                                                    padding: "8px",
-                                                    cursor: "pointer",
-                                                    borderBottom: "1px solid #eee",
+                            )}
+
+                            <div style={wrapperStyle}>
+                                <label htmlFor="date-picker">
+                                    Select a Date: <span className="text-danger text-md">*</span>
+                                </label>
+                                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                                    <Controller
+                                        name="requestDate"
+                                        control={control}
+                                        rules={{ required: "Request date is required" }}
+                                        render={({ field }) => (
+                                            <DatePicker
+                                                value={field.value ? new Date(field.value as string) : null}
+                                                onChange={(date) => field.onChange(date)}
+                                                slotProps={{
+                                                    textField: {
+                                                        fullWidth: true,
+                                                        error: !!errors.requestDate,
+                                                    },
                                                 }}
-                                                onClick={() => addOrUpdateRequestDetail({
-                                                    id: 0, // Assign a default or unique value
-                                                    productId: variants.products?.id || 0,
-                                                    productVariantId: variants.id,
-                                                    products: variants.products || null,
-                                                    productvariants: variants,
-                                                    quantity: 1, // Default quantity for a new item
-                                                    stocks: Number(
-                                                        Array.isArray(variants.stocks)
-                                                            ? (variants.stocks[0]?.quantity ?? 0)
-                                                            : (variants.stocks?.quantity ?? 0)
-                                                    ) || 0,
-                                                })}
-                                            >
-                                                {/* {variants.products?.name} - {variants.name+' - '+variants.barcode} */}
-                                                {variants.products?.name+' - '+variants.barcode} ({variants.productType})
-                                            </li>
-                                        ))}
-                                    </ul>
+                                            />
+                                        )}
+                                    />
+                                </LocalizationProvider>
+                                {errors.requestDate && (
+                                    <span className="error_validate">{errors.requestDate.message}</span>
                                 )}
                             </div>
-                            <div className="dataTable-container">
-                                <table id="myTable1" className="whitespace-nowrap dataTable-table">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Product</th>
-                                            {/* <th>Stock</th> */}
-                                            <th>Qty</th>
-                                            {statusValue == "PENDING" && 
-                                                <th>Qty On Hand</th>
-                                            }
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {requestDetails.map((detail, index) => (
-                                            <tr key={index}>
-                                                <td>{ index + 1 }</td>
-                                                <td>
-                                                    <p>{ detail.products?.name } - { detail.productvariants?.name }</p>
-                                                    <p className="text-center">
-                                                        <span className="badge badge-outline-primary rounded-full">
-                                                            { detail.productvariants?.barcode }
-                                                        </span>
-                                                    </p>
-                                                </td>
-                                                {/* <td>5</td> */}
-                                                <td>
-                                                    <div className="inline-flex" style={{width: '40%'}}>
-                                                        <button type="button" onClick={() => decreaseQuantity(index)} className="flex items-center justify-center border border-r-0 border-danger bg-danger px-3 font-semibold text-white ltr:rounded-l-md rtl:rounded-r-md">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                                                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                                            </svg>
-                                                        </button>
-                                                            <input type="text" value={detail.quantity} className="form-input rounded-none text-center" min="0" max="25" readOnly />
-                                                        <button type="button" onClick={() => increaseQuantity(index)} className="flex items-center justify-center border border-l-0 border-warning bg-warning px-3 font-semibold text-white ltr:rounded-r-md rtl:rounded-l-md">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-                                                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                                                            </svg>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                                {statusValue == "PENDING" && 
-                                                    <td>{ detail.stocks }</td>
-                                                }
-                                                <td>
-                                                    <button type="button" onClick={() => removeProductFromCart(index)} className="hover:text-danger" title="Delete">
-                                                        <Trash2 color="red" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-5">
-                                <div>
-                                    <label>Status <span className="text-danger text-md">*</span></label>
-                                    <select 
-                                        id="status" className="form-input" 
-                                        {...register("StatusType", { 
-                                            required: "Status is required"
-                                        })} 
-                                    >
-                                        <option value="">Select a status...</option>
-                                        <option value="PENDING">Pending</option>
-                                        <option 
-                                            value="APPROVED"
-                                            hidden={!(user?.roleType === "USER" && statusValue !== "PENDING")}
-                                        >
-                                            Approved
-                                        </option>
-                                        <option 
-                                            value="APPROVED"
-                                            hidden={!(hasPermission('Stock-Request-Approve') && statusValue === "PENDING")}
-                                        >
-                                            Approved
-                                        </option>
-
-                                    </select>
-                                    {errors.StatusType && <span className="error_validate">{errors.StatusType.message}</span>}
-                                </div>
-                            </div>
-                            <div className="mb-5">
-                                <label>Note</label>
-                                <textarea {...register("note")} className="form-input" rows={3}></textarea>
-                            </div>
                         </div>
-                        <div className="flex justify-end items-center mt-8">
-                            <NavLink to="/stockrequest" type="button" className="btn btn-outline-warning">
-                                <FontAwesomeIcon icon={faArrowLeft} className='mr-1' />
-                                Go Back
-                            </NavLink>
-                            {statusValue === 'PENDING' &&
-                                (hasPermission('Stock-Request-Create') || hasPermission('Adjust-Stock-Edit')) && (
-                                    <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
-                                        <FontAwesomeIcon icon={faSave} className='mr-1' />
-                                        {isLoading ? 'Saving...' : 'Save'}
-                                    </button>
+
+                        <div className="mb-5 relative">
+                            <label>
+                                Product <span className="text-danger text-md">*</span>
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Scan/Search Product by Code Or Name"
+                                    className="peer form-input bg-gray-100 placeholder:tracking-widest ltr:pl-9 ltr:pr-9 rtl:pl-9 rtl:pr-9 sm:bg-transparent ltr:sm:pr-4 rtl:sm:pl-4"
+                                    value={searchTerm}
+                                    onChange={handleInputChange}
+                                    onFocus={handleFocus}
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute inset-0 h-9 w-9 appearance-none peer-focus:text-primary ltr:right-auto rtl:left-auto"
+                                >
+                                    <svg
+                                        className="mx-auto"
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                        <circle
+                                            cx="11.5"
+                                            cy="11.5"
+                                            r="9.5"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                            opacity="0.5"
+                                        ></circle>
+                                        <path
+                                            d="M18.5 18.5L22 22"
+                                            stroke="currentColor"
+                                            strokeWidth="1.5"
+                                            strokeLinecap="round"
+                                        ></path>
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {showSuggestions && productResults.length > 0 && (
+                                <ul
+                                    style={{
+                                        listStyle: "none",
+                                        border: "1px solid #ccc",
+                                        padding: 0,
+                                        margin: 0,
+                                        position: "absolute",
+                                        backgroundColor: "white",
+                                        zIndex: 10,
+                                        maxHeight: "250px",
+                                        overflowY: "auto",
+                                        width: "100%",
+                                    }}
+                                >
+                                    {productResults.map((variant) => (
+                                        <li
+                                            key={variant.id}
+                                            style={{
+                                                padding: "8px",
+                                                cursor: "pointer",
+                                                borderBottom: "1px solid #eee",
+                                            }}
+                                            onClick={() =>
+                                                addOrUpdateRequestDetail({
+                                                    id: 0,
+                                                    productId: variant.products?.id || 0,
+                                                    productVariantId: variant.id,
+                                                    products: variant.products || null,
+                                                    productvariants: variant,
+                                                    quantity: 1,
+                                                    stocks:
+                                                        Number(
+                                                            Array.isArray(variant.stocks)
+                                                                ? (variant.stocks[0] as any)?.quantity ?? 0
+                                                                : (variant.stocks as any)?.quantity ?? 0
+                                                        ) || 0,
+                                                    unitId: null,
+                                                    unitQty: 1,
+                                                    baseQty: 1,
+                                                })
+                                            }
+                                        >
+                                            {variant.products?.name} - {variant.barcode} ({variant.productType})
+                                        </li>
+                                    ))}
+                                </ul>
                             )}
                         </div>
-                    </form>
-                </div>
+
+                        <div className="dataTable-container">
+                            <table id="myTable1" className="whitespace-nowrap dataTable-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Product</th>
+                                        <th>Unit</th>
+                                        <th>Qty</th>
+                                        <th>Base Qty</th>
+                                        {statusValue === "PENDING" && <th>Qty On Hand</th>}
+                                        <th></th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {requestDetails.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={7} className="text-center py-4">
+                                                No products added
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        requestDetails.map((detail, index) => {
+                                            const units = getVariantUnits(detail.productvariants);
+                                            const selectedUnit = getSelectedUnit(detail);
+                                            const stockInSelectedUnit = getDisplayStockInSelectedUnit(detail);
+
+                                            return (
+                                                <tr key={index}>
+                                                    <td>{index + 1}</td>
+
+                                                    <td>
+                                                        <p>
+                                                            {detail.products?.name} ({detail.productvariants?.productType})
+                                                        </p>
+                                                        <p className="text-center">
+                                                            <span className="badge badge-outline-primary rounded-full">
+                                                                {detail.productvariants?.barcode}
+                                                            </span>
+                                                        </p>
+                                                    </td>
+
+                                                    <td style={{ minWidth: "160px" }}>
+                                                        <select
+                                                            className="form-input"
+                                                            value={detail.unitId ?? ""}
+                                                            onChange={(e) =>
+                                                                handleUnitChange(index, Number(e.target.value))
+                                                            }
+                                                        >
+                                                            <option value="">Select unit</option>
+                                                            {units.map((unit) => (
+                                                                <option key={unit.unitId} value={unit.unitId}>
+                                                                    {unit.unitName}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </td>
+
+                                                    <td style={{ minWidth: "220px" }}>
+                                                        <div className="inline-flex w-full">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => decreaseUnitQty(index)}
+                                                                className="flex items-center justify-center border border-r-0 border-danger bg-danger px-3 font-semibold text-white ltr:rounded-l-md rtl:rounded-r-md"
+                                                            >
+                                                                <svg
+                                                                    xmlns="http://www.w3.org/2000/svg"
+                                                                    width="24px"
+                                                                    height="24px"
+                                                                    viewBox="0 0 24 24"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="1.5"
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    className="h-5 w-5"
+                                                                >
+                                                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                                                </svg>
+                                                            </button>
+
+                                                            <input
+                                                                type="text"
+                                                                className="form-input rounded-none text-center"
+                                                                value={detail.unitQty ?? ""}
+                                                                onChange={(e) =>
+                                                                    handleUnitQtyChange(index, e.target.value)
+                                                                }
+                                                                placeholder="Qty"
+                                                            />
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => increaseUnitQty(index)}
+                                                                className="flex items-center justify-center border border-l-0 border-warning bg-warning px-3 font-semibold text-white ltr:rounded-r-md rtl:rounded-l-md"
+                                                            >
+                                                                <svg
+                                                                    xmlns="http://www.w3.org/2000/svg"
+                                                                    width="24px"
+                                                                    height="24px"
+                                                                    viewBox="0 0 24 24"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="1.5"
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    className="h-5 w-5"
+                                                                >
+                                                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+
+                                                    <td style={{ minWidth: "140px" }}>
+                                                        <input
+                                                            type="text"
+                                                            className="form-input text-right bg-gray-100"
+                                                            value={detail.baseQty ?? ""}
+                                                            readOnly
+                                                        />
+                                                    </td>
+
+                                                    {statusValue === "PENDING" && (
+                                                        <td>
+                                                            <div>{Number(detail.stocks ?? 0)}</div>
+                                                            {selectedUnit && (
+                                                                <small className="text-gray-500">
+                                                                    {stockInSelectedUnit} {selectedUnit.unitName}
+                                                                </small>
+                                                            )}
+                                                        </td>
+                                                    )}
+
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeProductFromCart(index)}
+                                                            className="hover:text-danger"
+                                                            title="Delete"
+                                                        >
+                                                            <Trash2 color="red" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-5 mt-5">
+                            <div>
+                                <label>
+                                    Status <span className="text-danger text-md">*</span>
+                                </label>
+                                <select
+                                    id="status"
+                                    className="form-input"
+                                    {...register("StatusType", {
+                                        required: "Status is required"
+                                    })}
+                                >
+                                    <option value="">Select a status...</option>
+                                    <option value="PENDING">Pending</option>
+                                    <option
+                                        value="APPROVED"
+                                        hidden={!(user?.roleType === "USER" && statusValue !== "PENDING")}
+                                    >
+                                        Approved
+                                    </option>
+                                    <option
+                                        value="APPROVED"
+                                        hidden={!(hasPermission("Stock-Request-Approve") && statusValue === "PENDING")}
+                                    >
+                                        Approved
+                                    </option>
+                                </select>
+                                {errors.StatusType && (
+                                    <span className="error_validate">{errors.StatusType.message}</span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="mb-5">
+                            <label>Note</label>
+                            <textarea {...register("note")} className="form-input" rows={3}></textarea>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end items-center mt-8">
+                        <NavLink to="/stockrequest" type="button" className="btn btn-outline-warning">
+                            <FontAwesomeIcon icon={faArrowLeft} className="mr-1" />
+                            Go Back
+                        </NavLink>
+
+                        {statusValue === "PENDING" &&
+                            (hasPermission("Stock-Request-Create") ||
+                                hasPermission("Stock-Request-Edit")) && (
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary ltr:ml-4 rtl:mr-4"
+                                    disabled={isLoading}
+                                >
+                                    <FontAwesomeIcon icon={faSave} className="mr-1" />
+                                    {isLoading ? "Saving..." : "Save"}
+                                </button>
+                            )}
+                    </div>
+                </form>
             </div>
-        </>
+        </div>
     );
 };
 

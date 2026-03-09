@@ -269,26 +269,39 @@ const PurchaseForm: React.FC = () => {
     };
 
     const addToCartDirectly = (variant: ProductVariantType) => {
+
         const newDetail: PurchaseDetailType = {
             id: 0,
             productId: variant.products?.id || 0,
             productVariantId: variant.id,
+
             products: variant.products || null,
             productvariants: variant,
-            quantity: 1, 
+
+            // ✅ units
+            unitId: variant.baseUnitId ?? null,
+            unitQty: 1,
+            baseQty: 1,
+
+            quantity: 1,
+
             cost: Number(variant.purchasePrice) || 0,
+            costPerBaseUnit: 0,
             taxNet: 0,
             taxMethod: "Include",
+
             discount: 0,
             discountMethod: "Fixed",
+
             total: calculateTotal({
                 cost: Number(variant.purchasePrice) || 0,
-                quantity: 1,
+                unitQty: 1,
                 taxNet: 0,
                 taxMethod: "Include",
                 discount: 0,
                 discountMethod: "Fixed",
             }),
+
             stocks: Number(
                 Array.isArray(variant.stocks)
                     ? (variant.stocks[0]?.quantity ?? 0)
@@ -303,21 +316,23 @@ const PurchaseForm: React.FC = () => {
         let updatedDetails = [...purchaseDetails];
 
         if (existingIndex !== -1) {
-            // Increase quantity if already in cart
-            const currentQty = Number(updatedDetails[existingIndex].quantity) || 0;
-            updatedDetails[existingIndex].quantity = currentQty + 1;
+
+            const current = Number(updatedDetails[existingIndex].unitQty ?? 0);
+
+            updatedDetails[existingIndex].unitQty = current + 1;
+            updatedDetails[existingIndex].quantity = current + 1;
+
             updatedDetails[existingIndex].total = calculateTotal({
                 ...updatedDetails[existingIndex],
-                quantity: currentQty + 1,
+                unitQty: current + 1
             });
+
         } else {
-            // Add new product
             updatedDetails.push(newDetail);
         }
 
         setPurchaseDetails(updatedDetails);
 
-        // Recalculate grand total
         const totalSum = sumTotal(updatedDetails);
         setGrandTotal(totalSum);
     };
@@ -356,27 +371,40 @@ const PurchaseForm: React.FC = () => {
     const handleOnSubmit = async (PurchaseDetailData: PurchaseDetailType) => {
         try {
             const newDetail: PurchaseDetailType = {
-                id: PurchaseDetailData.id ?? 0, // Default to 0 if id is null
-                productId: PurchaseDetailData.productId ?? 0, // Provide defaults for other nullable fields
+                id: PurchaseDetailData.id ?? 0,
+                productId: PurchaseDetailData.productId ?? 0,
                 productVariantId: PurchaseDetailData.productVariantId ?? 0,
-                quantity: PurchaseDetailData.quantity ?? 1,
-                cost: PurchaseDetailData.cost ? PurchaseDetailData.cost : 0,
-                taxNet: PurchaseDetailData.taxNet ?? 0,
-                taxMethod: PurchaseDetailData.taxMethod ?? null,
-                discount: PurchaseDetailData.discount ?? 0,
-                discountMethod: PurchaseDetailData.discountMethod ?? null,
+
                 products: PurchaseDetailData.products ?? null,
                 productvariants: PurchaseDetailData.productvariants ?? null,
+
+                unitId: (PurchaseDetailData as any).unitId ?? null,
+                unitQty: (PurchaseDetailData as any).unitQty ?? 1,
+                baseQty: (PurchaseDetailData as any).baseQty ?? null,
+
+                quantity: (PurchaseDetailData as any).unitQty ?? 1,
+
+                cost: PurchaseDetailData.cost ?? 0,
+                costPerBaseUnit: PurchaseDetailData.costPerBaseUnit ?? 0,
+
+                taxNet: PurchaseDetailData.taxNet ?? 0,
+                taxMethod: PurchaseDetailData.taxMethod ?? "Include",
+
+                discount: PurchaseDetailData.discount ?? 0,
+                discountMethod: PurchaseDetailData.discountMethod ?? "Fixed",
+
                 total: calculateTotal({
                     cost: PurchaseDetailData.cost,
-                    quantity: PurchaseDetailData.quantity,
+                    unitQty: (PurchaseDetailData as any).unitQty ?? 1,
                     taxNet: PurchaseDetailData.taxNet,
                     taxMethod: PurchaseDetailData.taxMethod,
                     discount: PurchaseDetailData.discount,
                     discountMethod: PurchaseDetailData.discountMethod,
                 }),
+
                 stocks: PurchaseDetailData.stocks ?? 0,
             };
+            console.log("Sanitized Detail: ", newDetail);
 
             const existingIndex = purchaseDetails.findIndex(
                 (item) => item.productVariantId === newDetail.productVariantId
@@ -393,7 +421,10 @@ const PurchaseForm: React.FC = () => {
             }
 
             // Recalculate grand total
-            const totalSum = sumTotal([...purchaseDetails, newDetail]);
+            const totalSum = sumTotal(existingIndex !== -1
+                ? purchaseDetails.map((d, i) => i === existingIndex ? newDetail : d)
+                : [...purchaseDetails, newDetail]
+            );
             setGrandTotal(totalSum);
 
             setIsModalOpen(false);
@@ -414,79 +445,95 @@ const PurchaseForm: React.FC = () => {
     };
 
     const increaseQuantity = (index: number) => {
-        // Create a copy of the current purchaseDetails array
-        const updatedDetails = [...purchaseDetails];
-        
-        // Get the current detail object
-        const detail = updatedDetails[index];
+        const updated = [...purchaseDetails];
+        const d: any = updated[index];
 
-        // Ensure quantity is a number before performing the increment
-        const currentQuantity = Number(detail.quantity) || 0; // Convert to number
-    
-        // Increase the quantity if it's less than the maximum allowed (25)
-        if (detail.quantity < 25) {
-            // Create a new detail object with updated quantity and total
-            const updatedDetail = {
-                ...detail,
-                quantity: currentQuantity + 1,
-                total: calculateTotal({ ...detail, quantity: currentQuantity + 1 }), // Recalculate total after quantity change
-            };
-    
-            // Replace the old detail with the updated one
-            updatedDetails[index] = updatedDetail;
-    
-            // Update the state with the new array
-            setPurchaseDetails(updatedDetails);
+        const current = Number(d.unitQty ?? 0);
+        if (current < 25) {
+            d.unitQty = current + 1;
+            d.quantity = current + 1;
+            d.total = calculateTotal({ ...d, unitQty: d.unitQty });
+            updated[index] = d;
+            setPurchaseDetails(updated);
         }
     };
-    
+
     const decreaseQuantity = (index: number) => {
-        const updatedDetails = [...purchaseDetails];
-        const detail = updatedDetails[index];
-        
-        // Ensure quantity is a number before performing the increment
-        const currentQuantity = Number(detail.quantity) || 0; // Convert to number
+        const updated = [...purchaseDetails];
+        const d: any = updated[index];
 
-        if (detail.quantity > 1) {
-            const updatedDetail = {
-                ...detail,
-                quantity: currentQuantity - 1,
-                total: calculateTotal({ ...detail, quantity: currentQuantity - 1 }), // Recalculate total after quantity change
-            };
-    
-            updatedDetails[index] = updatedDetail;
-            setPurchaseDetails(updatedDetails);
+        const current = Number(d.unitQty ?? 0);
+        if (current > 1) {
+            d.unitQty = current - 1;
+            d.quantity = current - 1;
+            d.total = calculateTotal({ ...d, unitQty: d.unitQty });
+            updated[index] = d;
+            setPurchaseDetails(updated);
         }
     };
     
-    const calculateTotal = (detail: Partial<PurchaseDetailType>): number => {
-        const cost = Number(detail.cost) || 0; // Product cost
-        const quantity = Number(detail.quantity) || 0; // Quantity
-        const discount = Number(detail.discount) || 0; // discount value
-        const taxNet = Number(detail.taxNet) || 0; // Tax value
+    // const calculateTotal = (detail: Partial<PurchaseDetailType>): number => {
+    //     const cost = Number(detail.cost) || 0; // Product cost
+    //     const quantity = Number((detail as any).unitQty ?? detail.quantity) || 0;
+    //     const discount = Number(detail.discount) || 0; // discount value
+    //     const taxNet = Number(detail.taxNet) || 0; // Tax value
       
-        // Determine discount method (default to no discount if null)
-        const discountedPrice = detail.discountMethod === "Percent"
-          ? cost * ((100 - discount) / 100) // Apply percentage discount
-          : detail.discountMethod === "Fixed"
-          ? cost - discount // Apply flat discount
-          : cost; // No discount applied
+    //     // Determine discount method (default to no discount if null)
+    //     const discountedPrice = detail.discountMethod === "Percent"
+    //       ? cost * ((100 - discount) / 100) // Apply percentage discount
+    //       : detail.discountMethod === "Fixed"
+    //       ? cost - discount // Apply flat discount
+    //       : cost; // No discount applied
       
-        // Determine tax method (default to no tax if null)
-        let priceAfterTax = discountedPrice;
-        if (detail.taxMethod === "Include") {
-          // Tax is included in the cost, no additional tax is applied
-          priceAfterTax = discountedPrice;
-        } else if (detail.taxMethod === "Exclude") {
-          // Tax is added to the discounted price
-          priceAfterTax = discountedPrice + (discountedPrice * (taxNet / 100));
+    //     // Determine tax method (default to no tax if null)
+    //     let priceAfterTax = discountedPrice;
+    //     if (detail.taxMethod === "Include") {
+    //       // Tax is included in the cost, no additional tax is applied
+    //       priceAfterTax = discountedPrice;
+    //     } else if (detail.taxMethod === "Exclude") {
+    //       // Tax is added to the discounted price
+    //       priceAfterTax = discountedPrice + (discountedPrice * (taxNet / 100));
+    //     }
+      
+    //     // Calculate total
+    //     return quantity * priceAfterTax;
+    // }; 
+
+    const calculateTotal = (detail: Partial<PurchaseDetailType>) => {
+
+        const cost = Number(detail.cost) || 0
+        const qty = Number((detail as any).unitQty ?? detail.quantity ?? 0)
+
+        const discount = Number(detail.discount) || 0
+        const taxRate = Number(detail.taxNet) || 0
+
+        let priceAfterDiscount = cost
+
+        // discount
+        if (detail.discountMethod === "Percent") {
+            priceAfterDiscount = cost * (1 - discount / 100)
+        } else if (detail.discountMethod === "Fixed") {
+            priceAfterDiscount = cost - discount
         }
-      
-        // Calculate total
-        return quantity * priceAfterTax;
-    }; 
+
+        let taxAmount = 0
+        let unitTotal = priceAfterDiscount
+
+        if (detail.taxMethod === "Exclude") {
+            taxAmount = priceAfterDiscount * taxRate / 100
+            unitTotal = priceAfterDiscount + taxAmount
+        }
+
+        if (detail.taxMethod === "Include") {
+            const priceWithoutTax = priceAfterDiscount / (1 + taxRate / 100)
+            taxAmount = priceAfterDiscount - priceWithoutTax
+            unitTotal = priceAfterDiscount
+        }
+
+        return unitTotal * qty
+    }
     
-    const sumTotal = (details: { total: string | number }[]) => {
+    const sumTotal = (details: PurchaseDetailType[]) => {
         return details.reduce((sum, item) => {
             const sanitizedTotal = parseFloat(String(item.total).replace(/^0+/, "")) || 0;
             return sum + sanitizedTotal;
@@ -654,8 +701,15 @@ const PurchaseForm: React.FC = () => {
             productVariantId: newDetail.productVariantId,
             products: newDetail.products || null,
             productvariants: newDetail.productvariants || null,
+
+            // ✅ remember unit fields
+            unitId: newDetail.unitId ?? (newDetail.productvariants as any)?.baseUnitId ?? null,
+            unitQty: newDetail.unitQty ?? newDetail.quantity ?? 1,
+            baseQty: newDetail.baseQty ?? null,
+
             quantity: newDetail.quantity,
             cost: newDetail.cost,
+            costPerBaseUnit: newDetail.costPerBaseUnit,
             taxNet: newDetail.taxNet,
             taxMethod: newDetail.taxMethod,
             discount: newDetail.discount,
@@ -663,8 +717,9 @@ const PurchaseForm: React.FC = () => {
             total: newDetail.total,
             stocks: newDetail.stocks,
         });
+
         setIsModalOpen(true);
-    }
+    };
 
     const wrapperStyle = {
         width: "100%",
@@ -803,6 +858,7 @@ const PurchaseForm: React.FC = () => {
                                                     productvariants: variants,
                                                     quantity: 1, // Default quantity for a new item
                                                     cost: Number(variants.purchasePrice) || 0, // Default cost
+                                                    costPerBaseUnit: 0,
                                                     taxNet: 0, // Default taxNet
                                                     taxMethod: "Include", // Default tax method
                                                     discount: 0,
@@ -873,7 +929,7 @@ const PurchaseForm: React.FC = () => {
                                                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                                                             </svg>
                                                         </button>
-                                                            <input type="text" value={detail.quantity} className="form-input rounded-none text-center" min="0" max="25" readOnly />
+                                                            <input type="text" value={detail.unitQty ?? 0} className="form-input rounded-none text-center" min="0" max="25" readOnly />
                                                         <button type="button" onClick={() => increaseQuantity(index)} className="flex items-center justify-center border border-l-0 border-warning bg-warning px-3 font-semibold text-white ltr:rounded-r-md rtl:rounded-l-md">
                                                             <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
                                                                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -893,15 +949,41 @@ const PurchaseForm: React.FC = () => {
                                                                 : Number(detail.cost - (detail.cost * ((100 - detail.discount) / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                                                       }
                                                 </td>
-                                                <td>$&nbsp;
-                                                    { 
-                                                        detail.discountMethod === "Fixed" 
-                                                        ? Number(detail.quantity * ((detail.cost - detail.discount) * (detail.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                                                        : Number(detail.quantity * ((detail.cost * ((100 - detail.discount) / 100)) * (detail.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                                                <td>
+                                                    {
+                                                        (() => {
+
+                                                            const cost = Number(detail.cost) || 0
+                                                            const qty = Number(detail.unitQty) || 0
+                                                            const discount = Number(detail.discount) || 0
+                                                            const taxRate = Number(detail.taxNet) || 0
+
+                                                            let priceAfterDiscount = cost
+
+                                                            if (detail.discountMethod === "Percent") {
+                                                                priceAfterDiscount = cost * (1 - discount / 100)
+                                                            } else {
+                                                                priceAfterDiscount = cost - discount
+                                                            }
+
+                                                            let tax = 0
+
+                                                            if (detail.taxMethod === "Exclude") {
+                                                                tax = priceAfterDiscount * taxRate / 100
+                                                            }
+
+                                                            if (detail.taxMethod === "Include") {
+                                                                const priceWithoutTax = priceAfterDiscount / (1 + taxRate / 100)
+                                                                tax = priceAfterDiscount - priceWithoutTax
+                                                            }
+
+                                                            return (tax * qty).toFixed(2)
+                                                        })()
                                                     }
                                                     <br/>
                                                     <span className="text-xs">({detail.taxMethod})</span>
                                                 </td>
+
                                                 <td>$ { Number(detail.total).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') }</td>
                                                 <td>
                                                     <button type="button" onClick={() => removeProductFromCart(index)} className="hover:text-danger" title="Delete">
@@ -956,34 +1038,36 @@ const PurchaseForm: React.FC = () => {
                                 </div> */}
                                 <div>
                                     <label>Status <span className="text-danger text-md">*</span></label>
-                                    <select 
-                                        id="status" className="form-input" 
-                                        {...register("status", { 
-                                            required: "Status is required"
-                                        })} 
+                                    <select
+                                        id="status"
+                                        className="form-input"
+                                        {...register("status", { required: "Status is required" })}
                                     >
                                         <option value="">Select a status...</option>
-                                        <option 
+
+                                        <option
                                             value="PENDING"
                                             disabled={statusValue === "APPROVED"}
                                         >
                                             Pending
                                         </option>
-                                        <option 
+
+                                        <option
                                             value="REQUESTED"
                                             disabled={statusValue === "APPROVED"}
                                         >
                                             Requested
                                         </option>
-                                        <option 
-                                            value="APPROVED" 
+
+                                        <option
+                                            value="APPROVED"
                                             disabled={statusValue === "APPROVED"}
                                         >
                                             Approved
                                         </option>
+
                                         <option
                                             value="RECEIVED"
-                                            selected={statusValue === "APPROVED"}
                                             disabled={
                                                 !hasPermission("Purchase-Receive") &&
                                                 (statusValue === "PENDING" || statusValue === "APPROVED")
@@ -991,66 +1075,73 @@ const PurchaseForm: React.FC = () => {
                                         >
                                             Received
                                         </option>
-                                        
+
                                         <option
                                             value="COMPLETED"
-                                            disabled={statusValue !== "COMPLETED" && statusValue !== "RECEIVED" && statusValue !== "CANCELLED"}
+                                            disabled={
+                                                statusValue !== "COMPLETED" &&
+                                                statusValue !== "RECEIVED" &&
+                                                statusValue !== "CANCELLED"
+                                            }
                                         >
                                             Completed
                                         </option>
-                                        
+
                                         <option
                                             value="CANCELLED"
-                                            disabled={statusValue !== "CANCELLED" && statusValue !== "RECEIVED" && statusValue !== "COMPLETED"}
+                                            disabled={
+                                                statusValue !== "CANCELLED" &&
+                                                statusValue !== "RECEIVED" &&
+                                                statusValue !== "COMPLETED"
+                                            }
                                         >
                                             Cancelled
                                         </option>
-
                                     </select>
                                     {errors.status && <span className="error_validate">{errors.status.message}</span>}
                                 </div>
                             </div>
                             <label htmlFor="module">Purchase's Image</label>
-                                    {/* Drag-and-Drop File Upload */}
-                                    <div
-                                        key={resetKey}
-                                        {...getRootProps()}
-                                        style={{
-                                            border: "2px dashed #ccc",
-                                            padding: "20px",
-                                            textAlign: "center",
-                                            margin: "20px 0",
-                                        }}
-                                    >
-                                        <input {...getInputProps()} />
-                                        <p>Drag & drop some files here, or click to select files</p>
+                            {/* Drag-and-Drop File Upload */}
+                            <div
+                                key={resetKey}
+                                {...getRootProps()}
+                                style={{
+                                    border: "2px dashed #ccc",
+                                    padding: "20px",
+                                    textAlign: "center",
+                                    margin: "20px 0",
+                                }}
+                            >
+                                <input {...getInputProps()} />
+                                <p>Drag & drop some files here, or click to select files</p>
+                            </div>
+                            {/* Image Previews */}
+                            <div className="flex gap-2 mt-3 flex-wrap">
+                                {imagePreview?.map((img, index) => (
+                                    <div key={index} className="relative group">
+                                        <img
+                                            src={img}
+                                            alt={`preview-${index}`}
+                                            className="h-16 w-16 rounded-md"
+                                        />
+                                        {/* Remove Button */}
+                                        <button
+                                            type="button"
+                                            className="absolute top-0 right-0 text-white py-0.5 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            style={{ background: 'red', borderRadius: '15px' }}
+                                            onClick={() =>
+                                                removeImage(
+                                                    index,
+                                                    index < existingImages.length ? "existing" : "new"
+                                                )
+                                            }
+                                        >
+                                            ✕
+                                        </button>
                                     </div>
-                                    {/* Image Previews */}
-                                    <div className="flex gap-2 mt-3 flex-wrap">
-                                        {imagePreview?.map((img, index) => (
-                                            <div key={index} className="relative group">
-                                                <img
-                                                    src={img}
-                                                    alt={`preview-${index}`}
-                                                    className="h-16 w-16 rounded-md"
-                                                />
-                                                {/* Remove Button */}
-                                                <button
-                                                    type="button"
-                                                    className="absolute top-0 right-0 text-white py-0.5 px-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    style={{ background: 'red', borderRadius: '15px' }}
-                                                    onClick={() =>
-                                                        removeImage(
-                                                            index,
-                                                            index < existingImages.length ? "existing" : "new"
-                                                        )
-                                                    }
-                                                >
-                                                    ✕
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
+                                ))}
+                            </div>
                             <div className="mb-5">
                                 <label>Note</label>
                                 <textarea {...register("note")} className="form-input" rows={3}></textarea>

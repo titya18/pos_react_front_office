@@ -400,7 +400,7 @@ const ReportQuotation: React.FC = () => {
                                                                                 {rows.status}
                                                                             </span>
                                                                     ) : rows.status === 'CANCELLED' ? (
-                                                                        <span className="badge rounded-full bg-danger" title={rows.delReason}>
+                                                                        <span className="badge rounded-full bg-danger" title={rows.delReason ?? 'N/A'}>
                                                                             {rows.status}
                                                                         </span>
                                                                     ) : (
@@ -450,7 +450,7 @@ const ReportQuotation: React.FC = () => {
                                                                 <td className="text-center">
                                                                     <div className="flex items-center justify-center gap-2">
                                                                         {rows.note !== null &&
-                                                                            <button type="button" className="hover:text-danger" onClick={() => handleViewNote(rows.note)} title="View Note">
+                                                                            <button type="button" className="hover:text-danger" onClick={() => handleViewNote(rows.note ?? "")} title="View Note">
                                                                                 <NotebookText color="pink" />
                                                                             </button>
                                                                         }

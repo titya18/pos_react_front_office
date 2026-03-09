@@ -28,12 +28,12 @@ dayjs.extend(timezone);
 const columns = [
     "No", "Invoice Date", "Reference", "Invoice Type", "Customer", "Branch",
     "Status", "Grand Total", "Paid", "Due", "Canceled At", "Canceled By",
-    "Reason", "Created At", "Created By", "Updated At", "Updated By", "Actions"
+    "Reason", "Created At", "Created By", "Updated At", "Updated By", "Note/Print"
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = [
     "No", "Invoice Date", "Reference", "Invoice Type", "Customer", "Branch",
-    "Status", "Grand Total", "Paid", "Due", "Actions"
+    "Status", "Grand Total", "Paid", "Due", "Note/Print"
 ];
 
 const sortFields: Record<string, string> = {

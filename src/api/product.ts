@@ -43,37 +43,63 @@ export const getProductById = async (id: number): Promise<ProductType> => {
 
 export const upsertProduct = async (productData: ProductType): Promise<ProductType> => {
     const { id, image, imagesToDelete, ...data } = productData;
+
     const method = id ? "PUT" : "POST";
-    const url = id ? `${API_BASE_URL}/api/product/${id}` : `${API_BASE_URL}/api/product`;
+    const url = id
+        ? `${API_BASE_URL}/api/product/${id}`
+        : `${API_BASE_URL}/api/product`;
 
     const formData = new FormData();
+
     formData.append("categoryId", data.categoryId.toString());
     formData.append("brandId", data.brandId.toString());
     formData.append("name", data.name);
-    formData.append("note", data.note);
+    formData.append("note", data.note ?? "");
 
-    // Start! I extend these for merge product variant with product
+    // ===============================
+    // VARIANT DATA
+    // ===============================
     formData.append("productType", data.productType ?? "New");
     formData.append("unitId", (data.unitId ?? 0).toString());
     formData.append("barcode", data.barcode ?? "");
     formData.append("sku", data.sku ?? "");
-    
-     // NEW MULTI BRANCH STOCK
+
+    // ===============================
+    // MULTI BRANCH STOCK
+    // ===============================
     formData.append("stocks", JSON.stringify(data.stocks ?? []));
 
+    // ===============================
+    // PRICES
+    // ===============================
     formData.append("purchasePrice", ((data.purchasePrice ?? 0) as number).toString());
     formData.append("retailPrice", (data.retailPrice ?? 0).toString());
     formData.append("wholeSalePrice", (data.wholeSalePrice ?? 0).toString());
-    formData.append("variantValueIds", JSON.stringify(data.variantValueIds));
 
-    // Append images if they exist
+    formData.append("variantValueIds", JSON.stringify(data.variantValueIds ?? []));
+
+    // ===============================
+    // ✅ UOM (NEW PART)
+    // ===============================
+
+    // Base unit (stock stored in this unit)
+    formData.append("baseUnitId", String(data.baseUnitId ?? 0));
+
+    // Conversions (array -> JSON string)
+    formData.append(
+        "unitConversions",
+        JSON.stringify(data.unitConversions ?? [])
+    );
+
+    // ===============================
+    // IMAGES
+    // ===============================
     if (image) {
-        image.forEach((image) => {
-            formData.append("images[]", image); // Append each image in the array
+        image.forEach((img) => {
+            formData.append("images[]", img);
         });
     }
 
-    // Add imagesToDelete as a JSON string
     if (imagesToDelete && imagesToDelete.length > 0) {
         formData.append("imagesToDelete", JSON.stringify(imagesToDelete));
     }
@@ -81,7 +107,7 @@ export const upsertProduct = async (productData: ProductType): Promise<ProductTy
     const response = await fetch(url, {
         method,
         credentials: "include",
-        body: formData // Send FormData instead of JSON
+        body: formData,
     });
 
     if (!response.ok) {
@@ -89,6 +115,7 @@ export const upsertProduct = async (productData: ProductType): Promise<ProductTy
         const errorResponse = await response.json();
         throw new Error(errorResponse.message || custom_error);
     }
+
     return response.json();
 };
 

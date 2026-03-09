@@ -126,6 +126,13 @@ export type ProductStock = {
     quantity: number;
 };
 
+export interface ProductUnitConversionType {
+  id?: number;
+  fromUnitId: number;
+  toUnitId: number;
+  multiplier: number;
+}
+
 export interface ProductType {
     id?: number;
     categoryId: number;
@@ -165,6 +172,9 @@ export interface ProductType {
 
     branchId?: number | null;
     stocks: ProductStock[];
+
+    baseUnitId?: number | null;          // ✅
+    unitConversions?: ProductUnitConversionType[]; // ✅
 }
 
 export interface VarientAttributeType {
@@ -185,6 +195,18 @@ export interface VariantValueType {
     value: string;
 
     variantAttributeId?: number;
+}
+
+export interface UnitOptionType {
+    id?: number;
+    name?: string;
+    type?: string;
+
+    unitId?: number;
+    unitName?: string;
+    operationValue?: number;
+    isBaseUnit?: boolean;
+    operator?: string;
 }
 
 export interface ProductVariantType {
@@ -222,6 +244,11 @@ export interface ProductVariantType {
     variantValues?: VariantValueType[];
 
     stocks?: StockType | null;
+    baseUnitId?: number | null;
+
+    // ✅ add these
+    baseUnit?: UnitOptionType | null;
+    unitOptions?: UnitOptionType[];
 };
 
 export interface ProductVariantValuesType {
@@ -282,18 +309,23 @@ export interface StockSummaryItem {
 export interface StockSummaryRow {
   productName: string;
   variantName: string;
-productType?: string;
+  productType?: string;
   sku: string;
   barcode: string;
   branchName: string;
   quantity: number;
+
+  baseUnitId?: number | null;
+  unitId?: number | null;
+  unitName?: string | null;
+  unitType?: string | null;
+
   createdAt: string;
   updatedAt: string;
-  createdBy?: { id: number; name: string };
-  updatedBy?: { id: number; name: string };
+  createdBy?: { id: number; name: string } | null;
+  updatedBy?: { id: number; name: string } | null;
   attributes: { attributeName: string; value: string }[];
 
-  // Add these for keys
   variantId: number;
   branchId?: number;
 }
@@ -338,6 +370,7 @@ export interface PurchaseDetailType {
     productVariantId: number;
     quantity: number;
     cost: number;
+    costPerBaseUnit: number;
     taxNet: number;
     taxMethod: string | null;
     discount: number;
@@ -347,6 +380,11 @@ export interface PurchaseDetailType {
     products: ProductType | null;
     productvariants: ProductVariantType | null;
     stocks?: number | null;
+
+    // ✅ Add these for unit conversion
+    unitId?: number | null;
+    unitQty?: number | string | null;
+    baseQty?: number | string | null;
 }
 
 export interface PaymentType {
@@ -419,7 +457,7 @@ export interface ServiceType {
 export interface QuotationType {
     id?: number;
     branchId: number;
-    customerId: number;
+    customerId: number | null;
     ref: string;
     quotationDate?: string | null; // Format: YYYY-MM-DD
     taxRate?: string | null;
@@ -429,8 +467,8 @@ export interface QuotationType {
     grandTotal: number;
     status: string;
     QuoteSaleType?: string | null;
-    note: string;
-    delReason: string;
+    note: string | null;
+    delReason: string | null;
     createdAt?: Date;
     updatedAt?: Date;
     deletedAt?: Date;
@@ -452,14 +490,20 @@ export interface QuotationType {
 }
 
 export interface QuotationDetailType {
-    id: number;
-    quotationId: number;
+    id?: number;
+    quotationId?: number;
+
     productId?: number;
     productVariantId?: number;
     serviceId?: number;
-    ItemType: string;
+
+    ItemType: "PRODUCT" | "SERVICE";
+
+    // ✅ keep for old logic, but we will set it = unitQty for PRODUCT
     quantity: number;
+
     cost: number;
+    costPerBaseUnit: number;
     taxNet: number;
     taxMethod: string | null;
     discount: number;
@@ -470,6 +514,17 @@ export interface QuotationDetailType {
     productvariants?: ProductVariantType | null;
     services?: ServiceType | null;
     stocks?: number | null;
+
+    // ✅ UOM
+    unitId?: number | null;
+    unitQty?: number | string | null;
+    baseQty?: number | string | null;
+
+    // ✅ unit label for UI (optional)
+    unitName?: string | null;
+
+    // ✅ UI helper (optional)
+    unitOptions?: { id: number; name: string }[];
 }
 
 export interface CustomerType {
@@ -530,6 +585,7 @@ export interface InvoiceDetailType {
     ItemType: string;
     quantity: number;
     price: number;
+    costPerBaseUnit: number;
     taxNet: number;
     taxMethod: string | null;
     discount: number;
@@ -540,6 +596,17 @@ export interface InvoiceDetailType {
     productvariants?: ProductVariantType | null;
     services?: ServiceType | null;
     stocks?: number | null;
+
+    // ✅ UOM
+    unitId?: number | null;
+    unitQty?: number | string | null;
+    baseQty?: number | string | null;
+
+    // ✅ unit label for UI (optional)
+    unitName?: string | null;
+
+    // ✅ UI helper (optional)
+    unitOptions?: { id: number; name: string }[];
 }
 
 export interface StockAdjustmentType {
@@ -571,11 +638,16 @@ export interface StockAdjustmentDetailType {
     id: number;
     productId: number;
     productVariantId: number;
-    quantity: number;
+    quantity?: number;
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
     stocks?: number | null;
+
+    // ✅ Add these for unit conversion
+    unitId?: number | null;
+    unitQty?: number | string | null;
+    baseQty?: number | string | null;
 }
 
 export interface StockTransferType {
@@ -612,11 +684,16 @@ export interface StockTransferDetailType {
     id: number;
     productId: number;
     productVariantId: number;
-    quantity: number;
+    quantity?: number;
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
     stocks?: number | null;
+
+    // ✅ Add these for unit conversion
+    unitId?: number | null;
+    unitQty?: number | string | null;
+    baseQty?: number | string | null;
 }
 
 export interface StockRequestType {
@@ -649,11 +726,16 @@ export interface StockRequestDetailType {
     id: number;
     productId: number;
     productVariantId: number;
-    quantity: number;
+    quantity?: number;
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
     stocks?: number | null;
+
+    // ✅ Add these for unit conversion
+    unitId?: number | null;
+    unitQty?: number | string | null;
+    baseQty?: number | string | null;
 }
 
 export interface StockReturnType {
@@ -686,11 +768,16 @@ export interface StockReturnDetailType {
     id: number;
     productId: number;
     productVariantId: number;
-    quantity: number;
+    quantity?: number;
 
     products: ProductType | null;
     productvariants: ProductVariantType | null;
     stocks?: number | null;
+
+    // ✅ Add these for unit conversion
+    unitId?: number | null;
+    unitQty?: number | string | null;
+    baseQty?: number | string | null;
 }
 
 export interface ExpenseType {
@@ -805,19 +892,21 @@ export interface SaleReturnType {
 
     branch: BranchType | null;
     customer?: CustomerType | null;
-    customers: CustomerType | null;
+    customers?: CustomerType | null;
 
     order?: InvoiceType | null;
     items: SaleReturnDetailType[];
 }
 
 export interface SaleReturnDetailType {
-    id: number;
-    saleReturnId: number;
+    id?: number;
+    saleReturnId?: number;
     saleItemId: number;
+
     productId?: number;
     productVariantId?: number;
     serviceId?: number;
+
     ItemType: string;
     quantity: number;
     price: number;
@@ -826,6 +915,10 @@ export interface SaleReturnDetailType {
     discount: number;
     discountMethod: string | null;
     total: number;
+
+    unitId?: number | null;
+    unitQty?: number | null;
+    baseQty?: number | null;
 
     products?: ProductType | null;
     productvariants?: ProductVariantType | null;

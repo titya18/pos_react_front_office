@@ -42,7 +42,7 @@ const columns = [
     "Created By",
     "Updated At",
     "Updated By",
-    "Actions"
+    "Note/Print"
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = [
@@ -55,7 +55,7 @@ const DEFAULT_VISIBLE_COLUMNS = [
     "Grand Total",
     "Paid",
     "Due",
-    "Actions"
+    "Note/Print"
 ];
 
 const sortFields: Record<string, string> = {

@@ -72,7 +72,11 @@ const Product: React.FC = () => {
         wholeSalePrice: number | string, 
         variantAttributeIds?: number[], 
         variantValueIds?: number[],
-        stocks?: ProductStock[]
+        stocks?: ProductStock[],
+
+        // ✅ NEW (UOM)
+        baseUnitId?: number | null,
+        unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[],
     } | null>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -180,7 +184,11 @@ const Product: React.FC = () => {
         wholeSalePrice: number | string,
         variantAttributeIds?: number[] | null,     
         variantValueIds?: number[],
-        stocks?: ProductStock[]   
+        stocks?: ProductStock[],
+        
+        // ✅ NEW (UOM)
+        baseUnitId?: number | null,
+        unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[],
     ) => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
@@ -207,6 +215,10 @@ const Product: React.FC = () => {
                 variantValueIds: variantValueIds ?? [],
 
                 stocks: stocks ?? [],
+
+                // ✅ NEW (UOM)
+                baseUnitId: baseUnitId ?? null,
+                unitConversions: unitConversions ?? [],
             };
 
             await apiClient.upsertProduct(productData);
@@ -299,6 +311,16 @@ const Product: React.FC = () => {
                 branchId: s.branchId,
                 quantity: Number(s.quantity)
             })) : [],
+
+            // ✅ NEW (UOM)
+            baseUnitId: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].baseUnitId : null,
+            unitConversions: Array.isArray(getProduct.unitConversions)
+                ? getProduct.unitConversions.map((c: any) => ({
+                    fromUnitId: Number(c.fromUnitId),
+                    toUnitId: Number(c.toUnitId),
+                    multiplier: Number(c.multiplier),
+                }))
+                : [],
         });
         setIsModalOpen(true);
     };

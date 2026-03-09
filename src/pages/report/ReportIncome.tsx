@@ -47,7 +47,7 @@ const columns = [
     "Cancelled At",
     "Cancelled By",
     "Cancelled Reason",
-    "Actions"
+    "Note/Print"
 ];
 
 const DEFAULT_VISIBLE_COLUMNS = [
@@ -59,7 +59,7 @@ const DEFAULT_VISIBLE_COLUMNS = [
     "Amount",
     "Description",
     "Cancelled Reason",
-    "Actions"
+    "Note/Print"
 ];
 
 const sortFields: Record<string, string> = {
