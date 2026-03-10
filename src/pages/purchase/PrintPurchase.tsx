@@ -355,7 +355,9 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
                   padding: '0px 15px',
                   textAlign: 'right',
                   borderRight: '1px solid #e0e6ed'
-                }}>{qty}</td>
+                }}> 
+                  {qty} {item.unitName}
+                </td>
                 <td style={{ 
                   padding: '0px 15px',
                   textAlign: 'right',
@@ -704,6 +706,12 @@ const PrintPurchase: React.FC = () => {
           items: purchase.purchaseDetails?.map((item: any, index: number) => ({
             description: item.productvariants?.productType === "New" ? item.products.name : item.products.name + " (" + item.productvariants?.productType + ")" || `Item ${index + 1}` ,
             qty: item.quantity,
+            unitId: item.unitId ?? null,
+            // unitName:
+            //   item.ItemType === "PRODUCT"
+            //     ? (item.unit?.name || item.unitName || "")
+            //     : "",
+            unitName: item.unit?.name,
             taxNet: item.taxNet,
             taxMethod: item.taxMethod,
             discountMethod: item.discountMethod,

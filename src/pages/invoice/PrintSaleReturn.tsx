@@ -356,7 +356,11 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
                   padding: '0px 15px',
                   textAlign: 'right',
                   borderRight: '1px solid #e0e6ed'
-                }}>{qty}</td>
+                }}>
+                  {item.itemType === "PRODUCT" && item.unitName
+                  ? `${qty} ${item.unitName}`
+                  : qty}
+                </td>
                 <td style={{ 
                   padding: '0px 15px',
                   textAlign: 'right',
@@ -712,14 +716,31 @@ const PrintInvoice: React.FC = () => {
           },
           
           items: dataReturn.items?.map((item: any, index: number) => ({
-            description: item.ItemType === "PRODUCT" ? item.productvariants?.productType === "New" ? item.products.name : item.products.name + " (" + item.productvariants?.productType + ")" || `Item ${index + 1}` : item.services?.name,
-            qty: item.quantity,
+            description:
+              item.ItemType === "PRODUCT"
+                ? item.productvariants?.productType === "New"
+                  ? item.products?.name
+                  : `${item.products?.name} (${item.productvariants?.productType})`
+                : item.services?.name || `Item ${index + 1}`,
+
+            qty:
+              item.ItemType === "PRODUCT"
+                ? (item.unitQty ?? item.quantity ?? 1)
+                : (item.quantity ?? 1),
+
+            unitId: item.unitId ?? null,
+            unitName:
+              item.ItemType === "PRODUCT"
+                ? (item.unit?.name || item.unitName || "")
+                : "",
+
+            itemType: item.ItemType,
             taxNet: item.taxNet,
             taxMethod: item.taxMethod,
             discountMethod: item.discountMethod,
-            cost: item.price || 0,
+            cost: item.cost || 0,
             discount: item.discount || 0,
-            total: item.total || 0
+            total: item.total || 0,
           })) || [],
           
           totals: {

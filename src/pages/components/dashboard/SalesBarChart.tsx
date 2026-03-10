@@ -349,7 +349,7 @@ const SalesBarChart = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-md p-6 border border-gray-100">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+      <div className="flex items-start justify-between mb-6">
         <div>
           <h3 className="text-lg font-semibold text-gray-800">
             Purchases Overview
@@ -375,21 +375,31 @@ const SalesBarChart = ({
           </p>
         </div>
 
-        <div className="flex gap-2 flex-wrap">
-          {buttons.map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => setGroupBy(g)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                groupBy === g
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {g.charAt(0).toUpperCase() + g.slice(1)}
-            </button>
-          ))}
+        <div className="inline-flex items-center bg-gray-100 rounded-lg p-1 self-start">
+          {buttons.map((g) => {
+            const label = g.charAt(0).toUpperCase() + g.slice(1);
+
+            const icon =
+              g === "daily" ? "📅" :
+              g === "weekly" ? "📊" :
+              "📆";
+
+            return (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setGroupBy(g)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md leading-none transition-all duration-200 whitespace-nowrap ${
+                  groupBy === g
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                <span className="text-xs">{icon}</span>
+                <span>{label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

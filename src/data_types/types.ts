@@ -385,6 +385,9 @@ export interface PurchaseDetailType {
     unitId?: number | null;
     unitQty?: number | string | null;
     baseQty?: number | string | null;
+
+    // ✅ unit label for UI (optional)
+    unit?: UnitType | null;
 }
 
 export interface PaymentType {
@@ -524,7 +527,7 @@ export interface QuotationDetailType {
     unitName?: string | null;
 
     // ✅ UI helper (optional)
-    unitOptions?: { id: number; name: string }[];
+    unitOptions?: { id?: number; name?: string }[];
 }
 
 export interface CustomerType {
@@ -606,7 +609,7 @@ export interface InvoiceDetailType {
     unitName?: string | null;
 
     // ✅ UI helper (optional)
-    unitOptions?: { id: number; name: string }[];
+    unitOptions?: { id?: number; name?: string }[];
 }
 
 export interface StockAdjustmentType {

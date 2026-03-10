@@ -415,10 +415,22 @@ const QuotationForm: React.FC = () => {
         if (existingIndex !== -1) {
             // Increase quantity if already in cart
             const currentQty = Number(updatedDetails[existingIndex].quantity) || 0;
-            updatedDetails[existingIndex].quantity = currentQty + 1;
+            const nextQty = currentQty + 1;
+
+            updatedDetails[existingIndex].unitQty =
+                updatedDetails[existingIndex].ItemType === "PRODUCT"
+                    ? nextQty
+                    : updatedDetails[existingIndex].unitQty;
+
+            updatedDetails[existingIndex].quantity = nextQty;
+
             updatedDetails[existingIndex].total = calculateTotal({
                 ...updatedDetails[existingIndex],
-                quantity: currentQty + 1,
+                unitQty:
+                    updatedDetails[existingIndex].ItemType === "PRODUCT"
+                        ? nextQty
+                        : updatedDetails[existingIndex].unitQty,
+                quantity: nextQty,
             });
         } else {
             // Add new product/service
@@ -593,16 +605,22 @@ const QuotationForm: React.FC = () => {
         const updated = [...quotationDetails];
         const d = updated[index];
 
-        const currentQty = Number(d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity) || 0;
+        const currentQty = Number(
+            d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity
+        ) || 0;
 
         if (currentQty < 25) {
             const nextQty = currentQty + 1;
 
             const nextDetail: QuotationDetailType = {
-            ...d,
-            unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
-            quantity: nextQty, // ✅ keep quantity in sync for totals/UI
-            total: calculateTotal({ ...d, quantity: nextQty }),
+                ...d,
+                unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                quantity: nextQty,
+                total: calculateTotal({
+                    ...d,
+                    unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                    quantity: nextQty,
+                }),
             };
 
             updated[index] = nextDetail;
@@ -614,16 +632,22 @@ const QuotationForm: React.FC = () => {
         const updated = [...quotationDetails];
         const d = updated[index];
 
-        const currentQty = Number(d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity) || 0;
+        const currentQty = Number(
+            d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity
+        ) || 0;
 
         if (currentQty > 1) {
             const nextQty = currentQty - 1;
 
             const nextDetail: QuotationDetailType = {
-            ...d,
-            unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
-            quantity: nextQty,
-            total: calculateTotal({ ...d, quantity: nextQty }),
+                ...d,
+                unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                quantity: nextQty,
+                total: calculateTotal({
+                    ...d,
+                    unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                    quantity: nextQty,
+                }),
             };
 
             updated[index] = nextDetail;
@@ -659,38 +683,40 @@ const QuotationForm: React.FC = () => {
     // }; 
 
     const calculateTotal = (detail: Partial<QuotationDetailType>) => {
-    
-        const cost = Number(detail.cost) || 0
-        const qty = Number((detail as any).unitQty ?? detail.quantity ?? 0)
+        const cost = Number(detail.cost) || 0;
 
-        const discount = Number(detail.discount) || 0
-        const taxRate = Number(detail.taxNet) || 0
+        const qty =
+            detail.ItemType === "PRODUCT"
+                ? Number(detail.unitQty ?? detail.quantity ?? 0)
+                : Number(detail.quantity ?? 0);
 
-        let priceAfterDiscount = cost
+        const discount = Number(detail.discount) || 0;
+        const taxRate = Number(detail.taxNet) || 0;
 
-        // discount
+        let priceAfterDiscount = cost;
+
         if (detail.discountMethod === "Percent") {
-            priceAfterDiscount = cost * (1 - discount / 100)
+            priceAfterDiscount = cost * (1 - discount / 100);
         } else if (detail.discountMethod === "Fixed") {
-            priceAfterDiscount = cost - discount
+            priceAfterDiscount = cost - discount;
         }
 
-        let taxAmount = 0
-        let unitTotal = priceAfterDiscount
+        let taxAmount = 0;
+        let unitTotal = priceAfterDiscount;
 
         if (detail.taxMethod === "Exclude") {
-            taxAmount = priceAfterDiscount * taxRate / 100
-            unitTotal = priceAfterDiscount + taxAmount
+            taxAmount = (priceAfterDiscount * taxRate) / 100;
+            unitTotal = priceAfterDiscount + taxAmount;
         }
 
         if (detail.taxMethod === "Include") {
-            const priceWithoutTax = priceAfterDiscount / (1 + taxRate / 100)
-            taxAmount = priceAfterDiscount - priceWithoutTax
-            unitTotal = priceAfterDiscount
+            const priceWithoutTax = priceAfterDiscount / (1 + taxRate / 100);
+            taxAmount = priceAfterDiscount - priceWithoutTax;
+            unitTotal = priceAfterDiscount;
         }
 
-        return unitTotal * qty
-    }
+        return unitTotal * qty;
+    };
     
     const sumTotal = (details: QuotationDetailType[]) => {
         return details.reduce((sum, item) => {
