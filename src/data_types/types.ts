@@ -307,27 +307,31 @@ export interface StockSummaryItem {
 };
 
 export interface StockSummaryRow {
-  productName: string;
-  variantName: string;
-  productType?: string;
-  sku: string;
-  barcode: string;
-  branchName: string;
-  quantity: number;
+    productId?: number;
+    productName: string;
+    variantName: string;
+    productType?: string;
+    sku: string;
+    barcode: string;
+    branchName: string;
+    quantity: number;
 
-  baseUnitId?: number | null;
-  unitId?: number | null;
-  unitName?: string | null;
-  unitType?: string | null;
+    stockAlert?: number | null;
+    stockStatus?: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK";
 
-  createdAt: string;
-  updatedAt: string;
-  createdBy?: { id: number; name: string } | null;
-  updatedBy?: { id: number; name: string } | null;
-  attributes: { attributeName: string; value: string }[];
+    baseUnitId?: number | null;
+    unitId?: number | null;
+    unitName?: string | null;
+    unitType?: string | null;
 
-  variantId: number;
-  branchId?: number;
+    createdAt: string;
+    updatedAt: string;
+    createdBy?: { id: number; name: string } | null;
+    updatedBy?: { id: number; name: string } | null;
+    attributes: { attributeName: string; value: string }[];
+
+    variantId: number;
+    branchId?: number;
 }
 
 export interface PurchaseType {

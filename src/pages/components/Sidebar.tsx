@@ -585,7 +585,6 @@ const Sidebar: React.FC = () => {
                         }
 
                         {(
-                            hasPermission('Check-Stock') ||
                             hasPermission('Adjust-Stock-View') ||
                             hasPermission('Stock-Transfer-View') ||
                             hasPermission('Stock-Request-View') ||
@@ -606,24 +605,6 @@ const Sidebar: React.FC = () => {
                                 <span>Stock</span>
                             </h2>
                         )}
-
-                        {hasPermission('Check-Stock') &&
-                            <li className="nav-item">
-                                <ul>
-                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
-                                        <NavLink
-                                            to="/stocksummary"
-                                            className={['stocksummary'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
-                                        >
-                                            <div className="flex items-center">
-                                                <Layers />
-                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Check Stock</span>
-                                            </div>
-                                        </NavLink>
-                                    </li>
-                                </ul>
-                            </li>
-                        }
 
                         {hasPermission('Adjust-Stock-View') &&
                             <li className="nav-item">
@@ -761,6 +742,7 @@ const Sidebar: React.FC = () => {
                             hasPermission('Purchase-Report') ||
                             hasPermission('Payment-Purchase-Report') ||
                             hasPermission('Quotation-Report') ||
+                            hasPermission('Stock-Summary-Report') ||
                             hasPermission('Adjustment-Report') ||
                             hasPermission('Request-Report') ||
                             hasPermission('Return-Report') ||
@@ -903,6 +885,24 @@ const Sidebar: React.FC = () => {
                                             <div className="flex items-center">
                                                 <CircleDollarSign />
                                                 <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Payment Purchase Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Stock-Summary-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/stocksummary"
+                                            className={['stocksummary'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <Layers />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Summary Report</span>
                                             </div>
                                         </NavLink>
                                     </li>
