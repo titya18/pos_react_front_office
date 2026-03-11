@@ -35,7 +35,7 @@ import SaleReturnForm from "./pages/invoice/SaleReturnForm";
 import SaleReturn from "./pages/invoice/SaleReturn";
 import PrintInvoice from "./pages/invoice/PrintInvoice";
 import PrintSaleReturn from "./pages/invoice/PrintSaleReturn";
-import StockSummary from "./pages/stock/StockSummary_old";
+import StockSummary from "./pages/stock/StockSummary";
 import StockAdjustment from "./pages/stockadjustment/StockAdjustment";
 import StockAdjustmentForm from "./pages/stockadjustment/StockAdjustmentForm";
 import StockTransfer from "./pages/stocktransfer/StockTransfer";
