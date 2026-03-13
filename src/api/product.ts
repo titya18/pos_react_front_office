@@ -63,6 +63,7 @@ export const upsertProduct = async (productData: ProductType): Promise<ProductTy
     formData.append("unitId", (data.unitId ?? 0).toString());
     formData.append("barcode", data.barcode ?? "");
     formData.append("sku", data.sku ?? "");
+    formData.append("stockAlert", (data.stockAlert ?? 0).toString());
 
     // ===============================
     // MULTI BRANCH STOCK
@@ -73,6 +74,7 @@ export const upsertProduct = async (productData: ProductType): Promise<ProductTy
     // PRICES
     // ===============================
     formData.append("purchasePrice", ((data.purchasePrice ?? 0) as number).toString());
+    formData.append("purchasePriceUnitId", (data.purchasePriceUnitId ?? 0).toString());
     formData.append("retailPrice", (data.retailPrice ?? 0).toString());
     formData.append("wholeSalePrice", (data.wholeSalePrice ?? 0).toString());
 

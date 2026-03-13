@@ -36,6 +36,9 @@ import SaleReturn from "./pages/invoice/SaleReturn";
 import PrintInvoice from "./pages/invoice/PrintInvoice";
 import PrintSaleReturn from "./pages/invoice/PrintSaleReturn";
 import StockSummary from "./pages/stock/StockSummary";
+import LowStockReport from "./pages/stock/LowStockReport";
+import StockValuationReport from "./pages/stock/StockValuationReport";
+import StockMovementReport from "./pages/stock/StockMovementReport";
 import StockAdjustment from "./pages/stockadjustment/StockAdjustment";
 import StockAdjustmentForm from "./pages/stockadjustment/StockAdjustmentForm";
 import StockTransfer from "./pages/stocktransfer/StockTransfer";
@@ -59,6 +62,7 @@ import ReportRequest from "./pages/report/ReportRequest";
 import ReportReturn from "./pages/report/ReportReturn";
 import ReportExpense from "./pages/report/ReportExpense";
 import ReportIncome from "./pages/report/ReportIncome";
+import ProfitReport from "./pages/report/ProfitReport";
 import PurchaseAuthorizeAmount from "./pages/setting/PurchaseAuthorizeAmount";
 import ExchangeRate from "./pages/setting/ExchangeRate";
 
@@ -139,6 +143,9 @@ const App: React.FC = () => {
                         <Route path="/printsell-return/:id" element={<PrivateRoute element={<Layout><PrintSaleReturn /></Layout>} />} />
                         {/* Stock Summary */}
                         <Route path="/stocksummary" element={<PrivateRoute element={<Layout><StockSummary /></Layout>} />} />
+                        <Route path="/low-stock" element={<PrivateRoute element={<Layout><LowStockReport /></Layout>} />} />
+                        <Route path="/stock-movements" element={<PrivateRoute element={<Layout><StockMovementReport /></Layout>} />} />
+                        <Route path="/stock-valuations" element={<PrivateRoute element={<Layout><StockValuationReport /></Layout>} />} />
                         {/* Stock Adjustment */}
                         <Route path="/adjuststock" element={<PrivateRoute element={<Layout><StockAdjustment /></Layout>} />} />
                         <Route path="/addadjuststock" element={<PrivateRoute element={<Layout><StockAdjustmentForm /></Layout>} />} />
@@ -173,6 +180,7 @@ const App: React.FC = () => {
                         <Route path="/reportReturn" element={<PrivateRoute element={<Layout><ReportReturn /></Layout>} />} />
                         <Route path="/reportExpense" element={<PrivateRoute element={<Layout><ReportExpense /></Layout>} />} />
                         <Route path="/reportIncome" element={<PrivateRoute element={<Layout><ReportIncome /></Layout>} />} />
+                        <Route path="/profitreport" element={<PrivateRoute element={<Layout><ProfitReport /></Layout>} />} />
 
                         {/* setting */}
                         <Route path="/authorizeamount" element={<PrivateRoute element={<Layout><PurchaseAuthorizeAmount /></Layout>} />} />

@@ -67,8 +67,10 @@ const Product: React.FC = () => {
         unitId: number | null, 
         barcode: string | null, 
         sku: string, 
-        purchasePrice: number | string, 
-        retailPrice: number | string, 
+        stockAlert: number | null, 
+        purchasePrice: number | string,
+        purchasePriceUnitId?: number | null,
+        retailPrice: number | string,
         wholeSalePrice: number | string, 
         variantAttributeIds?: number[], 
         variantValueIds?: number[],
@@ -179,7 +181,9 @@ const Product: React.FC = () => {
         barcode: string | null,
         productType: string | 'New',
         sku: string,
+        stockAlert: number | null,
         purchasePrice: number | string,
+        purchasePriceUnitId: number | null,
         retailPrice: number | string,
         wholeSalePrice: number | string,
         variantAttributeIds?: number[] | null,     
@@ -208,7 +212,9 @@ const Product: React.FC = () => {
                 unitId: unitId ?? 0, // Fallback to 0 if null
                 barcode: barcode ?? '',
                 sku,
+                stockAlert: stockAlert ?? 0,
                 purchasePrice,
+                purchasePriceUnitId: purchasePriceUnitId ?? null,
                 retailPrice,
                 wholeSalePrice,
                 variantAttributeIds: variantAttributeIds ?? undefined,
@@ -300,7 +306,12 @@ const Product: React.FC = () => {
             unitId: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].unitId : null,
             barcode: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].barcode : null,
             sku: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].sku : '',
+            stockAlert: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].stockAlert ?? 0 : 0,
             purchasePrice: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].purchasePrice ?? 0 : 0,
+            purchasePriceUnitId:
+            getProduct.productvariants && getProduct.productvariants.length > 0
+                ? ((getProduct.productvariants[0] as any).purchasePriceUnitId ?? getProduct.productvariants[0].baseUnitId ?? null)
+                : null,
             retailPrice: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].retailPrice ?? 0 : 0,
             wholeSalePrice: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].wholeSalePrice ?? 0 : 0,
             

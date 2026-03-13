@@ -10,7 +10,8 @@ import {
     StockReturnType,
     ExpenseType,
     IncomeType,
-    SaleReturnType
+    SaleReturnType,
+    ProfitReportRow
 } from "../data_types/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
@@ -868,4 +869,53 @@ export const getDashboardLowStockProducts = async ({
         mode: result.mode || "all",
         threshold: result.threshold || threshold,
     };
+};
+
+export interface Pagination {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface ProfitReportResponse {
+    data: ProfitReportRow[];
+    summary: {
+        totalSales: number;
+        totalCogs: number;
+        totalProfit: number;
+        avgMarginPercent: number;
+    };
+    pagination: Pagination;
+}
+
+export const getProfitReport = async (
+    sortField: string | null,
+    sortOrder: "asc" | "desc" | null,
+    page: number,
+    searchTerm: string | null,
+    pageSize: number,
+    branchId?: number,
+    startDate?: string,
+    endDate?: string
+): Promise<ProfitReportResponse> => {
+    const params = new URLSearchParams();
+
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+
+    if (sortField) params.set("sortField", sortField);
+    if (sortOrder) params.set("sortOrder", sortOrder);
+    if (searchTerm) params.set("searchTerm", searchTerm);
+    if (branchId) params.set("branchId", String(branchId));
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+
+    const response = await fetch(
+        `${API_BASE_URL}/api/report/profitReport?${params.toString()}`,
+        { credentials: "include" }
+    );
+
+    if (!response.ok) throw new Error("Error fetching profit report");
+    return response.json();
 };

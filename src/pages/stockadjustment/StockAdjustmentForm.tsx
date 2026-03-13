@@ -245,6 +245,8 @@ const StockAdjustmentForm: React.FC = () => {
                     unitQty: detail.unitQty ?? 1,
                     baseQty: detail.baseQty ?? detail.quantity ?? 1,
                     quantity: detail.quantity ?? Number(detail.baseQty ?? 1),
+                    cost: detail.cost ?? "",
+                    costPerBaseUnit: detail.costPerBaseUnit ?? 0,
                 }))
             );
 
@@ -356,6 +358,8 @@ const StockAdjustmentForm: React.FC = () => {
             unitQty: 1,
             baseQty: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
             quantity: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
+            cost: "",
+            costPerBaseUnit: 0
         };
 
         setAdjustmentDetails((prev) => [...prev, newDetail]);
@@ -404,6 +408,26 @@ const StockAdjustmentForm: React.FC = () => {
 
                 return recalcDetailBaseQty(updated);
             })
+        );
+    };
+
+    const handleCostChange = (index: number, value: string) => {
+        let cleaned = value.replace(/[^0-9.]/g, "");
+        const parts = cleaned.split(".");
+
+        if (parts.length > 2) {
+            cleaned = `${parts[0]}.${parts.slice(1).join("")}`;
+        }
+
+        setAdjustmentDetails((prev) =>
+            prev.map((detail, i) =>
+                i === index
+                    ? {
+                        ...detail,
+                        cost: cleaned,
+                    }
+                    : detail
+            )
         );
     };
 
@@ -497,6 +521,15 @@ const StockAdjustmentForm: React.FC = () => {
                 }
 
                 if (
+                    formData.AdjustMentType === "POSITIVE" &&
+                    (!row.cost || Number(row.cost) <= 0)
+                ) {
+                    toast.error(`Please enter valid cost for product ${row.products?.name || ""}`);
+                    setIsLoading(false);
+                    return;
+                }
+
+                if (
                     formData.AdjustMentType === "NEGATIVE" &&
                     formData.StatusType === "APPROVED" &&
                     Number(row.baseQty) > Number(row.stocks ?? 0)
@@ -517,6 +550,8 @@ const StockAdjustmentForm: React.FC = () => {
                 unitQty: detail.unitQty != null ? Number(detail.unitQty) : 0,
                 baseQty: detail.baseQty != null ? Number(detail.baseQty) : 0,
                 quantity: detail.baseQty != null ? Number(detail.baseQty) : 0,
+                cost: detail.cost != null && detail.cost !== "" ? Number(detail.cost) : 0,
+                costPerBaseUnit: detail.costPerBaseUnit != null ? Number(detail.costPerBaseUnit) : 0,
                 products: detail.products ?? null,
                 productvariants: detail.productvariants ?? null,
                 stocks: detail.stocks ?? 0,
@@ -758,6 +793,11 @@ const StockAdjustmentForm: React.FC = () => {
                         </div>
 
                         <div className="dataTable-container">
+                            {watch("AdjustMentType") === "POSITIVE" && (
+                                <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                                    For positive adjustment, cost is entered per selected unit. The system will convert it to base-unit cost for FIFO.
+                                </div>
+                            )}
                             <table id="myTable1" className="whitespace-nowrap dataTable-table">
                                 <thead>
                                     <tr>
@@ -765,6 +805,7 @@ const StockAdjustmentForm: React.FC = () => {
                                         <th>Product</th>
                                         <th>Unit</th>
                                         <th>Qty</th>
+                                        {watch("AdjustMentType") === "POSITIVE" && <th>Cost</th>}
                                         <th>Base Qty</th>
                                         {statusValue === "PENDING" && <th>Qty On Hand</th>}
                                         <th></th>
@@ -872,6 +913,18 @@ const StockAdjustmentForm: React.FC = () => {
                                                             </button>
                                                         </div>
                                                     </td>
+
+                                                    {watch("AdjustMentType") === "POSITIVE" && (
+                                                        <td style={{ minWidth: "160px" }}>
+                                                            <input
+                                                                type="text"
+                                                                className="form-input text-right"
+                                                                value={detail.cost ?? ""}
+                                                                onChange={(e) => handleCostChange(index, e.target.value)}
+                                                                placeholder={`Cost / ${selectedUnit?.unitName || "unit"}`}
+                                                            />
+                                                        </td>
+                                                    )}
 
                                                     <td style={{ minWidth: "140px" }}>
                                                         <input

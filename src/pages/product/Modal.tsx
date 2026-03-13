@@ -47,7 +47,11 @@ interface ModalProps {
     barcode: string | null,
     productType: string | "New",
     sku: string,
+    stockAlert: number | null,
+
     purchasePrice: number | string,
+    purchasePriceUnitId: number | null,
+
     retailPrice: number | string,
     wholeSalePrice: number | string,
     variantAttributeIds?: number[] | null,
@@ -55,7 +59,6 @@ interface ModalProps {
 
     stocks?: ProductStock[],
 
-    // ✅ NEW (UOM)
     baseUnitId?: number | null,
     unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[]
   ) => void;
@@ -72,7 +75,9 @@ interface ModalProps {
     unitId: number | null;
     barcode: string | null;
     sku: string;
+    stockAlert: number | null;
     purchasePrice: number | string;
+    purchasePriceUnitId?: number | null;
     retailPrice: number | string;
     wholeSalePrice: number | string;
     productType: string | "New";
@@ -101,7 +106,9 @@ export interface ProductFormData {
   unitId: number | null;
   barcode?: string | null;
   sku?: string;
+  stockAlert?: number | null;
   purchasePrice?: number | string;
+  purchasePriceUnitId?: number | null;
   retailPrice?: number | string;
   wholeSalePrice?: number | string;
   variantAttributeId?: number | null;
@@ -151,6 +158,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
       stocks: [],
       baseUnitId: null,
       unitConversions: [],
+      purchasePriceUnitId: null,
     },
   });
 
@@ -274,7 +282,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         unitId: product.unitId ?? null,
         barcode: product.barcode ?? "",
         sku: product.sku ?? "",
+        stockAlert: product.stockAlert ?? 0,
         purchasePrice: product.purchasePrice ?? "",
+        purchasePriceUnitId: product.purchasePriceUnitId ?? product.baseUnitId ?? null,
         retailPrice: product.retailPrice ?? "",
         wholeSalePrice: product.wholeSalePrice ?? "",
         variantAttributeIds: product.variantAttributeIds ?? [],
@@ -330,7 +340,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         unitId: null,
         barcode: "",
         sku: "",
+        stockAlert: 0,
         purchasePrice: "",
+        purchasePriceUnitId: null,
         retailPrice: "",
         wholeSalePrice: "",
         variantAttributeIds: [],
@@ -452,7 +464,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         data.barcode || null,
         data.productType || "New",
         data.sku || "",
+        data.stockAlert || 0,
         data.purchasePrice || "",
+        data.purchasePriceUnitId ?? null,
         data.retailPrice || "",
         data.wholeSalePrice || "",
         data.variantAttributeIds ?? null,
@@ -622,7 +636,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                 </div>
 
                 {/* ✅ NEW UOM: Base Unit + Unit */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 mb-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
                   <div>
                     <label>
                       Base Unit (Stock Unit) <span className="text-danger text-md">*</span>
@@ -640,22 +654,19 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                       ))}
                     </select>
                     {errors.baseUnitId && <span className="error_validate">{errors.baseUnitId.message as any}</span>}
+                    <p className="text-xs text-gray-500 mt-1">
+                      This is the stock unit used internally for inventory, FIFO costing, and reports.
+                    </p>
                   </div>
 
-                  {/* <div>
+                  <div>
                     <label>
-                      Unit <span className="text-danger text-md">*</span>
+                      Stock Alert {baseUnitName ? `(in ${baseUnitName})` : "(in Base Unit)"}{" "}
+                      <span className="text-danger text-md">*</span>
                     </label>
-                    <select id="unitId" className="form-input" {...register("unitId", { required: "Unit is required", valueAsNumber: true })}>
-                      <option value="">Select a Unit...</option>
-                      {units.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.name}
-                        </option>
-                      ))}
-                    </select>
+                    <input type="text" placeholder="Enter Stock Alert" className="form-input" {...register("stockAlert", { required: "This field is required" })} /> 
                     {errors.unitId && <span className="error_validate">{errors.unitId.message}</span>}
-                  </div> */}
+                  </div>
                 </div>
 
                 {/* ✅ NEW UOM: unitConversions */}
@@ -674,7 +685,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
 
                   {conversionFields.length === 0 && (
                     <p className="text-sm text-gray-500">
-                      Example: 1 box = 12 pcs → From=box, To=pcs, Multiplier=12
+                      Example: 1 roll = 305 meter → From=roll, To=meter, Multiplier=305
                     </p>
                   )}
 
@@ -728,8 +739,16 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
 
                 {/* ✅ Stock in base unit */}
                 <div className="mb-4">
+                  {product?.id && (
+                    <div className="mb-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                      Editing stock here will create stock adjustment movements and affect FIFO costing.
+                    </div>
+                  )}
                   <label className="font-semibold mb-2 block">
-                    Stock Per Branch {baseUnitName ? `(in ${baseUnitName})` : ""}
+                    Opening / Current Stock Per Branch (in {baseUnitName})
+                    <p className="text-xs text-gray-500 mt-1">
+                      Changing stock here will create inventory adjustment movements.
+                    </p>
                   </label>
 
                   <div className="space-y-3">
@@ -745,8 +764,16 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                           <input type="text" value={branch.name} disabled className="form-input bg-gray-100" />
                         </div>
 
-                        <div className="w-1/2">
-                          <input type="number" step="0" {...register(`stocks.${index}.quantity`, { valueAsNumber: true })} className="form-input" />
+                        <div className="w-1/2 flex items-center gap-2">
+                          <input
+                            type="number"
+                            step="0.0001"
+                            {...register(`stocks.${index}.quantity`, { valueAsNumber: true })}
+                            className="form-input"
+                          />
+                          {baseUnitName && (
+                            <span className="text-sm text-gray-500 whitespace-nowrap">{baseUnitName}</span>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -790,14 +817,14 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                 {variantValues.length > 0 && <MultiSelectVariant variantValues={variantValues} />}
 
                 {/* Prices */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
                   <div>
-                    <label htmlFor="module">
-                      Purchase Price <span className="text-danger text-md">*</span>
+                    <label>
+                      Opening Cost <span className="text-danger text-md">*</span>
                     </label>
                     <input
                       type="text"
-                      placeholder="Enter Purchase Price"
+                      placeholder="Enter Opening Cost"
                       className="form-input w-full"
                       {...register("purchasePrice", { required: "This field is required" })}
                       onInput={(e: React.FormEvent<HTMLInputElement>) => {
@@ -807,9 +834,41 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                         if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
                       }}
                     />
-                    {errors.purchasePrice && <p className="error_validate">{errors.purchasePrice.message as any}</p>}
+                    {errors.purchasePrice && (
+                      <p className="error_validate">{errors.purchasePrice.message as any}</p>
+                    )}
                   </div>
 
+                  <div>
+                    <label>
+                      Cost Unit <span className="text-danger text-md">*</span>
+                    </label>
+                    <select
+                      className="form-input"
+                      {...register("purchasePriceUnitId", {
+                        required: "Cost Unit is required",
+                        valueAsNumber: true,
+                      })}
+                    >
+                      <option value="">Select Cost Unit...</option>
+                      {units.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.purchasePriceUnitId && (
+                      <span className="error_validate">
+                        {errors.purchasePriceUnitId.message as any}
+                      </span>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Example: if cost is 10 per roll, choose cost unit = roll.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
                   <div>
                     <label htmlFor="module">
                       Whole Sale Price <span className="text-danger text-md">*</span>

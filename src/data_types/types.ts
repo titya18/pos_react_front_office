@@ -161,8 +161,10 @@ export interface ProductType {
     productType?: string | 'New',
     unitId?: number | null,
     sku?: string,
+    stockAlert?: number | null,
     barcode?: string | null,
     purchasePrice?: number | string,
+    purchasePriceUnitId?: number | null,
     retailPrice?: number | string,
     wholeSalePrice?: number | string,
     // MULTIPLE attributes (Color + Size + Material ...)
@@ -215,6 +217,7 @@ export interface ProductVariantType {
     unitId: number | null,
     productType?: string | 'New',
     sku: string,
+    stockAlert?: number | null,
     barcode: string | null,
     name: string,
     purchasePrice: number | string,
@@ -655,6 +658,8 @@ export interface StockAdjustmentDetailType {
     unitId?: number | null;
     unitQty?: number | string | null;
     baseQty?: number | string | null;
+    cost?: number | string | null;
+    costPerBaseUnit?: number | string | null;
 }
 
 export interface StockTransferType {
@@ -930,4 +935,98 @@ export interface SaleReturnDetailType {
     products?: ProductType | null;
     productvariants?: ProductVariantType | null;
     services?: ServiceType | null;
+}
+
+export interface LowStockRow {
+    productId?: number;
+    productName: string;
+    variantId: number;
+    variantName: string;
+    productType?: string;
+    sku: string;
+    barcode: string;
+
+    branchId?: number;
+    branchName: string;
+
+    quantity: number;
+    stockAlert?: number | null;
+    shortageQty: number;
+    stockStatus?: "LOW_STOCK" | "OUT_OF_STOCK";
+
+    baseUnitId?: number | null;
+    unitId?: number | null;
+    unitName?: string | null;
+    unitType?: string | null;
+
+    createdAt: string;
+    updatedAt: string;
+
+    createdBy?: { id: number; name: string } | null;
+    updatedBy?: { id: number; name: string } | null;
+
+    attributes: { attributeName: string; value: string }[];
+}
+
+export interface StockMovementRow {
+    id: number;
+    productId?: number;
+    productName: string;
+    variantId: number;
+    variantName: string;
+    sku: string;
+    barcode?: string;
+    branchId?: number;
+    branchName: string;
+    movementType: string;
+    adjustmentType?: string;
+    quantity: number;
+    inQty: number;
+    outQty: number;
+    unitCost?: number | null;
+    reference?: string | null;
+    createdAt: string;
+    createdBy?: {
+        id: number;
+        name: string;
+    } | null;
+}
+
+export interface StockValuationRow {
+    productId?: number;
+    productName: string;
+    variantId: number;
+    variantName: string;
+    sku: string;
+    barcode?: string;
+    branchId?: number;
+    branchName: string;
+    quantity: number;
+    unitCost: number;
+    stockValue: number;
+    unitName?: string | null;
+    attributes: { attributeName: string; value: string }[];
+}
+
+export interface ProfitReportRow {
+    orderId: number;
+    ref: string;
+    orderDate: string;
+    customerId?: number | null;
+    customerName?: string | null;
+    branchId?: number;
+    branchName: string;
+    totalSales: number;
+    totalCogs: number;
+    grossProfit: number;
+    marginPercent: number;
+    createdBy?: {
+        id: number;
+        name: string;
+    } | null;
+}
+
+export interface CustomerLiteType {
+    id: number;
+    name: string;
 }

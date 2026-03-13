@@ -27,7 +27,11 @@ import {
     CircleDollarSign,
     BadgeDollarSign,
     FileKey,
-    Undo2
+    Undo2,
+    ArrowDownNarrowWide,
+    Activity,
+    ChartCandlestick,
+    Wallet
 } from 'lucide-react';
 
 // Define a type for the state
@@ -743,6 +747,10 @@ const Sidebar: React.FC = () => {
                             hasPermission('Payment-Purchase-Report') ||
                             hasPermission('Quotation-Report') ||
                             hasPermission('Stock-Summary-Report') ||
+                            hasPermission('Stock-Low-Report') ||
+                            hasPermission('Stock-Movement-Report') ||
+                            hasPermission('Stock-Valuation-Report') ||
+                            hasPermission('Profit-Report') ||
                             hasPermission('Adjustment-Report') ||
                             hasPermission('Request-Report') ||
                             hasPermission('Return-Report') ||
@@ -892,6 +900,24 @@ const Sidebar: React.FC = () => {
                             </li>
                         }
 
+                        {hasPermission('Profit-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/profitreport"
+                                            className={['profitreport'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <Wallet />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Profit Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
                         {hasPermission('Stock-Summary-Report') &&
                             <li className="nav-item">
                                 <ul>
@@ -903,6 +929,60 @@ const Sidebar: React.FC = () => {
                                             <div className="flex items-center">
                                                 <Layers />
                                                 <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Summary Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Stock-Low-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/low-stock"
+                                            className={['low-stock'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <ArrowDownNarrowWide />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Low Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Stock-Movement-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/stock-movements"
+                                            className={['stock-movements'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <Activity />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Movement Report</span>
+                                            </div>
+                                        </NavLink>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+
+                        {hasPermission('Stock-Valuation-Report') &&
+                            <li className="nav-item">
+                                <ul>
+                                    <li className="nav-item" onClick={() => handleToggleMenu(null)}>
+                                        <NavLink
+                                            to="/stock-valuations"
+                                            className={['stock-valuations'].some(seg => location.pathname.includes(seg)) ? 'active' : ''}
+                                        >
+                                            <div className="flex items-center">
+                                                <ChartCandlestick />
+                                                <span className="text-black ltr:pl-3 rtl:pr-3 dark:text-[#506690] dark:group-hover:text-white-dark">Stock Valuation Report</span>
                                             </div>
                                         </NavLink>
                                     </li>

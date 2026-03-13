@@ -5,7 +5,7 @@ import { faArrowUpZA, faArrowDownAZ } from "@fortawesome/free-solid-svg-icons";
 import Pagination from "../components/Pagination";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
 import ExportDropdown from "@/components/ExportDropdown";
-import { StockSummaryRow, BranchType } from "@/data_types/types";
+import { LowStockRow, BranchType } from "@/data_types/types";
 import * as apiClient from "@/api/stock";
 import { getAllBranches } from "@/api/branch";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -17,8 +17,9 @@ const columns = [
   "SKU",
   "Barcode",
   "Branch",
-  "Quantity",
+  "Current Qty",
   "Alert Qty",
+  "Shortage Qty",
   "Status",
 ];
 
@@ -27,15 +28,14 @@ const sortFields: Record<string, string> = {
   SKU: "sku",
   Barcode: "barcode",
   Branch: "branchName",
-  Quantity: "quantity",
+  "Current Qty": "quantity",
   "Alert Qty": "stockAlert",
+  "Shortage Qty": "shortageQty",
   Status: "stockStatus",
 };
 
 const statusBadgeClass = (status?: string) => {
   switch (status) {
-    case "IN_STOCK":
-      return "badge bg-success";
     case "LOW_STOCK":
       return "badge bg-warning";
     case "OUT_OF_STOCK":
@@ -47,8 +47,6 @@ const statusBadgeClass = (status?: string) => {
 
 const statusLabel = (status?: string) => {
   switch (status) {
-    case "IN_STOCK":
-      return "In Stock";
     case "LOW_STOCK":
       return "Low Stock";
     case "OUT_OF_STOCK":
@@ -58,9 +56,9 @@ const statusLabel = (status?: string) => {
   }
 };
 
-const StockSummary: React.FC = () => {
+const LowStockReport: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [rows, setRows] = useState<StockSummaryRow[]>([]);
+  const [rows, setRows] = useState<LowStockRow[]>([]);
   const [branches, setBranches] = useState<BranchType[]>([]);
   const initialBranchParam = searchParams.get("branchId");
   const initialStatusParam = searchParams.get("stockStatus");
@@ -77,16 +75,16 @@ const StockSummary: React.FC = () => {
   const [visibleCols, setVisibleCols] = useState(columns);
   const [summary, setSummary] = useState({
     totalItems: 0,
-    inStock: 0,
     lowStock: 0,
     outOfStock: 0,
+    totalShortageQty: 0,
   });
 
   const search = searchParams.get("search") || "";
   const page = Number(searchParams.get("page") || 1);
   const pageSize = Number(searchParams.get("pageSize") || 10);
-  const sortField = searchParams.get("sortField") || "productName";
-  const sortOrder = searchParams.get("sortOrder") === "desc" ? "desc" : "asc";
+  const sortField = searchParams.get("sortField") || "shortageQty";
+  const sortOrder = searchParams.get("sortOrder") === "asc" ? "asc" : "desc";
 
   const { user } = useAppContext();
 
@@ -126,15 +124,14 @@ const StockSummary: React.FC = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await apiClient.getStockSummary(
+        const res = await apiClient.getLowStockReport(
           sortField,
           sortOrder,
           page,
           search,
           pageSize,
           branchId,
-          selectedStatus !== "all" ? selectedStatus : undefined,
-          false
+          selectedStatus !== "all" ? selectedStatus : undefined
         );
 
         setRows(res.data || []);
@@ -142,13 +139,13 @@ const StockSummary: React.FC = () => {
         setSummary(
           res.summary || {
             totalItems: 0,
-            inStock: 0,
             lowStock: 0,
             outOfStock: 0,
+            totalShortageQty: 0,
           }
         );
       } catch (error) {
-        console.error("Error fetching stock summary:", error);
+        console.error("Error fetching low stock report:", error);
       } finally {
         setLoading(false);
       }
@@ -190,8 +187,9 @@ const StockSummary: React.FC = () => {
         SKU: r.sku,
         Barcode: r.barcode,
         Branch: r.branchName,
-        Quantity: r.quantity,
+        "Current Qty": r.quantity,
         "Alert Qty": r.stockAlert ?? 0,
+        "Shortage Qty": r.shortageQty,
         Status: statusLabel(r.stockStatus),
         Unit: r.unitName || "",
       };
@@ -207,16 +205,16 @@ const StockSummary: React.FC = () => {
             <div className="text-2xl font-bold">{summary.totalItems}</div>
           </div>
           <div className="panel">
-            <div className="text-sm text-gray-500">In Stock</div>
-            <div className="text-2xl font-bold text-green-600">{summary.inStock}</div>
-          </div>
-          <div className="panel">
             <div className="text-sm text-gray-500">Low Stock</div>
             <div className="text-2xl font-bold text-yellow-600">{summary.lowStock}</div>
           </div>
           <div className="panel">
-            <div className="text-sm text-gray-500">Out of Stock</div>
+            <div className="text-sm text-gray-500">Out Of Stock</div>
             <div className="text-2xl font-bold text-red-600">{summary.outOfStock}</div>
+          </div>
+          <div className="panel">
+            <div className="text-sm text-gray-500">Total Shortage Qty</div>
+            <div className="text-2xl font-bold text-primary">{summary.totalShortageQty}</div>
           </div>
         </div>
 
@@ -251,8 +249,7 @@ const StockSummary: React.FC = () => {
                   }}
                   className="form-select w-48"
                 >
-                  <option value="all">All Status</option>
-                  <option value="IN_STOCK">In Stock</option>
+                  <option value="all">All Low Stock Types</option>
                   <option value="LOW_STOCK">Low Stock</option>
                   <option value="OUT_OF_STOCK">Out Of Stock</option>
                 </select>
@@ -273,7 +270,7 @@ const StockSummary: React.FC = () => {
                   onToggleColumn={toggleCol}
                 />
 
-                <ExportDropdown data={exportData} prefix="Stock_Summary" />
+                <ExportDropdown data={exportData} prefix="Low_Stock_Report" />
               </div>
 
               <div className="dataTable-container">
@@ -350,15 +347,13 @@ const StockSummary: React.FC = () => {
                             {visibleCols.includes("Barcode") && <td>{r.barcode || "-"}</td>}
                             {visibleCols.includes("Branch") && <td>{r.branchName}</td>}
 
-                            {visibleCols.includes("Quantity") && (
+                            {visibleCols.includes("Current Qty") && (
                               <td>
                                 <span
                                   className={
                                     r.stockStatus === "OUT_OF_STOCK"
                                       ? "text-red-600 font-semibold"
-                                      : r.stockStatus === "LOW_STOCK"
-                                      ? "text-yellow-600 font-semibold"
-                                      : ""
+                                      : "text-yellow-600 font-semibold"
                                   }
                                 >
                                   {r.quantity} {r.unitName || ""}
@@ -369,6 +364,12 @@ const StockSummary: React.FC = () => {
                             {visibleCols.includes("Alert Qty") && (
                               <td>
                                 {r.stockAlert ?? 0} {r.unitName || ""}
+                              </td>
+                            )}
+
+                            {visibleCols.includes("Shortage Qty") && (
+                              <td className="font-semibold text-red-600">
+                                {r.shortageQty} {r.unitName || ""}
                               </td>
                             )}
 
@@ -383,7 +384,7 @@ const StockSummary: React.FC = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={columns.length}>No stock found</td>
+                          <td colSpan={columns.length}>No low stock items found</td>
                         </tr>
                       )}
                     </tbody>
@@ -406,4 +407,4 @@ const StockSummary: React.FC = () => {
   );
 };
 
-export default StockSummary;
+export default LowStockReport;
