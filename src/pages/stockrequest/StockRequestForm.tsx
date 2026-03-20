@@ -5,12 +5,12 @@ import { NavLink, useNavigate, useParams } from "react-router-dom";
 import {
     BranchType,
     ProductVariantType,
-    StockRequestType,
-    StockRequestDetailType,
+    StockReturnType,
+    StockReturnDetailType,
 } from "@/data_types/types";
 import { getAllBranches } from "@/api/branch";
 import { searchProduct } from "@/api/searchProduct";
-import { upsertRequest, getStockRequestById } from "@/api/stockRequest";
+import { upsertReturn, getStockReturnById } from "@/api/stockReturn";
 import { Controller, SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { useAppContext } from "@/hooks/useAppContext";
@@ -61,7 +61,7 @@ type ProductVariantWithUnits = ProductVariantType & {
     products?: any;
 };
 
-const StockRequestForm: React.FC = () => {
+const StockReturnForm: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -71,9 +71,8 @@ const StockRequestForm: React.FC = () => {
     const [branches, setBranches] = useState<BranchType[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [productResults, setProductResults] = useState<ProductVariantWithUnits[]>([]);
-    const [requestDetails, setRequestDetails] = useState<StockRequestDetailType[]>([]);
+    const [returnDetails, setReturnDetails] = useState<StockReturnDetailType[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [statusValue, setStatusValue] = useState<string>("PENDING");
     const [branchInitialized, setBranchInitialized] = useState(false);
 
     const {
@@ -84,10 +83,15 @@ const StockRequestForm: React.FC = () => {
         watch,
         reset,
         formState: { errors },
-    } = useForm<StockRequestType>();
+    } = useForm<StockReturnType>({
+        defaultValues: {
+            StatusType: "PENDING",
+        },
+    });
 
     const wrapperStyle = useMemo(() => ({ width: "100%" }), []);
     const branchId = watch("branchId");
+    const watchedStatus = watch("StatusType") || "PENDING";
 
     const normalizeUnit = (raw: RawUnitRow): VariantUnitType | null => {
         const unitId = Number(raw.unitId ?? raw.id ?? raw.unit?.id ?? raw.Units?.id ?? 0);
@@ -172,12 +176,12 @@ const StockRequestForm: React.FC = () => {
         return qty * opValue;
     };
 
-    const getSelectedUnit = (detail: StockRequestDetailType): VariantUnitType | null => {
+    const getSelectedUnit = (detail: StockReturnDetailType): VariantUnitType | null => {
         const units = getVariantUnits(detail.productvariants);
         return units.find((u) => Number(u.unitId) === Number(detail.unitId ?? 0)) || null;
     };
 
-    const recalcDetailBaseQty = (detail: StockRequestDetailType): StockRequestDetailType => {
+    const recalcDetail = (detail: StockReturnDetailType): StockReturnDetailType => {
         const selectedUnit = getSelectedUnit(detail);
         const operationValue = Number(selectedUnit?.operationValue ?? 1) || 1;
         const operator = selectedUnit?.operator ?? "*";
@@ -187,11 +191,11 @@ const StockRequestForm: React.FC = () => {
         return {
             ...detail,
             baseQty,
-            quantity: baseQty, // legacy mirror
+            quantity: baseQty,
         };
     };
 
-    const getDisplayStockInSelectedUnit = (detail: StockRequestDetailType) => {
+    const getDisplayStockInSelectedUnit = (detail: StockReturnDetailType) => {
         const selectedUnit = getSelectedUnit(detail);
         const operationValue = Number(selectedUnit?.operationValue ?? 1) || 1;
         const operator = selectedUnit?.operator ?? "*";
@@ -214,31 +218,29 @@ const StockRequestForm: React.FC = () => {
             setBranches(data as BranchType[]);
         } catch (error) {
             console.error("Error fetching branch:", error);
+            toast.error("Failed to fetch branches");
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    const fetchStockRequest = useCallback(async () => {
+    const fetchStockReturn = useCallback(async () => {
         if (!id) return;
 
         setIsLoading(true);
         try {
-            const requestData: StockRequestType = await getStockRequestById(parseInt(id, 10));
-            await fetchBranches();
+            const returnData: StockReturnType = await getStockReturnById(parseInt(id, 10));
 
-            setValue("branchId", requestData.branchId);
+            setValue("branchId", returnData.branchId);
             setValue(
-                "requestDate",
-                requestData.requestDate
-                    ? new Date(requestData.requestDate).toISOString()
-                    : null
+                "returnDate",
+                returnData.returnDate ? new Date(returnData.returnDate) : null
             );
-            setValue("StatusType", requestData.StatusType);
-            setValue("note", requestData.note);
+            setValue("StatusType", returnData.StatusType || "PENDING");
+            setValue("note", returnData.note || "");
 
-            setRequestDetails(
-                (requestData.requestDetails || []).map((detail) => ({
+            setReturnDetails(
+                (returnData.returnDetails || []).map((detail) => ({
                     ...detail,
                     unitId: detail.unitId ?? null,
                     unitQty: detail.unitQty ?? 1,
@@ -246,20 +248,27 @@ const StockRequestForm: React.FC = () => {
                     quantity: detail.quantity ?? Number(detail.baseQty ?? 1),
                 }))
             );
-
-            setStatusValue(requestData.StatusType);
         } catch (error) {
-            console.error("Error fetching stock request:", error);
-            toast.error("Failed to fetch stock request");
+            console.error("Error fetching stock return:", error);
+            toast.error("Failed to fetch stock return");
         } finally {
             setIsLoading(false);
         }
-    }, [id, setValue, fetchBranches]);
+    }, [id, setValue]);
 
     useEffect(() => {
         fetchBranches();
-        fetchStockRequest();
-    }, [fetchBranches, fetchStockRequest]);
+    }, [fetchBranches]);
+
+    useEffect(() => {
+        fetchStockReturn();
+    }, [fetchStockReturn]);
+
+    useEffect(() => {
+        if (user?.roleType === "USER" && user.branchId) {
+            setValue("branchId", Number(user.branchId));
+        }
+    }, [user, setValue]);
 
     useEffect(() => {
         if (!branchInitialized) {
@@ -268,7 +277,7 @@ const StockRequestForm: React.FC = () => {
         }
 
         if (!id) {
-            setRequestDetails([]);
+            setReturnDetails([]);
             setSearchTerm("");
         }
     }, [branchId, id, branchInitialized]);
@@ -281,9 +290,7 @@ const StockRequestForm: React.FC = () => {
         }
 
         const selectedBranchId =
-            user?.roleType === "USER"
-                ? user.branchId
-                : watch("branchId");
+            user?.roleType === "USER" ? user.branchId : watch("branchId");
 
         if (!selectedBranchId) {
             toast.error("No branch selected", {
@@ -335,7 +342,7 @@ const StockRequestForm: React.FC = () => {
                     : (variant.stocks as any)?.quantity ?? 0
             ) || 0;
 
-        const existingIndex = requestDetails.findIndex(
+        const existingIndex = returnDetails.findIndex(
             (item) => item.productVariantId === variant.id
         );
 
@@ -345,8 +352,9 @@ const StockRequestForm: React.FC = () => {
         }
 
         const defaultUnit = getDefaultUnitData(variant);
+        const baseQty = calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator);
 
-        const newDetail: StockRequestDetailType = {
+        const newDetail: StockReturnDetailType = {
             id: 0,
             productId: variant.products?.id || 0,
             productVariantId: variant.id,
@@ -355,15 +363,15 @@ const StockRequestForm: React.FC = () => {
             stocks: stockQty,
             unitId: defaultUnit.unitId,
             unitQty: 1,
-            baseQty: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
-            quantity: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
+            baseQty,
+            quantity: baseQty,
         };
 
-        setRequestDetails((prev) => [...prev, newDetail]);
+        setReturnDetails((prev) => [...prev, newDetail]);
     };
 
-    const addOrUpdateRequestDetail = async (detail: StockRequestDetailType) => {
-        const exists = requestDetails.find(
+    const addOrUpdateReturnDetail = async (detail: StockReturnDetailType) => {
+        const exists = returnDetails.find(
             (item) => item.productVariantId === detail.productVariantId
         );
 
@@ -374,8 +382,9 @@ const StockRequestForm: React.FC = () => {
 
         const variant = detail.productvariants;
         const defaultUnit = getDefaultUnitData(variant);
+        const baseQty = calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator);
 
-        const newDetail: StockRequestDetailType = {
+        const newDetail: StockReturnDetailType = {
             id: detail.id ?? 0,
             productId: detail.productId ?? 0,
             productVariantId: detail.productVariantId ?? 0,
@@ -384,26 +393,20 @@ const StockRequestForm: React.FC = () => {
             stocks: detail.stocks ?? 0,
             unitId: defaultUnit.unitId,
             unitQty: 1,
-            baseQty: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
-            quantity: calculateBaseQty(1, defaultUnit.operationValue, defaultUnit.operator),
+            baseQty,
+            quantity: baseQty,
         };
 
-        setRequestDetails((prev) => [...prev, newDetail]);
+        setReturnDetails((prev) => [...prev, newDetail]);
         setSearchTerm("");
         setShowSuggestions(false);
     };
 
     const handleUnitChange = (index: number, unitId: number) => {
-        setRequestDetails((prev) =>
+        setReturnDetails((prev) =>
             prev.map((detail, i) => {
                 if (i !== index) return detail;
-
-                const updated = {
-                    ...detail,
-                    unitId,
-                };
-
-                return recalcDetailBaseQty(updated);
+                return recalcDetail({ ...detail, unitId });
             })
         );
     };
@@ -411,74 +414,54 @@ const StockRequestForm: React.FC = () => {
     const handleUnitQtyChange = (index: number, value: string) => {
         let cleaned = value.replace(/[^0-9.]/g, "");
         const parts = cleaned.split(".");
-
         if (parts.length > 2) {
             cleaned = `${parts[0]}.${parts.slice(1).join("")}`;
         }
 
-        setRequestDetails((prev) =>
+        setReturnDetails((prev) =>
             prev.map((detail, i) => {
                 if (i !== index) return detail;
-
-                const updated = {
-                    ...detail,
-                    unitQty: cleaned,
-                };
-
-                return recalcDetailBaseQty(updated);
+                return recalcDetail({ ...detail, unitQty: cleaned });
             })
         );
     };
 
     const increaseUnitQty = (index: number) => {
-        setRequestDetails((prev) =>
+        setReturnDetails((prev) =>
             prev.map((detail, i) => {
                 if (i !== index) return detail;
-
                 const currentQty = Number(detail.unitQty ?? 0);
-                const updated = {
-                    ...detail,
-                    unitQty: currentQty + 1,
-                };
-
-                return recalcDetailBaseQty(updated);
+                return recalcDetail({ ...detail, unitQty: currentQty + 1 });
             })
         );
     };
 
     const decreaseUnitQty = (index: number) => {
-        setRequestDetails((prev) =>
+        setReturnDetails((prev) =>
             prev.map((detail, i) => {
                 if (i !== index) return detail;
-
                 const currentQty = Number(detail.unitQty ?? 0);
                 const nextQty = currentQty > 1 ? currentQty - 1 : 1;
-
-                const updated = {
-                    ...detail,
-                    unitQty: nextQty,
-                };
-
-                return recalcDetailBaseQty(updated);
+                return recalcDetail({ ...detail, unitQty: nextQty });
             })
         );
     };
 
     const removeProductFromCart = (index: number) => {
-        setRequestDetails((prev) => prev.filter((_, i) => i !== index));
+        setReturnDetails((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const onSubmit: SubmitHandler<StockRequestType> = async (formData) => {
+    const onSubmit: SubmitHandler<StockReturnType> = async (formData) => {
         setIsLoading(true);
 
         try {
-            if (requestDetails.length === 0) {
+            if (returnDetails.length === 0) {
                 toast.error("Please add at least one product");
                 setIsLoading(false);
                 return;
             }
 
-            for (const row of requestDetails) {
+            for (const row of returnDetails) {
                 if (!row.unitId) {
                     toast.error(`Please select unit for product ${row.products?.name || ""}`);
                     setIsLoading(false);
@@ -496,20 +479,11 @@ const StockRequestForm: React.FC = () => {
                     setIsLoading(false);
                     return;
                 }
-
-                if (
-                    formData.StatusType === "APPROVED" &&
-                    Number(row.baseQty) > Number(row.stocks ?? 0)
-                ) {
-                    toast.error(`Insufficient stock for ${row.products?.name || ""}`);
-                    setIsLoading(false);
-                    return;
-                }
             }
 
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
 
-            const cleanedDetails: StockRequestDetailType[] = requestDetails.map((detail) => ({
+            const cleanedDetails = returnDetails.map((detail) => ({
                 id: detail.id ?? 0,
                 productId: Number(detail.productId),
                 productVariantId: Number(detail.productVariantId),
@@ -517,32 +491,36 @@ const StockRequestForm: React.FC = () => {
                 unitQty: detail.unitQty != null ? Number(detail.unitQty) : 0,
                 baseQty: detail.baseQty != null ? Number(detail.baseQty) : 0,
                 quantity: detail.baseQty != null ? Number(detail.baseQty) : 0,
-                products: detail.products ?? null,
-                productvariants: detail.productvariants ?? null,
-                stocks: detail.stocks ?? 0,
             }));
 
-            const requestData: StockRequestType = {
+            const normalizedReturnDate =
+                formData.returnDate instanceof Date
+                    ? formData.returnDate.toISOString()
+                    : formData.returnDate
+                    ? new Date(formData.returnDate as any).toISOString()
+                    : null;
+
+            const returnData: StockReturnType = {
                 id: id ? Number(id) : undefined,
                 ref: "",
                 branchId: Number(formData.branchId ?? user?.branchId),
-                requestBy: Number(user?.id),
+                returnBy: Number(user?.id),
                 branch: {
                     id: Number(formData.branchId ?? 0),
                     name: "Default Branch",
                     address: "Default Address",
                 },
-                requestDate: formData.requestDate,
+                returnDate: normalizedReturnDate,
                 StatusType: formData.StatusType,
                 note: formData.note,
                 delReason: "",
-                requestDetails: cleanedDetails,
+                returnDetails: cleanedDetails,
             };
 
-            await upsertRequest(requestData);
+            await upsertReturn(returnData);
 
             toast.success(
-                id ? "Stock Request updated successfully" : "Stock Request created successfully",
+                id ? "Stock Return updated successfully" : "Stock Return created successfully",
                 {
                     position: "top-right",
                     autoClose: 2000,
@@ -551,17 +529,20 @@ const StockRequestForm: React.FC = () => {
 
             reset({
                 id: undefined,
-                branchId: undefined,
-                requestDate: undefined,
-                StatusType: undefined,
+                branchId: user?.roleType === "USER" ? Number(user.branchId) : undefined,
+                returnDate: undefined,
+                StatusType: "PENDING",
                 note: undefined,
-                requestDetails: [],
+                returnDetails: [],
             });
 
-            setRequestDetails([]);
-            navigate("/stockrequest");
+            setReturnDetails([]);
+            setSearchTerm("");
+            setShowSuggestions(false);
+
+            navigate("/stockreturn");
         } catch (err: any) {
-            toast.error(err.message || "Error adding/editing stock request", {
+            toast.error(err.message || "Error adding/editing stock return", {
                 position: "top-right",
                 autoClose: 3000,
             });
@@ -575,7 +556,7 @@ const StockRequestForm: React.FC = () => {
             <div className="mb-5">
                 <h5 className="flex items-center text-lg font-semibold dark:text-white-light gap-2">
                     {id ? <FilePenLine /> : <Plus />}
-                    {id ? "Update Stock Request" : "Add Stock Request"}
+                    {id ? "Update Stock Return" : "Add Stock Return"}
                 </h5>
             </div>
 
@@ -618,25 +599,25 @@ const StockRequestForm: React.FC = () => {
                                 </label>
                                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                                     <Controller
-                                        name="requestDate"
+                                        name="returnDate"
                                         control={control}
-                                        rules={{ required: "Request date is required" }}
+                                        rules={{ required: "Return date is required" }}
                                         render={({ field }) => (
                                             <DatePicker
-                                                value={field.value ? new Date(field.value as string) : null}
+                                                value={field.value ? new Date(field.value as any) : null}
                                                 onChange={(date) => field.onChange(date)}
                                                 slotProps={{
                                                     textField: {
                                                         fullWidth: true,
-                                                        error: !!errors.requestDate,
+                                                        error: !!errors.returnDate,
                                                     },
                                                 }}
                                             />
                                         )}
                                     />
                                 </LocalizationProvider>
-                                {errors.requestDate && (
-                                    <span className="error_validate">{errors.requestDate.message}</span>
+                                {errors.returnDate && (
+                                    <span className="error_validate">{errors.returnDate.message}</span>
                                 )}
                             </div>
                         </div>
@@ -708,7 +689,7 @@ const StockRequestForm: React.FC = () => {
                                                 borderBottom: "1px solid #eee",
                                             }}
                                             onClick={() =>
-                                                addOrUpdateRequestDetail({
+                                                addOrUpdateReturnDetail({
                                                     id: 0,
                                                     productId: variant.products?.id || 0,
                                                     productVariantId: variant.id,
@@ -743,20 +724,20 @@ const StockRequestForm: React.FC = () => {
                                         <th>Unit</th>
                                         <th>Qty</th>
                                         <th>Base Qty</th>
-                                        {statusValue === "PENDING" && <th>Qty On Hand</th>}
+                                        {watchedStatus === "PENDING" && <th>Qty On Hand</th>}
                                         <th></th>
                                     </tr>
                                 </thead>
 
                                 <tbody>
-                                    {requestDetails.length === 0 ? (
+                                    {returnDetails.length === 0 ? (
                                         <tr>
                                             <td colSpan={7} className="text-center py-4">
                                                 No products added
                                             </td>
                                         </tr>
                                     ) : (
-                                        requestDetails.map((detail, index) => {
+                                        returnDetails.map((detail, index) => {
                                             const units = getVariantUnits(detail.productvariants);
                                             const selectedUnit = getSelectedUnit(detail);
                                             const stockInSelectedUnit = getDisplayStockInSelectedUnit(detail);
@@ -859,7 +840,7 @@ const StockRequestForm: React.FC = () => {
                                                         />
                                                     </td>
 
-                                                    {statusValue === "PENDING" && (
+                                                    {watchedStatus === "PENDING" && (
                                                         <td>
                                                             <div>{Number(detail.stocks ?? 0)}</div>
                                                             {selectedUnit && (
@@ -897,23 +878,14 @@ const StockRequestForm: React.FC = () => {
                                     id="status"
                                     className="form-input"
                                     {...register("StatusType", {
-                                        required: "Status is required"
+                                        required: "Status is required",
                                     })}
                                 >
                                     <option value="">Select a status...</option>
                                     <option value="PENDING">Pending</option>
-                                    <option
-                                        value="APPROVED"
-                                        hidden={!(user?.roleType === "USER" && statusValue !== "PENDING")}
-                                    >
-                                        Approved
-                                    </option>
-                                    <option
-                                        value="APPROVED"
-                                        hidden={!(hasPermission("Stock-Request-Approve") && statusValue === "PENDING")}
-                                    >
-                                        Approved
-                                    </option>
+                                    {hasPermission("Stock-Return-Approve") && (
+                                        <option value="APPROVED">Approved</option>
+                                    )}
                                 </select>
                                 {errors.StatusType && (
                                     <span className="error_validate">{errors.StatusType.message}</span>
@@ -928,23 +900,23 @@ const StockRequestForm: React.FC = () => {
                     </div>
 
                     <div className="flex justify-end items-center mt-8">
-                        <NavLink to="/stockrequest" type="button" className="btn btn-outline-warning">
+                        <NavLink to="/stockreturn" type="button" className="btn btn-outline-warning">
                             <FontAwesomeIcon icon={faArrowLeft} className="mr-1" />
                             Go Back
                         </NavLink>
 
-                        {statusValue === "PENDING" &&
-                            (hasPermission("Stock-Request-Create") ||
-                                hasPermission("Stock-Request-Edit")) && (
-                                <button
-                                    type="submit"
-                                    className="btn btn-primary ltr:ml-4 rtl:mr-4"
-                                    disabled={isLoading}
-                                >
-                                    <FontAwesomeIcon icon={faSave} className="mr-1" />
-                                    {isLoading ? "Saving..." : "Save"}
-                                </button>
-                            )}
+                        {(hasPermission("Stock-Return-Create") ||
+                            hasPermission("Stock-Return-Edit") ||
+                            hasPermission("Stock-Return-Approve")) && (
+                            <button
+                                type="submit"
+                                className="btn btn-primary ltr:ml-4 rtl:mr-4"
+                                disabled={isLoading}
+                            >
+                                <FontAwesomeIcon icon={faSave} className="mr-1" />
+                                {isLoading ? "Saving..." : "Save"}
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>
@@ -952,4 +924,4 @@ const StockRequestForm: React.FC = () => {
     );
 };
 
-export default StockRequestForm;
+export default StockReturnForm;

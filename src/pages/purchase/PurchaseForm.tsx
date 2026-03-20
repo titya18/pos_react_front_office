@@ -268,9 +268,31 @@ const PurchaseForm: React.FC = () => {
         }
     };
 
-    const addToCartDirectly = (variant: ProductVariantType) => {
+    const getVariantUnitOptions = (variant: any) => {
+        return Array.isArray(variant?.unitOptions) ? variant.unitOptions : [];
+    };
 
-        const newDetail: PurchaseDetailType = {
+    const getSelectedUnitOption = (variant: any, unitId?: number | null) => {
+        const unitOptions = getVariantUnitOptions(variant);
+        return unitOptions.find((u: any) => Number(u.unitId) === Number(unitId));
+    };
+
+    const buildPurchaseDraftFromVariant = (variant: ProductVariantType): PurchaseDetailType => {
+        const defaultUnitId =
+            (variant as any).defaultPurchaseUnitId ??
+            (variant as any).purchasePriceUnitId ??
+            variant.baseUnitId ??
+            null;
+
+        const selectedUnit = getSelectedUnitOption(variant, defaultUnitId);
+        const operationValue = Number(selectedUnit?.operationValue ?? 1);
+        const suggestedCost = Number(
+            selectedUnit?.suggestedPurchaseCost ??
+            (variant as any).purchasePrice ??
+            0
+        );
+
+        return {
             id: 0,
             productId: variant.products?.id || 0,
             productVariantId: variant.id,
@@ -278,23 +300,21 @@ const PurchaseForm: React.FC = () => {
             products: variant.products || null,
             productvariants: variant,
 
-            // ✅ units
-            unitId: variant.baseUnitId ?? null,
+            unitId: defaultUnitId,
             unitQty: 1,
-            baseQty: 1,
+            baseQty: operationValue,
 
             quantity: 1,
 
-            cost: Number(variant.purchasePrice) || 0,
-            costPerBaseUnit: 0,
+            cost: suggestedCost,
+            costPerBaseUnit: operationValue > 0 ? suggestedCost / operationValue : 0,
+
             taxNet: 0,
             taxMethod: "Include",
-
             discount: 0,
             discountMethod: "Fixed",
-
             total: calculateTotal({
-                cost: Number(variant.purchasePrice) || 0,
+                cost: suggestedCost,
                 unitQty: 1,
                 taxNet: 0,
                 taxMethod: "Include",
@@ -305,9 +325,13 @@ const PurchaseForm: React.FC = () => {
             stocks: Number(
                 Array.isArray(variant.stocks)
                     ? (variant.stocks[0]?.quantity ?? 0)
-                    : (variant.stocks?.quantity ?? 0)
+                    : ((variant as any).stocks?.quantity ?? 0)
             ) || 0,
         };
+    };
+
+    const addToCartDirectly = (variant: ProductVariantType) => {
+        const newDetail = buildPurchaseDraftFromVariant(variant);
 
         const existingIndex = purchaseDetails.findIndex(
             (item) => item.productVariantId === newDetail.productVariantId
@@ -316,25 +340,28 @@ const PurchaseForm: React.FC = () => {
         let updatedDetails = [...purchaseDetails];
 
         if (existingIndex !== -1) {
-
             const current = Number(updatedDetails[existingIndex].unitQty ?? 0);
+            const nextQty = current + 1;
 
-            updatedDetails[existingIndex].unitQty = current + 1;
-            updatedDetails[existingIndex].quantity = current + 1;
+            const selectedUnit = getSelectedUnitOption(
+                updatedDetails[existingIndex].productvariants,
+                updatedDetails[existingIndex].unitId
+            );
+            const operationValue = Number(selectedUnit?.operationValue ?? 1);
 
+            updatedDetails[existingIndex].unitQty = nextQty;
+            updatedDetails[existingIndex].quantity = nextQty;
+            updatedDetails[existingIndex].baseQty = nextQty * operationValue;
             updatedDetails[existingIndex].total = calculateTotal({
                 ...updatedDetails[existingIndex],
-                unitQty: current + 1
+                unitQty: nextQty,
             });
-
         } else {
             updatedDetails.push(newDetail);
         }
 
         setPurchaseDetails(updatedDetails);
-
-        const totalSum = sumTotal(updatedDetails);
-        setGrandTotal(totalSum);
+        setGrandTotal(sumTotal(updatedDetails));
     };
 
     const handleFocus = () => {
@@ -349,23 +376,29 @@ const PurchaseForm: React.FC = () => {
         handleSearch(term);
     };
 
+    const findMatchingPurchaseLineIndex = (
+        details: PurchaseDetailType[],
+        newDetail: PurchaseDetailType
+    ) => {
+        return details.findIndex((item) =>
+            Number(item.productVariantId) === Number(newDetail.productVariantId) &&
+            Number(item.unitId ?? 0) === Number(newDetail.unitId ?? 0) &&
+            String(item.taxMethod ?? "Include") === String(newDetail.taxMethod ?? "Include") &&
+            String(item.discountMethod ?? "Fixed") === String(newDetail.discountMethod ?? "Fixed") &&
+            Number(item.cost ?? 0) === Number(newDetail.cost ?? 0) &&
+            Number(item.taxNet ?? 0) === Number(newDetail.taxNet ?? 0) &&
+            Number(item.discount ?? 0) === Number(newDetail.discount ?? 0)
+        );
+    };
+
     // Function to add or update a product detail
     const addOrUpdatePurchaseDetail = async (newDetail: PurchaseDetailType) => {
-        // Find if the product already exists in the array
-        const existingIndex = purchaseDetails.findIndex(
-            (item) => item.productVariantId === newDetail.productVariantId
-        );
-        if (existingIndex !== -1) {
-            await ShowWarningMessage("Product already in cart");
-            return;
-        }
-
         setClickData({
             ...newDetail
         });
         setIsModalOpen(true);
-        setSearchTerm(""); // Clear search
-        setShowSuggestions(false); // Hide suggestions
+        setSearchTerm("");
+        setShowSuggestions(false);
     };
 
     const handleOnSubmit = async (PurchaseDetailData: PurchaseDetailType) => {
@@ -378,9 +411,9 @@ const PurchaseForm: React.FC = () => {
                 products: PurchaseDetailData.products ?? null,
                 productvariants: PurchaseDetailData.productvariants ?? null,
 
-                unitId: (PurchaseDetailData as any).unitId ?? null,
-                unitQty: (PurchaseDetailData as any).unitQty ?? 1,
-                baseQty: (PurchaseDetailData as any).baseQty ?? null,
+                unitId: PurchaseDetailData.unitId ?? null,
+                unitQty: PurchaseDetailData.unitQty ?? 1,
+                baseQty: PurchaseDetailData.baseQty ?? 0,
 
                 quantity: (PurchaseDetailData as any).unitQty ?? 1,
 
@@ -395,7 +428,7 @@ const PurchaseForm: React.FC = () => {
 
                 total: calculateTotal({
                     cost: PurchaseDetailData.cost,
-                    unitQty: (PurchaseDetailData as any).unitQty ?? 1,
+                    unitQty: PurchaseDetailData.unitQty ?? 1,
                     taxNet: PurchaseDetailData.taxNet,
                     taxMethod: PurchaseDetailData.taxMethod,
                     discount: PurchaseDetailData.discount,
@@ -404,55 +437,174 @@ const PurchaseForm: React.FC = () => {
 
                 stocks: PurchaseDetailData.stocks ?? 0,
             };
-            console.log("Sanitized Detail: ", newDetail);
 
-            const existingIndex = purchaseDetails.findIndex(
-                (item) => item.productVariantId === newDetail.productVariantId
-            );
+            const isEditingExistingRow =
+                !!clickData &&
+                purchaseDetails.some((row) => row.id === clickData.id && clickData.id !== 0);
 
-            if (existingIndex !== -1) {
-                // Product exists; update its data
-                const updatedDetails = [...purchaseDetails];
-                updatedDetails[existingIndex] = { ...newDetail }; // Replace with the new data
+            if (isEditingExistingRow) {
+                const updatedDetails = purchaseDetails.map((row) =>
+                    row.id === clickData?.id ? newDetail : row
+                );
                 setPurchaseDetails(updatedDetails);
-            } else {
-                // Product does not exist; add it
-                setPurchaseDetails([...purchaseDetails, newDetail]);
+                setGrandTotal(sumTotal(updatedDetails));
+                setIsModalOpen(false);
+                return;
             }
 
-            // Recalculate grand total
-            const totalSum = sumTotal(existingIndex !== -1
-                ? purchaseDetails.map((d, i) => i === existingIndex ? newDetail : d)
-                : [...purchaseDetails, newDetail]
-            );
-            setGrandTotal(totalSum);
+            const existingIndex = findMatchingPurchaseLineIndex(purchaseDetails, newDetail);
+
+            if (existingIndex !== -1) {
+                const updatedDetails = [...purchaseDetails];
+                const currentQty = Number(updatedDetails[existingIndex].unitQty ?? 0);
+                const addQty = Number(newDetail.unitQty ?? 0);
+                const nextQty = currentQty + addQty;
+
+                const selectedUnit = getSelectedUnitOption(
+                    updatedDetails[existingIndex].productvariants,
+                    updatedDetails[existingIndex].unitId
+                );
+                const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
+                updatedDetails[existingIndex] = {
+                    ...updatedDetails[existingIndex],
+                    unitQty: nextQty,
+                    quantity: nextQty,
+                    baseQty: nextQty * operationValue,
+                    total: calculateTotal({
+                        ...updatedDetails[existingIndex],
+                        unitQty: nextQty,
+                    }),
+                };
+
+                setPurchaseDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            } else {
+                const updatedDetails = [...purchaseDetails, newDetail];
+                setPurchaseDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            }
 
             setIsModalOpen(false);
         } catch (error: any) {
-            // Check if error.message is set by your API function
-            if (error.message) {
-                toast.error(error.message, {
-                    position: "top-right",
-                    autoClose: 2000
-                });
-            } else {
-                toast.error("Error adding/editting purchase", {
-                    position: "top-right",
-                    autoClose: 2000
-                });
-            }
+            toast.error(error.message || "Error adding/editing purchase", {
+                position: "top-right",
+                autoClose: 2000
+            });
         }
     };
+
+    // // Function to add or update a product detail
+    // const addOrUpdatePurchaseDetail = async (newDetail: PurchaseDetailType) => {
+    //     // Find if the product already exists in the array
+    //     const existingIndex = purchaseDetails.findIndex(
+    //         (item) => item.productVariantId === newDetail.productVariantId
+    //     );
+    //     if (existingIndex !== -1) {
+    //         await ShowWarningMessage("Product already in cart");
+    //         return;
+    //     }
+
+    //     setClickData({
+    //         ...newDetail
+    //     });
+    //     setIsModalOpen(true);
+    //     setSearchTerm(""); // Clear search
+    //     setShowSuggestions(false); // Hide suggestions
+    // };
+
+    // const handleOnSubmit = async (PurchaseDetailData: PurchaseDetailType) => {
+    //     try {
+    //         const newDetail: PurchaseDetailType = {
+    //             id: PurchaseDetailData.id ?? 0,
+    //             productId: PurchaseDetailData.productId ?? 0,
+    //             productVariantId: PurchaseDetailData.productVariantId ?? 0,
+
+    //             products: PurchaseDetailData.products ?? null,
+    //             productvariants: PurchaseDetailData.productvariants ?? null,
+
+    //             unitId: (PurchaseDetailData as any).unitId ?? null,
+    //             unitQty: (PurchaseDetailData as any).unitQty ?? 1,
+    //             baseQty: (PurchaseDetailData as any).baseQty ?? null,
+
+    //             quantity: (PurchaseDetailData as any).unitQty ?? 1,
+
+    //             cost: PurchaseDetailData.cost ?? 0,
+    //             costPerBaseUnit: PurchaseDetailData.costPerBaseUnit ?? 0,
+
+    //             taxNet: PurchaseDetailData.taxNet ?? 0,
+    //             taxMethod: PurchaseDetailData.taxMethod ?? "Include",
+
+    //             discount: PurchaseDetailData.discount ?? 0,
+    //             discountMethod: PurchaseDetailData.discountMethod ?? "Fixed",
+
+    //             total: calculateTotal({
+    //                 cost: PurchaseDetailData.cost,
+    //                 unitQty: (PurchaseDetailData as any).unitQty ?? 1,
+    //                 taxNet: PurchaseDetailData.taxNet,
+    //                 taxMethod: PurchaseDetailData.taxMethod,
+    //                 discount: PurchaseDetailData.discount,
+    //                 discountMethod: PurchaseDetailData.discountMethod,
+    //             }),
+
+    //             stocks: PurchaseDetailData.stocks ?? 0,
+    //         };
+    //         console.log("Sanitized Detail: ", newDetail);
+
+    //         const existingIndex = purchaseDetails.findIndex(
+    //             (item) => item.productVariantId === newDetail.productVariantId
+    //         );
+
+    //         if (existingIndex !== -1) {
+    //             // Product exists; update its data
+    //             const updatedDetails = [...purchaseDetails];
+    //             updatedDetails[existingIndex] = { ...newDetail }; // Replace with the new data
+    //             setPurchaseDetails(updatedDetails);
+    //         } else {
+    //             // Product does not exist; add it
+    //             setPurchaseDetails([...purchaseDetails, newDetail]);
+    //         }
+
+    //         // Recalculate grand total
+    //         const totalSum = sumTotal(existingIndex !== -1
+    //             ? purchaseDetails.map((d, i) => i === existingIndex ? newDetail : d)
+    //             : [...purchaseDetails, newDetail]
+    //         );
+    //         setGrandTotal(totalSum);
+
+    //         setIsModalOpen(false);
+    //     } catch (error: any) {
+    //         // Check if error.message is set by your API function
+    //         if (error.message) {
+    //             toast.error(error.message, {
+    //                 position: "top-right",
+    //                 autoClose: 2000
+    //             });
+    //         } else {
+    //             toast.error("Error adding/editting purchase", {
+    //                 position: "top-right",
+    //                 autoClose: 2000
+    //             });
+    //         }
+    //     }
+    // };
 
     const increaseQuantity = (index: number) => {
         const updated = [...purchaseDetails];
         const d: any = updated[index];
 
         const current = Number(d.unitQty ?? 0);
-        if (current < 25) {
-            d.unitQty = current + 1;
-            d.quantity = current + 1;
-            d.total = calculateTotal({ ...d, unitQty: d.unitQty });
+        if (current < 999999) {
+            const nextQty = current + 1;
+
+            const selectedUnit = getSelectedUnitOption(d.productvariants, d.unitId);
+            const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
+            d.unitQty = nextQty;
+            d.quantity = nextQty;
+            d.baseQty = nextQty * operationValue;
+            d.total = calculateTotal({ ...d, unitQty: nextQty });
+
             updated[index] = d;
             setPurchaseDetails(updated);
         }
@@ -464,9 +616,16 @@ const PurchaseForm: React.FC = () => {
 
         const current = Number(d.unitQty ?? 0);
         if (current > 1) {
-            d.unitQty = current - 1;
-            d.quantity = current - 1;
-            d.total = calculateTotal({ ...d, unitQty: d.unitQty });
+            const nextQty = current - 1;
+
+            const selectedUnit = getSelectedUnitOption(d.productvariants, d.unitId);
+            const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
+            d.unitQty = nextQty;
+            d.quantity = nextQty;
+            d.baseQty = nextQty * operationValue;
+            d.total = calculateTotal({ ...d, unitQty: nextQty });
+
             updated[index] = d;
             setPurchaseDetails(updated);
         }
@@ -850,26 +1009,27 @@ const PurchaseForm: React.FC = () => {
                                                     cursor: "pointer",
                                                     borderBottom: "1px solid #eee",
                                                 }}
-                                                onClick={() => addOrUpdatePurchaseDetail({
-                                                    id: 0, // Assign a default or unique value
-                                                    productId: variants.products?.id || 0,
-                                                    productVariantId: variants.id,
-                                                    products: variants.products || null,
-                                                    productvariants: variants,
-                                                    quantity: 1, // Default quantity for a new item
-                                                    cost: Number(variants.purchasePrice) || 0, // Default cost
-                                                    costPerBaseUnit: 0,
-                                                    taxNet: 0, // Default taxNet
-                                                    taxMethod: "Include", // Default tax method
-                                                    discount: 0,
-                                                    discountMethod: "Fixed",
-                                                    total: 0,
-                                                    stocks: Number(
-                                                        Array.isArray(variants.stocks)
-                                                            ? (variants.stocks[0]?.quantity ?? 0)
-                                                            : (variants.stocks?.quantity ?? 0)
-                                                    ) || 0,
-                                                })}
+                                                // onClick={() => addOrUpdatePurchaseDetail({
+                                                //     id: 0, // Assign a default or unique value
+                                                //     productId: variants.products?.id || 0,
+                                                //     productVariantId: variants.id,
+                                                //     products: variants.products || null,
+                                                //     productvariants: variants,
+                                                //     quantity: 1, // Default quantity for a new item
+                                                //     cost: Number(variants.purchasePrice) || 0, // Default cost
+                                                //     costPerBaseUnit: 0,
+                                                //     taxNet: 0, // Default taxNet
+                                                //     taxMethod: "Include", // Default tax method
+                                                //     discount: 0,
+                                                //     discountMethod: "Fixed",
+                                                //     total: 0,
+                                                //     stocks: Number(
+                                                //         Array.isArray(variants.stocks)
+                                                //             ? (variants.stocks[0]?.quantity ?? 0)
+                                                //             : (variants.stocks?.quantity ?? 0)
+                                                //     ) || 0,
+                                                // })}
+                                                onClick={() => addOrUpdatePurchaseDetail(buildPurchaseDraftFromVariant(variants))}
                                             >
                                                 {/* {variants.products?.name} - {variants.name+' - '+variants.barcode} */}
                                                 {variants.products?.name+' - '+variants.barcode} ({variants.productType})
@@ -901,12 +1061,26 @@ const PurchaseForm: React.FC = () => {
                                             <tr key={index}>
                                                 <td>{ index + 1 }</td>
                                                 <td>
-                                                    <p>{ detail.products?.name } ({ detail.productvariants?.productType })</p>
+                                                    <p>{detail.products?.name} ({detail.productvariants?.productType})</p>
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        Purchase Unit: {
+                                                            getSelectedUnitOption(detail.productvariants, detail.unitId)?.unitName || "-"
+                                                        }
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        Base Qty: {Number(detail.baseQty ?? 0).toFixed(4)} {detail.productvariants?.baseUnit?.name || ""}
+                                                    </p>
                                                     <p className="text-center">
                                                         <span className="badge badge-outline-primary rounded-full">
-                                                            { detail.productvariants?.barcode }
+                                                            {detail.productvariants?.barcode}
                                                         </span>
-                                                        <button type="button" onClick={() => updateData(detail)} className="hover:text-warning ml-2" style={{display: "ruby"}} title="Edit">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => updateData(detail)}
+                                                            className="hover:text-warning ml-2"
+                                                            style={{ display: "ruby" }}
+                                                            title="Edit"
+                                                        >
                                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-success">
                                                                 <path d="M15.2869 3.15178L14.3601 4.07866L5.83882 12.5999L5.83881 12.5999C5.26166 13.1771 4.97308 13.4656 4.7249 13.7838C4.43213 14.1592 4.18114 14.5653 3.97634 14.995C3.80273 15.3593 3.67368 15.7465 3.41556 16.5208L2.32181 19.8021L2.05445 20.6042C1.92743 20.9852 2.0266 21.4053 2.31063 21.6894C2.59466 21.9734 3.01478 22.0726 3.39584 21.9456L4.19792 21.6782L7.47918 20.5844L7.47919 20.5844C8.25353 20.3263 8.6407 20.1973 9.00498 20.0237C9.43469 19.8189 9.84082 19.5679 10.2162 19.2751C10.5344 19.0269 10.8229 18.7383 11.4001 18.1612L11.4001 18.1612L19.9213 9.63993L20.8482 8.71306C22.3839 7.17735 22.3839 4.68748 20.8482 3.15178C19.3125 1.61607 16.8226 1.61607 15.2869 3.15178Z" stroke="currentColor" strokeWidth="1.5"></path>
                                                                 <path opacity="0.5" d="M14.36 4.07812C14.36 4.07812 14.4759 6.04774 16.2138 7.78564C17.9517 9.52354 19.9213 9.6394 19.9213 9.6394M4.19789 21.6777L2.32178 19.8015" stroke="currentColor" strokeWidth="1.5"></path>
@@ -923,14 +1097,32 @@ const PurchaseForm: React.FC = () => {
                                                 </td>
                                                 {/* <td>5</td> */}
                                                 <td>
-                                                    <div className="inline-flex" style={{width: '40%'}}>
-                                                        <button type="button" onClick={() => decreaseQuantity(index)} className="flex items-center justify-center border border-r-0 border-danger bg-danger px-3 font-semibold text-white ltr:rounded-l-md rtl:rounded-r-md">
+                                                    <div className="inline-flex" style={{ width: "40%" }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => decreaseQuantity(index)}
+                                                            className="flex items-center justify-center border border-r-0 border-danger bg-danger px-3 font-semibold text-white ltr:rounded-l-md rtl:rounded-r-md"
+                                                        >
                                                             <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
                                                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                                                             </svg>
                                                         </button>
-                                                            <input type="text" value={detail.unitQty ?? 0} className="form-input rounded-none text-center" min="0" max="25" readOnly />
-                                                        <button type="button" onClick={() => increaseQuantity(index)} className="flex items-center justify-center border border-l-0 border-warning bg-warning px-3 font-semibold text-white ltr:rounded-r-md rtl:rounded-l-md">
+                                                        <div className="flex flex-col">
+                                                            <input
+                                                                type="text"
+                                                                value={detail.unitQty ?? 0}
+                                                                className="form-input rounded-none text-center"
+                                                                readOnly
+                                                            />
+                                                            <span className="text-xs text-gray-500 text-center mt-1">
+                                                                {getSelectedUnitOption(detail.productvariants, detail.unitId)?.unitName || ""}
+                                                            </span>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => increaseQuantity(index)}
+                                                            className="flex items-center justify-center border border-l-0 border-warning bg-warning px-3 font-semibold text-white ltr:rounded-r-md rtl:rounded-l-md"
+                                                        >
                                                             <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
                                                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                                                 <line x1="5" y1="12" x2="19" y2="12"></line>

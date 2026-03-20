@@ -72,6 +72,18 @@ interface ReportInvoiceResponse {
     };
 }
 
+interface ReportCancelInvoiceResponse {
+    data: InvoiceType[];
+    total: number;
+    summary: {
+        totalInvoice: number;
+        totalAmount: number;
+        totalReceivedAmount: number;
+        totalRemainAmount: number;
+        totalLostProfit: number;
+    };
+}
+
 interface ReportPaymentInvoiceResponse {
     data: OrderOnPaymentType[];
     total: number;
@@ -238,7 +250,7 @@ export const getAllCancelReportInvoices = async ({
     saleType,
     status,
     branchId
-}: ReportInvoiceParams): Promise<ReportInvoiceResponse> => {
+}: ReportInvoiceParams): Promise<ReportCancelInvoiceResponse> => {
 
     const params = new URLSearchParams();
 
@@ -275,7 +287,7 @@ export const getAllCancelReportInvoices = async ({
             totalAmount: 0,
             totalReceivedAmount: 0,
             totalRemainAmount: 0,
-            totalProfit: 0,
+            totalLostProfit: 0,
         },
     };
 };
@@ -759,33 +771,32 @@ export const getAllReportIncomes = async ({
     };
 };
 
-export const getAllReportSaleReturns = async ({
-    sortField,
-    sortOrder,
-    page,
-    pageSize,
-    searchTerm,
-    startDate,
-    endDate,
-    branchId
-}: ReportSaleReturnParams): Promise<ReportSaleReturnsponse> => {
+export const getAllReportSaleReturns = async (params: {
+    page?: number;
+    pageSize?: number;
+    searchTerm?: string;
+    sortField?: string;
+    sortOrder?: "asc" | "desc";
+    startDate?: string;
+    endDate?: string;
+    saleType?: "RETAIL" | "WHOLESALE";
+    status?: string;
+    branchId?: number;
+}) => {
+    const query = new URLSearchParams();
 
-    const params = new URLSearchParams();
+    if (params.page) query.set("page", String(params.page));
+    if (params.pageSize) query.set("pageSize", String(params.pageSize));
+    if (params.searchTerm) query.set("searchTerm", params.searchTerm);
+    if (params.sortField) query.set("sortField", params.sortField);
+    if (params.sortOrder) query.set("sortOrder", params.sortOrder);
+    if (params.startDate) query.set("startDate", params.startDate);
+    if (params.endDate) query.set("endDate", params.endDate);
+    if (params.saleType) query.set("saleType", params.saleType);
+    if (params.status) query.set("status", params.status);
+    if (params.branchId) query.set("branchId", String(params.branchId));
 
-    params.set("page", String(page));
-    params.set("pageSize", String(pageSize));
-
-    if (searchTerm) params.set("searchTerm", searchTerm);
-    if (sortField && sortOrder) {
-        params.set("sortField", sortField);
-        params.set("sortOrder", sortOrder);
-    }
-
-    if (startDate) params.set("startDate", startDate);
-    if (endDate) params.set("endDate", endDate);
-    if (branchId) params.set("branchId", String(branchId));
-
-    const url = `${API_BASE_URL}/api/report/reportSalesReturns?${params.toString()}`;
+    const url = `${API_BASE_URL}/api/report/reportSalesReturns?${query.toString()}`;
 
     const response = await fetch(url, { credentials: "include" });
 

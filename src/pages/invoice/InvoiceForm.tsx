@@ -357,116 +357,190 @@ const InvoiceForm: React.FC = () => {
         }
     };
 
-    const addToCartDirectly = (variant: ProductVariantType | ServiceType, dataType: "PRODUCT" | "SERVICE") => {
-        const isProduct = dataType === "PRODUCT";
-        const productVariant = variant as ProductVariantType;
-        const serviceVariant = variant as ServiceType;
+    const getVariantUnitOptions = (variant: any) => {
+        return Array.isArray(variant?.unitOptions) ? variant.unitOptions : [];
+    };
 
-        const priceValue = isProduct
-            ? Number(productVariant.purchasePrice) || 0
-            : Number(serviceVariant.price) || 0;
+    const getSelectedUnitOption = (variant: any, unitId?: number | null) => {
+        const unitOptions = getVariantUnitOptions(variant);
+        return unitOptions.find((u: any) => Number(u.unitId) === Number(unitId));
+    };
 
-        const baseUnitId = isProduct ? (productVariant.baseUnitId ?? null) : null;
+    const findMatchingInvoiceLineIndex = (
+        details: InvoiceDetailType[],
+        newDetail: InvoiceDetailType
+    ) => {
+        if (newDetail.ItemType === "SERVICE") {
+            return details.findIndex(
+                (item) =>
+                    item.ItemType === "SERVICE" &&
+                    Number(item.serviceId) === Number(newDetail.serviceId) &&
+                    Number(item.price ?? 0) === Number(newDetail.price ?? 0) &&
+                    Number(item.taxNet ?? 0) === Number(newDetail.taxNet ?? 0) &&
+                    Number(item.discount ?? 0) === Number(newDetail.discount ?? 0) &&
+                    String(item.taxMethod ?? "Include") === String(newDetail.taxMethod ?? "Include") &&
+                    String(item.discountMethod ?? "Fixed") === String(newDetail.discountMethod ?? "Fixed")
+            );
+        }
 
-        const unitOptions =
-            isProduct
-            ? (productVariant.unitOptions ?? []) // ✅ must exist from API (see notes below)
-            : [];
+        return details.findIndex(
+            (item) =>
+                item.ItemType === "PRODUCT" &&
+                Number(item.productVariantId) === Number(newDetail.productVariantId) &&
+                Number(item.unitId ?? 0) === Number(newDetail.unitId ?? 0) &&
+                Number(item.price ?? 0) === Number(newDetail.price ?? 0) &&
+                Number(item.taxNet ?? 0) === Number(newDetail.taxNet ?? 0) &&
+                Number(item.discount ?? 0) === Number(newDetail.discount ?? 0) &&
+                String(item.taxMethod ?? "Include") === String(newDetail.taxMethod ?? "Include") &&
+                String(item.discountMethod ?? "Fixed") === String(newDetail.discountMethod ?? "Fixed")
+        );
+    };
 
+    const buildSaleDraftFromVariant = (
+        variant: ProductVariantType,
+        saleType: "RETAIL" | "WHOLESALE"
+    ): InvoiceDetailType => {
         const defaultUnitId =
-            isProduct
-            ? (baseUnitId ?? (unitOptions[0]?.id ?? null))
-            : null;
+            saleType === "RETAIL"
+                ? ((variant as any).defaultRetailUnitId ?? variant.baseUnitId ?? null)
+                : ((variant as any).defaultWholesaleUnitId ?? variant.baseUnitId ?? null);
 
-        const defaultUnitName =
-            isProduct
-            ? (unitOptions.find(u => u.id === defaultUnitId)?.name ?? null)
-            : null;
+        const selectedUnit = getSelectedUnitOption(variant, defaultUnitId);
+        const operationValue = Number(selectedUnit?.operationValue ?? 1);
 
-        const defaultUnitQty = 1;
+        const suggestedPrice =
+            saleType === "RETAIL"
+                ? Number(selectedUnit?.suggestedRetailPrice ?? 0)
+                : Number(selectedUnit?.suggestedWholesalePrice ?? 0);
 
-        const newDetail: InvoiceDetailType = {
-            id: 0,
+        return {
+            id: Date.now() + Math.floor(Math.random() * 1000),
             orderId: 0,
+            productId: variant.products?.id || 0,
+            productVariantId: variant.id,
+            products: variant.products || null,
+            productvariants: variant,
+            services: null,
+            serviceId: 0,
+            ItemType: "PRODUCT",
 
-            productId: isProduct ? (productVariant.products?.id || 0) : 0,
-            productVariantId: isProduct ? productVariant.id : 0,
-            products: isProduct ? (productVariant.products || null) : null,
-            productvariants: isProduct ? productVariant : null,
+            unitId: defaultUnitId,
+            unitQty: 1,
+            baseQty: operationValue,
+            unitName: selectedUnit?.unitName ?? null,
+            unitOptions: getVariantUnitOptions(variant),
 
-            services: !isProduct ? serviceVariant : null,
-            serviceId: !isProduct ? serviceVariant.id : 0,
+            quantity: 1,
 
-            ItemType: dataType,
+            price: suggestedPrice,
+            costPerBaseUnit: operationValue > 0 ? suggestedPrice / operationValue : 0,
 
-            // ✅ UOM fields
-            unitId: isProduct ? defaultUnitId : null,
-            unitQty: isProduct ? defaultUnitQty : null,
-            unitName: isProduct ? defaultUnitName : null,
-            unitOptions: isProduct ? unitOptions : [],
-
-            // ✅ keep quantity for old UI, but for PRODUCT we set it = unitQty
-            quantity: isProduct ? defaultUnitQty : 1,
-
-            price: priceValue,
-            costPerBaseUnit: 0,
             taxNet: 0,
             taxMethod: "Include",
             discount: 0,
             discountMethod: "Fixed",
-            total: calculateTotal({
-                price: priceValue,
-                quantity: isProduct ? defaultUnitQty : 1,
+
+            total: 0,
+            stocks: Number(
+                Array.isArray(variant.stocks)
+                    ? (variant.stocks[0]?.quantity ?? 0)
+                    : ((variant as any).stocks?.quantity ?? 0)
+            ) || 0,
+        };
+    };
+
+    const addToCartDirectly = (variant: ProductVariantType | ServiceType, dataType: "PRODUCT" | "SERVICE") => {
+        if (dataType === "SERVICE") {
+            const serviceVariant = variant as ServiceType;
+
+            const newDetail: InvoiceDetailType = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                orderId: 0,
+                serviceId: serviceVariant.id || 0,
+                services: serviceVariant,
+                ItemType: "SERVICE",
+                quantity: 1,
+                price: Number(serviceVariant.price) || 0,
+                costPerBaseUnit: 0,
                 taxNet: 0,
                 taxMethod: "Include",
                 discount: 0,
                 discountMethod: "Fixed",
-            }),
+                total: calculateTotal({
+                    ItemType: "SERVICE",
+                    price: Number(serviceVariant.price) || 0,
+                    quantity: 1,
+                    taxNet: 0,
+                    taxMethod: "Include",
+                    discount: 0,
+                    discountMethod: "Fixed",
+                }),
+            };
 
-            stocks: Number(
-                Array.isArray(variant.stocks)
-                    ? (variant.stocks[0]?.quantity ?? 0)
-                    : (typeof variant.stocks === "number"
-                        ? variant.stocks
-                        : (variant.stocks && (variant.stocks as any).quantity) ?? 0)
-            ) || 0,
-        };
-    
-        const existingIndex = invoiceDetails.findIndex(
-            (item) => item.productVariantId === newDetail.productVariantId
-        );
+            const existingIndex = findMatchingInvoiceLineIndex(invoiceDetails, newDetail);
 
-        let updatedDetails = [...invoiceDetails];
-        if (existingIndex !== -1) {
-            // Increase quantity if already in cart
-            const currentQty = Number(updatedDetails[existingIndex].quantity) || 0;
-            const nextQty = currentQty + 1;
+            if (existingIndex !== -1) {
+                const updatedDetails = [...invoiceDetails];
+                const currentQty = Number(updatedDetails[existingIndex].quantity ?? 0);
+                const nextQty = currentQty + 1;
 
-            updatedDetails[existingIndex].unitQty =
-                updatedDetails[existingIndex].ItemType === "PRODUCT"
-                    ? nextQty
-                    : updatedDetails[existingIndex].unitQty;
+                updatedDetails[existingIndex] = {
+                    ...updatedDetails[existingIndex],
+                    quantity: nextQty,
+                    total: calculateTotal({
+                        ...updatedDetails[existingIndex],
+                        ItemType: "SERVICE",
+                        quantity: nextQty,
+                    }),
+                };
 
-            updatedDetails[existingIndex].quantity = nextQty;
+                setInvoiceDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            } else {
+                const updatedDetails = [...invoiceDetails, newDetail];
+                setInvoiceDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            }
 
-            updatedDetails[existingIndex].total = calculateTotal({
-                ...updatedDetails[existingIndex],
-                unitQty:
-                    updatedDetails[existingIndex].ItemType === "PRODUCT"
-                        ? nextQty
-                        : updatedDetails[existingIndex].unitQty,
-                quantity: nextQty,
-            });
-        } else {
-            // Add new product/service
-            updatedDetails.push(newDetail);
+            return;
         }
 
-        setInvoiceDetails(updatedDetails);
+        const productVariant = variant as ProductVariantType;
+        const newDetail = buildSaleDraftFromVariant(productVariant, (OrderSaleType as "RETAIL" | "WHOLESALE") || "RETAIL");
 
-        // Recalculate grand total
-        const totalSum = sumTotal(updatedDetails);
-        setGrandTotal(totalSum);
+        const existingIndex = findMatchingInvoiceLineIndex(invoiceDetails, newDetail);
+
+        if (existingIndex !== -1) {
+            const updatedDetails = [...invoiceDetails];
+            const currentQty = Number(updatedDetails[existingIndex].unitQty ?? 0);
+            const nextQty = currentQty + 1;
+
+            const selectedUnit = getSelectedUnitOption(
+                updatedDetails[existingIndex].productvariants,
+                updatedDetails[existingIndex].unitId
+            );
+            const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
+            updatedDetails[existingIndex] = {
+                ...updatedDetails[existingIndex],
+                unitQty: nextQty,
+                quantity: nextQty,
+                baseQty: nextQty * operationValue,
+                total: calculateTotal({
+                    ...updatedDetails[existingIndex],
+                    ItemType: "PRODUCT",
+                    unitQty: nextQty,
+                    quantity: nextQty,
+                }),
+            };
+
+            setInvoiceDetails(updatedDetails);
+            setGrandTotal(sumTotal(updatedDetails));
+        } else {
+            const updatedDetails = [...invoiceDetails, newDetail];
+            setInvoiceDetails(updatedDetails);
+            setGrandTotal(sumTotal(updatedDetails));
+        }
     };
 
     const handleFocus = () => {
@@ -490,23 +564,13 @@ const InvoiceForm: React.FC = () => {
 
     // Function to add or update a product detail
     const addOrUpdateInvoiceDetail = async (newDetail: InvoiceDetailType) => {
-        // Find if the product already exists in the array
-        const existingIndex = invoiceDetails.findIndex(
-            (item) => item.productVariantId === newDetail.productVariantId
-        );
-        if (existingIndex !== -1) {
-            await ShowWarningMessage("Product already in cart");
-            return;
-        }
-        // console.log("ddfd:", newDetail);
-
         setClickData({
             ...newDetail
         });
 
         setIsModalOpen(true);
-        setSearchTerm(""); // Clear search
-        setShowSuggestions(false); // Hide suggestions
+        setSearchTerm("");
+        setShowSuggestions(false);
     };
 
     // Function to add or update a service detail
@@ -533,8 +597,9 @@ const InvoiceForm: React.FC = () => {
     const handleOnSubmit = async (InvoiceDetailData: InvoiceDetailType) => {
         try {
             const isProduct = InvoiceDetailData.ItemType === "PRODUCT";
+
             const newDetail: InvoiceDetailType = {
-                id: InvoiceDetailData.id ?? 0,
+                id: InvoiceDetailData.id ?? Date.now(),
                 orderId: InvoiceDetailData.orderId ?? 0,
 
                 productId: InvoiceDetailData.productId ?? 0,
@@ -543,14 +608,12 @@ const InvoiceForm: React.FC = () => {
 
                 ItemType: InvoiceDetailData.ItemType,
 
-                // ✅ KEEP UNIT FIELDS (THIS IS THE MAIN FIX)
                 unitId: isProduct ? (InvoiceDetailData.unitId ?? null) : null,
                 unitQty: isProduct ? Number(InvoiceDetailData.unitQty ?? InvoiceDetailData.quantity ?? 1) : null,
                 baseQty: isProduct ? Number(InvoiceDetailData.baseQty ?? 0) : null,
                 unitName: isProduct ? (InvoiceDetailData.unitName ?? null) : null,
                 unitOptions: isProduct ? (InvoiceDetailData.unitOptions ?? []) : [],
 
-                // ✅ keep quantity synced with unitQty for products
                 quantity: isProduct
                     ? Number(InvoiceDetailData.unitQty ?? InvoiceDetailData.quantity ?? 1)
                     : Number(InvoiceDetailData.quantity ?? 1),
@@ -570,59 +633,87 @@ const InvoiceForm: React.FC = () => {
 
                 total: calculateTotal({
                     ...InvoiceDetailData,
-                    // ✅ ensure total uses correct qty
+                    ItemType: InvoiceDetailData.ItemType,
                     quantity: isProduct
-                    ? Number(InvoiceDetailData.unitQty ?? InvoiceDetailData.quantity ?? 1)
-                    : Number(InvoiceDetailData.quantity ?? 1),
+                        ? Number(InvoiceDetailData.unitQty ?? InvoiceDetailData.quantity ?? 1)
+                        : Number(InvoiceDetailData.quantity ?? 1),
+                    unitQty: isProduct
+                        ? Number(InvoiceDetailData.unitQty ?? InvoiceDetailData.quantity ?? 1)
+                        : undefined,
                 }),
 
                 stocks: InvoiceDetailData.stocks ?? 0,
             };
-            
-            var existingIndex = 0;
-            if (newDetail.ItemType === "PRODUCT") {
-                var existingIndex = invoiceDetails.findIndex(
-                    (item) => item.productVariantId === newDetail.productVariantId
-                );
-            }
 
-            if (newDetail.ItemType === "SERVICE") {
-                var existingIndex = invoiceDetails.findIndex(
-                    (item) => item.serviceId === newDetail.serviceId
-                );
+            const existingIndex = findMatchingInvoiceLineIndex(invoiceDetails, newDetail);
+
+            const sameRowEditing = invoiceDetails.findIndex((row) => row.id === newDetail.id);
+
+            if (sameRowEditing !== -1) {
+                const updatedDetails = [...invoiceDetails];
+                updatedDetails[sameRowEditing] = newDetail;
+                setInvoiceDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+                setIsModalOpen(false);
+                return;
             }
 
             if (existingIndex !== -1) {
-                // Product exists; update its data
                 const updatedDetails = [...invoiceDetails];
-                updatedDetails[existingIndex] = { ...newDetail }; // Replace with the new data
-                setInvoiceDetails(updatedDetails);
-            } else {
-                // Product does not exist; add it
-                setInvoiceDetails([...invoiceDetails, newDetail]);
-            }
 
-            // Recalculate grand total
-            const totalSum = sumTotal(existingIndex !== -1
-                ? invoiceDetails.map((d, i) => i === existingIndex ? newDetail : d)
-                : [...invoiceDetails, newDetail]
-            );
-            setGrandTotal(totalSum);
+                if (newDetail.ItemType === "PRODUCT") {
+                    const currentQty = Number(updatedDetails[existingIndex].unitQty ?? 0);
+                    const addQty = Number(newDetail.unitQty ?? 0);
+                    const nextQty = currentQty + addQty;
+
+                    const selectedUnit = getSelectedUnitOption(
+                        updatedDetails[existingIndex].productvariants,
+                        updatedDetails[existingIndex].unitId
+                    );
+                    const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
+                    updatedDetails[existingIndex] = {
+                        ...updatedDetails[existingIndex],
+                        unitQty: nextQty,
+                        quantity: nextQty,
+                        baseQty: nextQty * operationValue,
+                        total: calculateTotal({
+                            ...updatedDetails[existingIndex],
+                            ItemType: "PRODUCT",
+                            unitQty: nextQty,
+                            quantity: nextQty,
+                        }),
+                    };
+                } else {
+                    const currentQty = Number(updatedDetails[existingIndex].quantity ?? 0);
+                    const addQty = Number(newDetail.quantity ?? 0);
+                    const nextQty = currentQty + addQty;
+
+                    updatedDetails[existingIndex] = {
+                        ...updatedDetails[existingIndex],
+                        quantity: nextQty,
+                        total: calculateTotal({
+                            ...updatedDetails[existingIndex],
+                            ItemType: "SERVICE",
+                            quantity: nextQty,
+                        }),
+                    };
+                }
+
+                setInvoiceDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            } else {
+                const updatedDetails = [...invoiceDetails, newDetail];
+                setInvoiceDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            }
 
             setIsModalOpen(false);
         } catch (error: any) {
-            // Check if error.message is set by your API function
-            if (error.message) {
-                toast.error(error.message, {
-                    position: "top-right",
-                    autoClose: 2000
-                });
-            } else {
-                toast.error("Error adding/editting sale", {
-                    position: "top-right",
-                    autoClose: 2000
-                });
-            }
+            toast.error(error.message || "Error adding/editing sale", {
+                position: "top-right",
+                autoClose: 2000
+            });
         }
     };
 
@@ -630,54 +721,85 @@ const InvoiceForm: React.FC = () => {
         const updated = [...invoiceDetails];
         const d = updated[index];
 
-        const currentQty = Number(
-            d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity
-        ) || 0;
-
-        if (currentQty < 25) {
+        if (d.ItemType === "PRODUCT") {
+            const currentQty = Number(d.unitQty ?? d.quantity ?? 0);
             const nextQty = currentQty + 1;
 
-            const nextDetail: InvoiceDetailType = {
+            const selectedUnit = getSelectedUnitOption(d.productvariants, d.unitId);
+            const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
+            updated[index] = {
                 ...d,
-                unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                unitQty: nextQty,
                 quantity: nextQty,
+                baseQty: nextQty * operationValue,
                 total: calculateTotal({
                     ...d,
-                    unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                    ItemType: "PRODUCT",
+                    unitQty: nextQty,
                     quantity: nextQty,
                 }),
             };
+        } else {
+            const currentQty = Number(d.quantity ?? 0);
+            const nextQty = currentQty + 1;
 
-            updated[index] = nextDetail;
-            setInvoiceDetails(updated);
+            updated[index] = {
+                ...d,
+                quantity: nextQty,
+                total: calculateTotal({
+                    ...d,
+                    ItemType: "SERVICE",
+                    quantity: nextQty,
+                }),
+            };
         }
+
+        setInvoiceDetails(updated);
     };
 
     const decreaseQuantity = (index: number) => {
         const updated = [...invoiceDetails];
         const d = updated[index];
 
-        const currentQty = Number(
-            d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity
-        ) || 0;
+        if (d.ItemType === "PRODUCT") {
+            const currentQty = Number(d.unitQty ?? d.quantity ?? 0);
+            if (currentQty <= 1) return;
 
-        if (currentQty > 1) {
             const nextQty = currentQty - 1;
+            const selectedUnit = getSelectedUnitOption(d.productvariants, d.unitId);
+            const operationValue = Number(selectedUnit?.operationValue ?? 1);
 
-            const nextDetail: InvoiceDetailType = {
+            updated[index] = {
                 ...d,
-                unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                unitQty: nextQty,
                 quantity: nextQty,
+                baseQty: nextQty * operationValue,
                 total: calculateTotal({
                     ...d,
-                    unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                    ItemType: "PRODUCT",
+                    unitQty: nextQty,
                     quantity: nextQty,
                 }),
             };
+        } else {
+            const currentQty = Number(d.quantity ?? 0);
+            if (currentQty <= 1) return;
 
-            updated[index] = nextDetail;
-            setInvoiceDetails(updated);
+            const nextQty = currentQty - 1;
+
+            updated[index] = {
+                ...d,
+                quantity: nextQty,
+                total: calculateTotal({
+                    ...d,
+                    ItemType: "SERVICE",
+                    quantity: nextQty,
+                }),
+            };
         }
+
+        setInvoiceDetails(updated);
     };
     
     const calculateTotal = (detail: Partial<InvoiceDetailType>) => {
@@ -977,28 +1099,30 @@ const InvoiceForm: React.FC = () => {
                                                             cursor: "pointer",
                                                             borderBottom: "1px solid #eee",
                                                         }}
-                                                        onClick={() => addOrUpdateInvoiceDetail({
-                                                            id: 0, // Assign a default or unique value
-                                                            orderId: 0, // Assign a default or unique value
-                                                            productId: variants.products?.id || 0,
-                                                            productVariantId: variants.id,
-                                                            products: variants.products || null,
-                                                            productvariants: variants,
-                                                            ItemType: "PRODUCT",
-                                                            quantity: 1, // Default quantity for a new item
-                                                            price: OrderSaleType === "RETAIL" ? Number(variants.retailPrice) : Number(variants.wholeSalePrice) || 0, // Default cost
-                                                            costPerBaseUnit: 0,
-                                                            taxNet: 0, // Default taxNet
-                                                            taxMethod: "Include", // Default tax method
-                                                            discount: 0,
-                                                            discountMethod: "Fixed",
-                                                            total: 0,
-                                                            stocks: Number(
-                                                                Array.isArray(variants.stocks)
-                                                                    ? (variants.stocks[0]?.quantity ?? 0)
-                                                                    : (variants.stocks?.quantity ?? 0)
-                                                            ) || 0,
-                                                        })}
+                                                        onClick={() => addOrUpdateInvoiceDetail(buildSaleDraftFromVariant(variants, (OrderSaleType as "RETAIL" | "WHOLESALE") || "RETAIL"))}
+
+                                                        // onClick={() => addOrUpdateInvoiceDetail({
+                                                        //     id: 0, // Assign a default or unique value
+                                                        //     orderId: 0, // Assign a default or unique value
+                                                        //     productId: variants.products?.id || 0,
+                                                        //     productVariantId: variants.id,
+                                                        //     products: variants.products || null,
+                                                        //     productvariants: variants,
+                                                        //     ItemType: "PRODUCT",
+                                                        //     quantity: 1, // Default quantity for a new item
+                                                        //     price: OrderSaleType === "RETAIL" ? Number(variants.retailPrice) : Number(variants.wholeSalePrice) || 0, // Default cost
+                                                        //     costPerBaseUnit: 0,
+                                                        //     taxNet: 0, // Default taxNet
+                                                        //     taxMethod: "Include", // Default tax method
+                                                        //     discount: 0,
+                                                        //     discountMethod: "Fixed",
+                                                        //     total: 0,
+                                                        //     stocks: Number(
+                                                        //         Array.isArray(variants.stocks)
+                                                        //             ? (variants.stocks[0]?.quantity ?? 0)
+                                                        //             : (variants.stocks?.quantity ?? 0)
+                                                        //     ) || 0,
+                                                        // })}
                                                     >
                                                         {/* {variants.products?.name} - {variants.name+' - '+variants.barcode} */}
                                                         {variants.products?.name+' - '+variants.barcode} ({variants.productType})
@@ -1098,27 +1222,27 @@ const InvoiceForm: React.FC = () => {
                                                 <td>{ index + 1 }</td>
                                                 <td>
                                                     <p>
-                                                        {detail.ItemType === "PRODUCT" ?
-                                                            <>
-                                                                { detail.products?.name } ({ detail.productvariants?.productType })
-                                                            </>
-                                                            :
-                                                            <>
-                                                                { detail.services?.name }
-                                                            </>
-                                                        }
+                                                        {detail.ItemType === "PRODUCT"
+                                                            ? `${detail.products?.name} (${detail.productvariants?.productType})`
+                                                            : `${detail.services?.name}`}
                                                     </p>
+
+                                                    {detail.ItemType === "PRODUCT" && (
+                                                        <>
+                                                            <p className="text-xs text-gray-500 mt-1">
+                                                                Sale Unit: {getSelectedUnitOption(detail.productvariants, detail.unitId)?.unitName || "-"}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">
+                                                                Base Qty: {Number(detail.baseQty ?? 0).toFixed(4)} {detail.productvariants?.baseUnit?.name || ""}
+                                                            </p>
+                                                        </>
+                                                    )}
+
                                                     <p className="text-center">
                                                         <span className="badge badge-outline-primary rounded-full">
-                                                            {detail.ItemType === "PRODUCT" ?
-                                                                <>
-                                                                    { detail.productvariants?.barcode }
-                                                                </>
-                                                                :
-                                                                <>
-                                                                    { detail.services?.serviceCode }
-                                                                </>
-                                                            }
+                                                            {detail.ItemType === "PRODUCT"
+                                                                ? detail.productvariants?.barcode
+                                                                : detail.services?.serviceCode}
                                                         </span>
                                                         <button type="button" onClick={() => updateData(detail)} className="hover:text-warning ml-2" style={{display: "ruby"}} title="Edit">
                                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-success">

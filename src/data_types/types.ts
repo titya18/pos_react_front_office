@@ -158,15 +158,17 @@ export interface ProductType {
     productvariants?: ProductVariantType[];
 
     // I extent these for merge product variant with product
-    productType?: string | 'New',
-    unitId?: number | null,
-    sku?: string,
-    stockAlert?: number | null,
-    barcode?: string | null,
-    purchasePrice?: number | string,
-    purchasePriceUnitId?: number | null,
-    retailPrice?: number | string,
-    wholeSalePrice?: number | string,
+    productType?: string | 'New';
+    unitId?: number | null;
+    sku?: string;
+    stockAlert?: number | null;
+    barcode?: string | null;
+    purchasePrice?: number | string;
+    purchasePriceUnitId?: number | null;
+    retailPrice?: number | string;
+    retailPriceUnitId?: number | null; 
+    wholeSalePrice?: number | string;
+    wholeSalePriceUnitId?: number | null;
     // MULTIPLE attributes (Color + Size + Material ...)
     variantAttributeIds?: number[];
     // MULTIPLE values (Red, Blue, XL, Cotton ...)
@@ -215,15 +217,17 @@ export interface ProductVariantType {
     id: number;
     productId: number,
     unitId: number | null,
-    productType?: string | 'New',
+    productType?: string | 'New';
     sku: string,
-    stockAlert?: number | null,
-    barcode: string | null,
-    name: string,
-    purchasePrice: number | string,
-    retailPrice: number | string,
-    wholeSalePrice: number | string,
-    isActive: number,
+    stockAlert?: number | null;
+    barcode: string | null;
+    name: string;
+    purchasePrice: number | string;
+    retailPrice?: number | string;
+    retailPriceUnitId?: number | null;
+    wholeSalePrice?: number | string;
+    wholeSalePriceUnitId?: number | null;
+    isActive: number;
     image: File | File[] | string | null;
     imagesToDelete: string[];
     createdAt?: Date;
@@ -398,6 +402,7 @@ export interface PurchaseDetailType {
 }
 
 export interface PaymentType {
+    id?: number;
     branchId: number | null;
     purchaseId: number | null;
     paymentDate?: Date;
@@ -755,7 +760,7 @@ export interface StockReturnType {
     branchId: number;
     ref: string;
     returnBy: number;
-    returnDate?: string | null; // Format: YYYY-MM-DD
+    returnDate?: string | Date | null;
     StatusType: string;
     note: string;
     delReason: string;
@@ -780,16 +785,19 @@ export interface StockReturnDetailType {
     id: number;
     productId: number;
     productVariantId: number;
-    quantity?: number;
 
-    products: ProductType | null;
-    productvariants: ProductVariantType | null;
+    quantity?: number | string | null;
+
+    products?: ProductType | null;
+    productvariants?: ProductVariantType | null;
     stocks?: number | null;
 
-    // ✅ Add these for unit conversion
     unitId?: number | null;
     unitQty?: number | string | null;
     baseQty?: number | string | null;
+
+    cost?: number | string | null;
+    costPerBaseUnit?: number | string | null;
 }
 
 export interface ExpenseType {
@@ -833,6 +841,7 @@ export interface IncomeType {
 }
 
 export interface OrderOnPaymentType {
+    id?: number;
     branchId: number | null;
     orderId: number | null;
     paymentDate?: Date;
@@ -882,32 +891,54 @@ export interface ExchangeRateType {
 
 export interface SaleReturnType {
     id?: number;
-    orderId?: number;
-    branchId: number;
-    customerId: number;
-    ref: string;
-    taxRate?: string | null;
-    taxNet: number | null;
-    discount?: number | null;
-    shipping?: string | null;
-    totalAmount: number;
-    status: string;
-    note: string;
-    delReason: string;
-    createdAt?: Date;
-    updatedAt?: Date;
-    deletedAt?: Date;
+    branchId?: number | null;
+    orderId?: number | null;
+    customerId?: number | null;
+    ref?: string;
+    status?: string;
+    taxRate?: number;
+    taxNet?: number;
+    discount?: number;
+    shipping?: number;
+    totalAmount?: number;
+    grandTotal?: number;
+    note?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+    createdBy?: number | null;
+    updatedBy?: number | null;
+    returnCost?: number;
+    grossImpact?: number;
 
-    creator?: UserType | null;
-    updater?: UserType | null;
-    deleter?: UserType | null;
+    customer?: {
+        id?: number;
+        name?: string;
+    } | null;
 
-    branch: BranchType | null;
-    customer?: CustomerType | null;
-    customers?: CustomerType | null;
+    branch?: {
+        id?: number;
+        name?: string;
+    } | null;
 
-    order?: InvoiceType | null;
-    items: SaleReturnDetailType[];
+    creator?: {
+        id?: number;
+        firstName?: string;
+        lastName?: string;
+    } | null;
+
+    updater?: {
+        id?: number;
+        firstName?: string;
+        lastName?: string;
+    } | null;
+
+    order?: {
+        id?: number;
+        ref?: string;
+        OrderSaleType?: string;
+        status?: string;
+        orderDate?: string;
+    } | null;
 }
 
 export interface SaleReturnDetailType {

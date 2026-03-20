@@ -53,7 +53,9 @@ interface ModalProps {
     purchasePriceUnitId: number | null,
 
     retailPrice: number | string,
+    retailPriceUnitId: number | null,
     wholeSalePrice: number | string,
+    wholeSalePriceUnitId: number | null,
     variantAttributeIds?: number[] | null,
     variantValueIds?: number[],
 
@@ -79,7 +81,9 @@ interface ModalProps {
     purchasePrice: number | string;
     purchasePriceUnitId?: number | null;
     retailPrice: number | string;
+    retailPriceUnitId: number | null,
     wholeSalePrice: number | string;
+    wholeSalePriceUnitId: number | null,
     productType: string | "New";
 
     variantAttributeId?: number | null;
@@ -110,7 +114,9 @@ export interface ProductFormData {
   purchasePrice?: number | string;
   purchasePriceUnitId?: number | null;
   retailPrice?: number | string;
+  retailPriceUnitId: number | null,
   wholeSalePrice?: number | string;
+  wholeSalePriceUnitId?: number | null;
   variantAttributeId?: number | null;
   variantAttributeIds?: number[];
   variantValueIds?: number[];
@@ -159,6 +165,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
       baseUnitId: null,
       unitConversions: [],
       purchasePriceUnitId: null,
+      retailPriceUnitId: null,
+      wholeSalePriceUnitId: null,
     },
   });
 
@@ -255,6 +263,112 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
   const baseUnitId = watch("baseUnitId");
   const baseUnitName = units.find((u) => u.id === baseUnitId)?.name || "";
 
+  const purchasePriceValue = watch("purchasePrice");
+  const purchasePriceUnitId = watch("purchasePriceUnitId");
+
+  const retailPriceValue = watch("retailPrice");
+  const retailPriceUnitId = watch("retailPriceUnitId");
+
+  const wholeSalePriceValue = watch("wholeSalePrice");
+  const wholeSalePriceUnitId = watch("wholeSalePriceUnitId");
+
+  const watchedConversions = watch("unitConversions") || [];
+
+  const getUnitName = (unitId?: number | null) =>
+    units.find((u) => u.id === unitId)?.name || "";
+
+  const getMultiplier = (
+    fromUnitId?: number | null,
+    toUnitId?: number | null
+  ): number | null => {
+    if (!fromUnitId || !toUnitId) return null;
+    const conv = watchedConversions.find(
+      (c) =>
+        Number(c.fromUnitId) === Number(fromUnitId) &&
+        Number(c.toUnitId) === Number(toUnitId) &&
+        Number(c.multiplier) > 0
+    );
+    return conv ? Number(conv.multiplier) : null;
+  };
+
+  const buildBasePricePreview = (
+    value: number | string | undefined,
+    fromUnitId?: number | null,
+    toBaseUnitId?: number | null
+  ) => {
+    const num = Number(value ?? 0);
+    if (!num || !fromUnitId || !toBaseUnitId) return "";
+
+    if (Number(fromUnitId) === Number(toBaseUnitId)) {
+      return `${num.toFixed(4)} per ${getUnitName(toBaseUnitId)}`;
+    }
+
+    const multiplier = getMultiplier(fromUnitId, toBaseUnitId);
+    if (!multiplier) return "";
+
+    const perBase = num / multiplier;
+    return `${perBase.toFixed(5)} per ${getUnitName(toBaseUnitId)}`;
+  };
+
+  const buildConvertedPricePreview = (
+    value: number | string | undefined,
+    fromUnitId?: number | null,
+    toUnitId?: number | null
+  ) => {
+    const num = Number(value ?? 0);
+    if (!num || !fromUnitId || !toUnitId) return "";
+
+    if (Number(fromUnitId) === Number(toUnitId)) {
+      return `${num.toFixed(4)} per ${getUnitName(toUnitId)}`;
+    }
+
+    const multiplier = getMultiplier(fromUnitId, toUnitId);
+    if (!multiplier) return "";
+
+    const converted = num * multiplier;
+    return `${converted.toFixed(4)} per ${getUnitName(toUnitId)}`;
+  };
+
+  const costPreviewText = buildBasePricePreview(
+    purchasePriceValue,
+    purchasePriceUnitId,
+    baseUnitId
+  );
+
+  // preview from base to larger unit only if a conversion exists
+  const retailBasePreviewText = buildBasePricePreview(
+    retailPriceValue,
+    retailPriceUnitId,
+    baseUnitId
+  );
+
+  const wholesaleBasePreviewText = buildBasePricePreview(
+    wholeSalePriceValue,
+    wholeSalePriceUnitId,
+    baseUnitId
+  );
+
+  const firstHigherConversion =
+    watchedConversions.find(
+      (c) => Number(c.toUnitId) === Number(baseUnitId) && Number(c.multiplier) > 0
+    ) || null;
+
+  const retailHigherPreviewText = firstHigherConversion
+    ? buildConvertedPricePreview(
+        retailPriceValue,
+        retailPriceUnitId,
+        firstHigherConversion.fromUnitId
+      )
+    : "";
+
+  const wholesaleHigherPreviewText = firstHigherConversion
+    ? buildConvertedPricePreview(
+        wholeSalePriceValue,
+        wholeSalePriceUnitId,
+        firstHigherConversion.fromUnitId
+      )
+    : "";
+
   useEffect(() => {
     // Only run after branches are fetched and modal is open
     if (!isOpen || branches.length === 0) return;
@@ -286,7 +400,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         purchasePrice: product.purchasePrice ?? "",
         purchasePriceUnitId: product.purchasePriceUnitId ?? product.baseUnitId ?? null,
         retailPrice: product.retailPrice ?? "",
+        retailPriceUnitId: product.retailPriceUnitId ?? product.baseUnitId ?? null,
         wholeSalePrice: product.wholeSalePrice ?? "",
+        wholeSalePriceUnitId: product.wholeSalePriceUnitId ?? product.baseUnitId ?? null,
         variantAttributeIds: product.variantAttributeIds ?? [],
         variantValueIds: product.variantValueIds ?? [],
 
@@ -344,7 +460,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         purchasePrice: "",
         purchasePriceUnitId: null,
         retailPrice: "",
+        retailPriceUnitId: null,
         wholeSalePrice: "",
+        wholeSalePriceUnitId: null,
         variantAttributeIds: [],
         variantValueIds: [],
 
@@ -468,7 +586,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         data.purchasePrice || "",
         data.purchasePriceUnitId ?? null,
         data.retailPrice || "",
+        data.retailPriceUnitId ?? null,
         data.wholeSalePrice || "",
+        data.wholeSalePriceUnitId ?? null,
         data.variantAttributeIds ?? null,
         data.variantValueIds,
 
@@ -639,7 +759,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
                   <div>
                     <label>
-                      Base Unit (Stock Unit) <span className="text-danger text-md">*</span>
+                      Base Unit (Internal Stock Unit) <span className="text-danger text-md">*</span>
                     </label>
                     <select
                       id="baseUnitId"
@@ -745,7 +865,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                     </div>
                   )}
                   <label className="font-semibold mb-2 block">
-                    Opening / Current Stock Per Branch (in {baseUnitName})
+                    Opening / Current Stock Per Branch (in {baseUnitName || "Base Unit"})
                     <p className="text-xs text-gray-500 mt-1">
                       Changing stock here will create inventory adjustment movements.
                     </p>
@@ -817,95 +937,195 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                 {variantValues.length > 0 && <MultiSelectVariant variantValues={variantValues} />}
 
                 {/* Prices */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
-                  <div>
-                    <label>
-                      Opening Cost <span className="text-danger text-md">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter Opening Cost"
-                      className="form-input w-full"
-                      {...register("purchasePrice", { required: "This field is required" })}
-                      onInput={(e: React.FormEvent<HTMLInputElement>) => {
-                        const target = e.currentTarget;
-                        target.value = target.value.replace(/[^0-9.]/g, "");
-                        const parts = target.value.split(".");
-                        if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
-                      }}
-                    />
-                    {errors.purchasePrice && (
-                      <p className="error_validate">{errors.purchasePrice.message as any}</p>
-                    )}
+                <div className="rounded-lg border border-gray-200 p-4 mb-5">
+                  <h6 className="font-bold text-base mb-4">Cost & Selling Price</h6>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
+                    <div>
+                      <label>
+                        Opening Cost <span className="text-danger text-md">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter Opening Cost"
+                        className="form-input w-full"
+                        {...register("purchasePrice", { required: "This field is required" })}
+                        onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                          const target = e.currentTarget;
+                          target.value = target.value.replace(/[^0-9.]/g, "");
+                          const parts = target.value.split(".");
+                          if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
+                        }}
+                      />
+                      {errors.purchasePrice && (
+                        <p className="error_validate">{errors.purchasePrice.message as any}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label>
+                        Cost Unit <span className="text-danger text-md">*</span>
+                      </label>
+                      <select
+                        className="form-input"
+                        {...register("purchasePriceUnitId", {
+                          required: "Cost Unit is required",
+                          valueAsNumber: true,
+                        })}
+                      >
+                        <option value="">Select Cost Unit...</option>
+                        {units.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.purchasePriceUnitId && (
+                        <span className="error_validate">
+                          {errors.purchasePriceUnitId.message as any}
+                        </span>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        Example: 10 per roll
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <label>
-                      Cost Unit <span className="text-danger text-md">*</span>
-                    </label>
-                    <select
-                      className="form-input"
-                      {...register("purchasePriceUnitId", {
-                        required: "Cost Unit is required",
-                        valueAsNumber: true,
-                      })}
-                    >
-                      <option value="">Select Cost Unit...</option>
-                      {units.map((u) => (
-                        <option key={u.id} value={u.id}>
-                          {u.name}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.purchasePriceUnitId && (
-                      <span className="error_validate">
-                        {errors.purchasePriceUnitId.message as any}
-                      </span>
-                    )}
-                    <p className="text-xs text-gray-500 mt-1">
-                      Example: if cost is 10 per roll, choose cost unit = roll.
-                    </p>
-                  </div>
-                </div>
+                  {costPreviewText && (
+                    <div className="mb-5 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                      Cost Preview: <strong>{costPreviewText}</strong>
+                    </div>
+                  )}
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
-                  <div>
-                    <label htmlFor="module">
-                      Whole Sale Price <span className="text-danger text-md">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter Whole Sale Price"
-                      className="form-input"
-                      {...register("wholeSalePrice", { required: "This field is required" })}
-                      onInput={(e: React.FormEvent<HTMLInputElement>) => {
-                        const target = e.currentTarget;
-                        target.value = target.value.replace(/[^0-9.]/g, "");
-                        const parts = target.value.split(".");
-                        if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
-                      }}
-                    />
-                    {errors.wholeSalePrice && <p className="error_validate">{errors.wholeSalePrice.message as any}</p>}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-2">
+                    <div>
+                      <label>
+                        Wholesale Price <span className="text-danger text-md">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter Wholesale Price"
+                        className="form-input"
+                        {...register("wholeSalePrice", { required: "This field is required" })}
+                        onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                          const target = e.currentTarget;
+                          target.value = target.value.replace(/[^0-9.]/g, "");
+                          const parts = target.value.split(".");
+                          if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
+                        }}
+                      />
+                      {errors.wholeSalePrice && (
+                        <p className="error_validate">{errors.wholeSalePrice.message as any}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label>
+                        Wholesale Unit <span className="text-danger text-md">*</span>
+                      </label>
+                      <select
+                        className="form-input"
+                        {...register("wholeSalePriceUnitId", {
+                          required: "Wholesale Unit is required",
+                          valueAsNumber: true,
+                        })}
+                      >
+                        <option value="">Select Wholesale Unit...</option>
+                        {units.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.wholeSalePriceUnitId && (
+                        <span className="error_validate">
+                          {errors.wholeSalePriceUnitId.message as any}
+                        </span>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        Example: 0.06 per meter
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <label htmlFor="module">
-                      Retail Price <span className="text-danger text-md">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Enter Retail Price"
-                      className="form-input"
-                      {...register("retailPrice", { required: "This field is required" })}
-                      onInput={(e: React.FormEvent<HTMLInputElement>) => {
-                        const target = e.currentTarget;
-                        target.value = target.value.replace(/[^0-9.]/g, "");
-                        const parts = target.value.split(".");
-                        if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
-                      }}
-                    />
-                    {errors.retailPrice && <p className="error_validate">{errors.retailPrice.message as any}</p>}
+                  {(wholesaleBasePreviewText || wholesaleHigherPreviewText) && (
+                    <div className="mb-5 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
+                      <div>
+                        Wholesale Base Preview: <strong>{wholesaleBasePreviewText || "-"}</strong>
+                      </div>
+                      {wholesaleHigherPreviewText && firstHigherConversion && (
+                        <div className="mt-1">
+                          Approx in {getUnitName(firstHigherConversion.fromUnitId)}:{" "}
+                          <strong>{wholesaleHigherPreviewText}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-2">
+                    <div>
+                      <label>
+                        Retail Price <span className="text-danger text-md">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter Retail Price"
+                        className="form-input"
+                        {...register("retailPrice", { required: "This field is required" })}
+                        onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                          const target = e.currentTarget;
+                          target.value = target.value.replace(/[^0-9.]/g, "");
+                          const parts = target.value.split(".");
+                          if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
+                        }}
+                      />
+                      {errors.retailPrice && (
+                        <p className="error_validate">{errors.retailPrice.message as any}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label>
+                        Retail Unit <span className="text-danger text-md">*</span>
+                      </label>
+                      <select
+                        className="form-input"
+                        {...register("retailPriceUnitId", {
+                          required: "Retail Unit is required",
+                          valueAsNumber: true,
+                        })}
+                      >
+                        <option value="">Select Retail Unit...</option>
+                        {units.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.retailPriceUnitId && (
+                        <span className="error_validate">
+                          {errors.retailPriceUnitId.message as any}
+                        </span>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        Example: 0.08 per meter
+                      </p>
+                    </div>
                   </div>
+
+                  {(retailBasePreviewText || retailHigherPreviewText) && (
+                    <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                      <div>
+                        Retail Base Preview: <strong>{retailBasePreviewText || "-"}</strong>
+                      </div>
+                      {retailHigherPreviewText && firstHigherConversion && (
+                        <div className="mt-1">
+                          Approx in {getUnitName(firstHigherConversion.fromUnitId)}:{" "}
+                          <strong>{retailHigherPreviewText}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="dark:text-white-dark/70 text-base font-medium text-[#1f2937] mt-5">
