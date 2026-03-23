@@ -19,6 +19,7 @@ const Modal: React.FC<ModalProps> = ({
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const prevUnitIdRef = useRef<number | null>(null);
+  const isUserEditedCostRef = useRef(false);
 
   const {
     register,
@@ -29,26 +30,32 @@ const Modal: React.FC<ModalProps> = ({
     formState: { errors },
   } = useForm<PurchaseDetailType>();
 
-  const baseUnit =
-    (clickData as any)?.productvariants?.baseUnit || null;
-
+  const baseUnit = (clickData as any)?.productvariants?.baseUnit || null;
   const baseUnitId = baseUnit?.id ?? null;
   const baseUnitName = baseUnit?.name ?? "Base";
 
   const unitOptions = useMemo(() => {
-    return Array.isArray((clickData as any)?.productvariants?.unitOptions)
-      ? (clickData as any).productvariants.unitOptions.map((u: any) => ({
-          id: Number(u.unitId),
-          name: u.unitName,
-          operationValue: Number(u.operationValue ?? 1),
-          suggestedPurchaseCost: Number(u.suggestedPurchaseCost ?? 0),
-          isBaseUnit: !!u.isBaseUnit,
-        }))
-      : [];
+    const raw = (clickData as any)?.productvariants?.unitOptions;
+    if (!Array.isArray(raw)) return [];
+
+    return raw.map((u: any) => ({
+      id: Number(u.unitId ?? u.id),
+      unitId: Number(u.unitId ?? u.id),
+      name: u.unitName ?? u.name,
+      unitName: u.unitName ?? u.name,
+      operationValue: Number(u.operationValue ?? 1),
+      suggestedPurchaseCost: Number(u.suggestedPurchaseCost ?? 0),
+      isBaseUnit: !!u.isBaseUnit,
+    }));
   }, [clickData]);
 
   const getSelectedUnit = (unitId: number) => {
-    return unitOptions.find((u: any) => Number(u.id) === Number(unitId));
+    return unitOptions.find((u: any) => Number(u.unitId) === Number(unitId));
+  };
+
+  const toNumber = (value: any) => {
+    const parsed = Number(String(value ?? "").replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
   };
 
   const computeBaseQtyLocal = (unitId: number, unitQty: number) => {
@@ -66,27 +73,25 @@ const Modal: React.FC<ModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    isUserEditedCostRef.current = false;
+
     const initialUnitId = Number(
       (clickData as any)?.unitId ??
-      (clickData as any)?.productvariants?.defaultPurchaseUnitId ??
-      (clickData as any)?.productvariants?.purchasePriceUnitId ??
-      baseUnitId ??
-      unitOptions?.[0]?.id ??
-      0
+        (clickData as any)?.productvariants?.defaultPurchaseUnitId ??
+        (clickData as any)?.productvariants?.purchasePriceUnitId ??
+        baseUnitId ??
+        unitOptions?.[0]?.unitId ??
+        0
     );
+
+    const initialCost =
+      Number(clickData?.cost ?? 0) ||
+      Number(getSelectedUnit(initialUnitId)?.suggestedPurchaseCost ?? 0);
 
     reset({
       unitId: initialUnitId,
-      unitQty: Number(
-        (clickData as any)?.unitQty ??
-        clickData?.quantity ??
-        1
-      ) || 1,
-      cost: Number(
-        clickData?.cost ??
-        getSelectedUnit(initialUnitId)?.suggestedPurchaseCost ??
-        0
-      ),
+      unitQty: Number((clickData as any)?.unitQty ?? clickData?.quantity ?? 1) || 1,
+      cost: initialCost,
       taxMethod: clickData?.taxMethod ?? "Include",
       taxNet: Number(clickData?.taxNet ?? 0),
       discountMethod: clickData?.discountMethod ?? "Fixed",
@@ -96,11 +101,18 @@ const Modal: React.FC<ModalProps> = ({
     prevUnitIdRef.current = initialUnitId;
   }, [isOpen, clickData, reset, baseUnitId, unitOptions]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      prevUnitIdRef.current = null;
+      isUserEditedCostRef.current = false;
+    }
+  }, [isOpen]);
+
   const wUnitId = Number(watch("unitId") || 0);
   const wUnitQty = Number(watch("unitQty") || 0);
-  const wCost = Number(watch("cost") || 0);
-  const wTaxNet = Number(watch("taxNet") || 0);
-  const wDiscount = Number(watch("discount") || 0);
+  const wCost = toNumber(watch("cost"));
+  const wTaxNet = toNumber(watch("taxNet"));
+  const wDiscount = toNumber(watch("discount"));
   const wTaxMethod = watch("taxMethod") || "Include";
   const wDiscountMethod = watch("discountMethod") || "Fixed";
 
@@ -110,33 +122,67 @@ const Modal: React.FC<ModalProps> = ({
 
     if (prevUnitIdRef.current !== null && prevUnitIdRef.current !== wUnitId) {
       const selectedUnit = getSelectedUnit(wUnitId);
-      if (selectedUnit) {
-        setValue("cost", Number(selectedUnit.suggestedPurchaseCost ?? 0));
-      }
+      if (!selectedUnit) return;
+
+      const operationValue = Number(selectedUnit.operationValue ?? 1);
+
+      const variant: any = (clickData as any)?.productvariants;
+      const allUnitOptions: any[] = variant?.unitOptions ?? [];
+
+      const purchaseUnitId = Number(
+        variant?.purchasePriceUnitId ??
+        variant?.defaultPurchaseUnitId ??
+        baseUnitId ??
+        0
+      );
+
+      const purchaseUnit = allUnitOptions.find(
+        (u) => Number(u.unitId) === purchaseUnitId
+      );
+
+      const purchaseUnitOperationValue = Number(
+        purchaseUnit?.operationValue ?? 1
+      );
+
+      const purchasePrice = Number(variant?.purchasePrice ?? 0);
+
+      const exactBaseCost =
+        purchaseUnitOperationValue > 0
+          ? purchasePrice / purchaseUnitOperationValue
+          : 0;
+
+      const newCost = exactBaseCost * operationValue;
+
+      setValue("cost", Number(newCost.toFixed(4)));
     }
 
     prevUnitIdRef.current = wUnitId;
-  }, [wUnitId, isOpen, setValue]);
+  }, [wUnitId, isOpen, clickData, setValue, baseUnitId]);
 
   const selectedUnit = getSelectedUnit(wUnitId);
   const selectedUnitName = selectedUnit?.name || "-";
 
-  const baseQtyPreview = computeBaseQtyLocal(wUnitId, wUnitQty);
-  const costPerBaseUnitPreview = computeCostPerBaseUnitLocal(wUnitId, wCost);
+  const baseQtyPreview = useMemo(() => {
+    return computeBaseQtyLocal(wUnitId, wUnitQty);
+  }, [wUnitId, wUnitQty]);
 
-  const lineTotalPreview = (() => {
+  const costPerBaseUnitPreview = useMemo(() => {
+    return computeCostPerBaseUnitLocal(wUnitId, wCost);
+  }, [wUnitId, wCost]);
+
+  const lineTotalPreview = useMemo(() => {
     let priceAfterDiscount = wCost;
 
     if (wDiscountMethod === "Percent") {
       priceAfterDiscount = wCost * (1 - wDiscount / 100);
-    } else {
+    } else if (wDiscountMethod === "Fixed") {
       priceAfterDiscount = wCost - wDiscount;
     }
 
     let unitTotal = priceAfterDiscount;
 
     if (wTaxMethod === "Exclude") {
-      unitTotal = priceAfterDiscount + (priceAfterDiscount * wTaxNet / 100);
+      unitTotal = priceAfterDiscount + (priceAfterDiscount * wTaxNet) / 100;
     }
 
     if (wTaxMethod === "Include") {
@@ -144,15 +190,17 @@ const Modal: React.FC<ModalProps> = ({
     }
 
     return unitTotal * wUnitQty;
-  })();
+  }, [wCost, wDiscountMethod, wDiscount, wTaxMethod, wTaxNet, wUnitQty]);
 
-  const handleFormSubmit = async (data: any) => {
+  const handleFormSubmit = async (data: PurchaseDetailType) => {
     setIsLoading(true);
 
     try {
-      const unitId = Number(data.unitId);
-      const unitQty = Number(data.unitQty);
-      const cost = Number(data.cost) || 0;
+      const unitId = Number((data as any).unitId ?? 0);
+      const unitQty = Number((data as any).unitQty ?? 0);
+      const cost = toNumber(data.cost);
+      const taxNet = toNumber(data.taxNet);
+      const discount = toNumber(data.discount);
 
       const baseQty = computeBaseQtyLocal(unitId, unitQty);
       const costPerBaseUnit = computeCostPerBaseUnitLocal(unitId, cost);
@@ -170,9 +218,9 @@ const Modal: React.FC<ModalProps> = ({
 
         cost,
         costPerBaseUnit,
-        taxNet: Number(data.taxNet) || 0,
+        taxNet,
         taxMethod: data.taxMethod ?? "Include",
-        discount: Number(data.discount) || 0,
+        discount,
         discountMethod: data.discountMethod ?? "Fixed",
         total: lineTotalPreview,
 
@@ -204,14 +252,30 @@ const Modal: React.FC<ModalProps> = ({
                 Base Unit: {baseUnitName}
               </p>
             </div>
-            <button type="button" onClick={onClose}>✕</button>
+
+            <button type="button" className="text-white-dark hover:text-dark" onClick={onClose}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24px"
+                height="24px"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
 
           <form onSubmit={handleSubmit(handleFormSubmit)}>
             <div className="p-5">
               <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-                Enter the cost for <strong>1 selected purchase unit</strong>.  
-                The system will auto-convert quantity and cost into base unit for stock and FIFO.
+                Enter the cost for <strong>1 selected purchase unit</strong>. The system will auto-convert quantity and cost into base unit for stock and FIFO.
               </div>
 
               <div className="grid grid-cols-1 gap-4 mb-5 sm:grid-cols-2">
@@ -223,6 +287,9 @@ const Modal: React.FC<ModalProps> = ({
                     type="text"
                     className="form-input w-full"
                     {...register("cost", { required: "Cost is required" })}
+                    onChange={() => {
+                      isUserEditedCostRef.current = true;
+                    }}
                     onInput={(e: React.FormEvent<HTMLInputElement>) => {
                       const target = e.currentTarget;
                       target.value = target.value.replace(/[^0-9.]/g, "");
@@ -298,7 +365,7 @@ const Modal: React.FC<ModalProps> = ({
                     Cost per Base Unit ({baseUnitName})
                   </p>
                   <p className="text-lg font-bold text-success mt-1">
-                    {Number(costPerBaseUnitPreview).toFixed(6)}
+                    {Number(costPerBaseUnitPreview).toFixed(4)}
                   </p>
                 </div>
               </div>
@@ -356,7 +423,7 @@ const Modal: React.FC<ModalProps> = ({
               </div>
 
               <div className="mt-5 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-                Line Total Preview: <strong>${Number(lineTotalPreview).toFixed(2)}</strong>
+                Line Total Preview: <strong>${Number(lineTotalPreview).toFixed(4)}</strong>
               </div>
 
               <div className="flex justify-end items-center mt-8">
@@ -364,6 +431,7 @@ const Modal: React.FC<ModalProps> = ({
                   <FontAwesomeIcon icon={faClose} className="mr-1" />
                   Discard
                 </button>
+
                 <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                   <FontAwesomeIcon icon={faSave} className="mr-1" />
                   {isLoading ? "Saving..." : "Save"}

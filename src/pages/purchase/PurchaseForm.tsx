@@ -71,6 +71,97 @@ const PurchaseForm: React.FC = () => {
         }
     }, [id, setValue]);
 
+    const hydratePurchaseDetails = (details: any[] = []) => {
+        return details.map((detail: any) => {
+            const variant = detail.productvariants;
+            const product = detail.products;
+
+            if (!variant || !product) {
+                return detail;
+            }
+
+            const unitMap = new Map<number, any>();
+
+            // Base unit
+            if (variant.baseUnit) {
+                unitMap.set(Number(variant.baseUnit.id), {
+                    unitId: Number(variant.baseUnit.id),
+                    unitName: variant.baseUnit.name,
+                    operationValue: 1,
+                    isBaseUnit: true,
+                    suggestedPurchaseCost: Number((variant as any).purchasePrice ?? 0),
+                });
+            }
+
+            const conversions = Array.isArray(product.unitConversions)
+                ? product.unitConversions
+                : [];
+
+            for (const conv of conversions) {
+                // case: roll -> meter, box -> meter
+                if (Number(variant.baseUnitId) === Number(conv.toUnitId) && conv.fromUnit) {
+                    const multiplier = Number(conv.multiplier ?? 1);
+
+                    unitMap.set(Number(conv.fromUnit.id), {
+                        unitId: Number(conv.fromUnit.id),
+                        unitName: conv.fromUnit.name,
+                        operationValue: multiplier,
+                        isBaseUnit: false,
+                        suggestedPurchaseCost: Number((variant as any).purchasePrice ?? 0) * multiplier,
+                    });
+                }
+
+                // reverse case
+                if (Number(variant.baseUnitId) === Number(conv.fromUnitId) && conv.toUnit) {
+                    const multiplier = Number(conv.multiplier ?? 1);
+                    const opValue = multiplier === 0 ? 1 : 1 / multiplier;
+
+                    unitMap.set(Number(conv.toUnit.id), {
+                        unitId: Number(conv.toUnit.id),
+                        unitName: conv.toUnit.name,
+                        operationValue: opValue,
+                        isBaseUnit: false,
+                        suggestedPurchaseCost: Number((variant as any).purchasePrice ?? 0) * opValue,
+                    });
+                }
+            }
+
+            const hydratedUnitOptions = Array.from(unitMap.values());
+            const selectedUnit =
+                hydratedUnitOptions.find((u: any) => Number(u.unitId) === Number(detail.unitId)) ??
+                hydratedUnitOptions.find((u: any) => u.isBaseUnit) ??
+                null;
+
+            return {
+                ...detail,
+                unitOptions: hydratedUnitOptions,
+                unitName:
+                    detail.unitName ||
+                    selectedUnit?.unitName ||
+                    variant.baseUnit?.name ||
+                    null,
+                unitId:
+                    detail.unitId ??
+                    selectedUnit?.unitId ??
+                    variant.baseUnitId ??
+                    null,
+                unitQty:
+                    Number(detail.unitQty ?? detail.quantity ?? 1),
+                quantity:
+                    Number(detail.unitQty ?? detail.quantity ?? 1),
+                baseQty:
+                    Number(detail.baseQty ?? (
+                        Number(detail.unitQty ?? detail.quantity ?? 1) *
+                        Number(selectedUnit?.operationValue ?? 1)
+                    )),
+                productvariants: {
+                    ...variant,
+                    unitOptions: hydratedUnitOptions,
+                },
+            };
+        });
+    };
+
     const fetchPurchase = useCallback(async () => {
         if (id) { // Only fetch when 'id' is available and not already fetching
             setIsLoading(true);
@@ -78,13 +169,15 @@ const PurchaseForm: React.FC = () => {
                 if (id) {
                     const purchaseData: PurchaseType = await getPurchaseByid(parseInt(id, 10));
                     await fetchBranches();
-                    // await fetchSuppliers();
+
                     setValue("branchId", purchaseData.branchId);
                     setValue("ref", purchaseData.ref);
                     setValue("supplierId", purchaseData.supplierId);
-                    setValue("purchaseDate", purchaseData.purchaseDate
-                        ? new Date(purchaseData.purchaseDate).toISOString()
-                        : null
+                    setValue(
+                        "purchaseDate",
+                        purchaseData.purchaseDate
+                            ? new Date(purchaseData.purchaseDate).toISOString()
+                            : null
                     );
                     setValue("taxRate", purchaseData.taxRate);
                     setValue("shipping", purchaseData.shipping);
@@ -94,11 +187,10 @@ const PurchaseForm: React.FC = () => {
                     setValue("status", purchaseData.status);
                     setValue("image", purchaseData.image || null);
                     setValue("note", purchaseData.note);
-                    // Update purchaseDetails only if it has changed
-                    // if (JSON.stringify(purchaseData.purchaseDetails) !== JSON.stringify(purchaseDetails)) {
-                        setPurchaseDetails(purchaseData.purchaseDetails);
-                    // }
-                    // console.log("purchaseData:", purchaseData.purchaseDetails);
+
+                    const hydratedDetails = hydratePurchaseDetails(purchaseData.purchaseDetails || []);
+                    setPurchaseDetails(hydratedDetails);
+
                     setStatusValue(purchaseData.status);
 
                     // Handle existing images
@@ -286,14 +378,18 @@ const PurchaseForm: React.FC = () => {
 
         const selectedUnit = getSelectedUnitOption(variant, defaultUnitId);
         const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
         const suggestedCost = Number(
             selectedUnit?.suggestedPurchaseCost ??
             (variant as any).purchasePrice ??
             0
         );
 
+        const unitQty = 1;
+        const baseQty = unitQty * operationValue;
+
         return {
-            id: 0,
+            id: Date.now() + Math.floor(Math.random() * 1000),
             productId: variant.products?.id || 0,
             productVariantId: variant.id,
 
@@ -301,21 +397,23 @@ const PurchaseForm: React.FC = () => {
             productvariants: variant,
 
             unitId: defaultUnitId,
-            unitQty: 1,
-            baseQty: operationValue,
+            unitQty,
+            baseQty,
 
-            quantity: 1,
+            quantity: unitQty,
 
             cost: suggestedCost,
-            costPerBaseUnit: operationValue > 0 ? suggestedCost / operationValue : 0,
+            costPerBaseUnit: baseQty > 0 ? suggestedCost / operationValue : 0,
 
             taxNet: 0,
             taxMethod: "Include",
             discount: 0,
             discountMethod: "Fixed",
+
             total: calculateTotal({
                 cost: suggestedCost,
-                unitQty: 1,
+                unitQty,
+                quantity: unitQty,
                 taxNet: 0,
                 taxMethod: "Include",
                 discount: 0,
@@ -1058,7 +1156,7 @@ const PurchaseForm: React.FC = () => {
                                     </thead>
                                     <tbody>
                                         {purchaseDetails.map((detail, index) => (
-                                            <tr key={index}>
+                                            <tr key={`${detail.id}-${detail.productVariantId}-${detail.unitId}-${index}`}>
                                                 <td>{ index + 1 }</td>
                                                 <td>
                                                     <p>{detail.products?.name} ({detail.productvariants?.productType})</p>
@@ -1114,9 +1212,12 @@ const PurchaseForm: React.FC = () => {
                                                                 className="form-input rounded-none text-center"
                                                                 readOnly
                                                             />
-                                                            <span className="text-xs text-gray-500 text-center mt-1">
+                                                            {/* <span className="text-xs text-gray-500 text-center mt-1">
                                                                 {getSelectedUnitOption(detail.productvariants, detail.unitId)?.unitName || ""}
-                                                            </span>
+                                                            </span> */}
+                                                            {/* <span className="text-[11px] text-gray-400 text-center">
+                                                                {Number(detail.baseQty ?? 0).toFixed(4)} {detail.productvariants?.baseUnit?.name || ""}
+                                                            </span> */}
                                                         </div>
                                                         <button
                                                             type="button"
@@ -1131,7 +1232,9 @@ const PurchaseForm: React.FC = () => {
                                                     </div>
                                                 </td>
                                                 {statusValue == "PENDING" && 
-                                                    <td>{ detail.stocks }</td>
+                                                    <td>
+                                                        {Number(detail.stocks ?? 0).toFixed(4)} {detail.productvariants?.baseUnit?.name || ""}
+                                                    </td>
                                                 }
                                                 <td>$ {
                                                         detail.discount <= 0 

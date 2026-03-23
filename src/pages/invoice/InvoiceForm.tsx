@@ -101,6 +101,129 @@ const InvoiceForm: React.FC = () => {
             try {
                 if (id) {
                     const invoiceData: InvoiceType = await getInvoiceByid(parseInt(id, 10));
+
+                    const resolveBasePriceFromStoredUnit = (
+                        storedPrice: number,
+                        storedUnitId: number | null | undefined,
+                        baseUnitId: number | null | undefined,
+                        conversions: any[]
+                    ) => {
+                        const safePrice = Number(storedPrice ?? 0);
+                        const safeStoredUnitId = Number(storedUnitId ?? 0);
+                        const safeBaseUnitId = Number(baseUnitId ?? 0);
+
+                        if (!safePrice || !safeBaseUnitId) return 0;
+
+                        if (!safeStoredUnitId || safeStoredUnitId === safeBaseUnitId) {
+                            return safePrice;
+                        }
+
+                        const directConv = conversions.find(
+                            (c: any) =>
+                            Number(c.fromUnitId) === safeStoredUnitId &&
+                            Number(c.toUnitId) === safeBaseUnitId
+                        );
+
+                        if (directConv && Number(directConv.multiplier) > 0) {
+                            return safePrice / Number(directConv.multiplier);
+                        }
+
+                        const reverseConv = conversions.find(
+                            (c: any) =>
+                            Number(c.fromUnitId) === safeBaseUnitId &&
+                            Number(c.toUnitId) === safeStoredUnitId
+                        );
+
+                        if (reverseConv && Number(reverseConv.multiplier) > 0) {
+                            return safePrice * Number(reverseConv.multiplier);
+                        }
+
+                        return safePrice;
+                    };
+
+                    const hydratedDetails = (invoiceData.items || []).map((detail: any) => {
+                        const variant = detail.productvariants;
+                        const product = detail.products;
+
+                        if (detail.ItemType !== "PRODUCT" || !variant || !product) {
+                            return detail;
+                        }
+
+                        const conversions = product.unitConversions || [];
+
+                        const retailBasePrice = resolveBasePriceFromStoredUnit(
+                            Number(variant.retailPrice ?? 0),
+                            Number(variant.retailPriceUnitId ?? variant.baseUnitId ?? 0),
+                            Number(variant.baseUnitId ?? 0),
+                            conversions
+                        );
+
+                        const wholesaleBasePrice = resolveBasePriceFromStoredUnit(
+                            Number(variant.wholeSalePrice ?? 0),
+                            Number(variant.wholeSalePriceUnitId ?? variant.baseUnitId ?? 0),
+                            Number(variant.baseUnitId ?? 0),
+                            conversions
+                        );
+
+                        const unitMap = new Map<number, any>();
+
+                        if (variant.baseUnit) {
+                            unitMap.set(variant.baseUnit.id, {
+                                unitId: variant.baseUnit.id,
+                                unitName: variant.baseUnit.name,
+                                operationValue: 1,
+                                isBaseUnit: true,
+                                suggestedRetailPrice: retailBasePrice,
+                                suggestedWholesalePrice: wholesaleBasePrice,
+                            });
+                        }
+
+                        for (const conv of conversions) {
+                            if (Number(variant.baseUnitId) === Number(conv.toUnitId) && conv.fromUnit) {
+                                const multiplier = Number(conv.multiplier ?? 1);
+
+                                unitMap.set(conv.fromUnit.id, {
+                                    unitId: conv.fromUnit.id,
+                                    unitName: conv.fromUnit.name,
+                                    operationValue: multiplier,
+                                    isBaseUnit: false,
+                                    suggestedRetailPrice: retailBasePrice * multiplier,
+                                    suggestedWholesalePrice: wholesaleBasePrice * multiplier,
+                                });
+                            }
+
+                            if (Number(variant.baseUnitId) === Number(conv.fromUnitId) && conv.toUnit) {
+                                const multiplier = Number(conv.multiplier ?? 1);
+                                const opValue = multiplier > 0 ? 1 / multiplier : 1;
+
+                                unitMap.set(conv.toUnit.id, {
+                                    unitId: conv.toUnit.id,
+                                    unitName: conv.toUnit.name,
+                                    operationValue: opValue,
+                                    isBaseUnit: false,
+                                    suggestedRetailPrice: retailBasePrice * opValue,
+                                    suggestedWholesalePrice: wholesaleBasePrice * opValue,
+                                });
+                            }
+                        }
+
+                        const normalizedUnitOptions = Array.from(unitMap.values());
+
+                        return {
+                            ...detail,
+                            unitOptions: normalizedUnitOptions,
+                            unitName:
+                            detail.unitName ||
+                            normalizedUnitOptions.find((u) => Number(u.unitId) === Number(detail.unitId))?.unitName ||
+                            variant.baseUnit?.name ||
+                            null,
+                            productvariants: {
+                                ...variant,
+                                unitOptions: normalizedUnitOptions,
+                            },
+                        };
+                    });
+
                     await fetchBranches();
                     // await fetchSuppliers();
                     setValue("OrderSaleType", invoiceData.OrderSaleType);
@@ -118,7 +241,7 @@ const InvoiceForm: React.FC = () => {
                     setValue("status", invoiceData.status);
                     setValue("note", invoiceData.note);
                  
-                    setInvoiceDetails(invoiceData.items);
+                    setInvoiceDetails(hydratedDetails);
                     setStatusValue(invoiceData.status);
                 }
             } catch (error) {

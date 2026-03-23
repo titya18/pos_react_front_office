@@ -1,237 +1,232 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSave, faClose } from "@fortawesome/free-solid-svg-icons";
 import { useForm } from "react-hook-form";
 import { QuotationDetailType } from "@/data_types/types";
-
-type UnitOption = { id: number; name: string };
+import { truncateNumber } from "@/helper/numberFormat";
 
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (payload: QuotationDetailType) => Promise<void> | void;
   clickData?: Partial<QuotationDetailType> | null;
+  quoteSaleType: "RETAIL" | "WHOLESALE";
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) => {
+const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  clickData,
+  quoteSaleType,
+}) => {
   const [isLoading, setIsLoading] = useState(false);
+  const prevUnitIdRef = useRef<number | null>(null);
+  const isUserEditedPriceRef = useRef(false);
 
-  // ✅ Use a form type that includes unitId/unitQty even if QuotationDetailType doesn't strongly type them as numbers
-  const { register, handleSubmit, setValue, reset, watch, formState: { errors } } =
-    useForm<QuotationDetailType>();
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<QuotationDetailType>();
 
   const isProduct = clickData?.ItemType === "PRODUCT";
 
-  /* ============================= */
-  /*  Extract base + conversions   */
-  /* ============================= */
-
-  const conversions =
-    (clickData as any)?.products?.unitConversions || [];
-
-  const baseUnit =
-    (clickData as any)?.productvariants?.baseUnit || null;
-
-  const baseUnitId = baseUnit?.id;
-  const baseUnitName = baseUnit?.name;
-
-  /* ============================= */
-  /*  Build Unit Options           */
-  /* ============================= */
+  const baseUnit = (clickData as any)?.productvariants?.baseUnit || null;
+  const baseUnitId = baseUnit?.id ?? null;
+  const baseUnitName = baseUnit?.name ?? "Base";
 
   const unitOptions = useMemo(() => {
-    if (!clickData) return [];
+    const raw = (clickData as any)?.productvariants?.unitOptions;
+    if (!Array.isArray(raw)) return [];
 
-    const base = baseUnit
-      ? [{ id: baseUnit.id, name: baseUnit.name }]
-      : [];
-
-    const fromUnits = conversions.map((c: any) => ({
-      id: c.fromUnit.id,
-      name: c.fromUnit.name,
+    return raw.map((u: any) => ({
+      id: Number(u.unitId ?? u.id),
+      unitId: Number(u.unitId ?? u.id),
+      name: u.unitName ?? u.name,
+      unitName: u.unitName ?? u.name,
+      operationValue: Number(u.operationValue ?? 1),
+      suggestedRetailPrice: Number(u.suggestedRetailPrice ?? 0),
+      suggestedWholesalePrice: Number(u.suggestedWholesalePrice ?? 0),
+      isBaseUnit: !!u.isBaseUnit,
     }));
-
-    const merged = [...base, ...fromUnits];
-
-    // remove duplicates
-    return merged.filter(
-      (v, i, arr) =>
-        arr.findIndex((x) => x.id === v.id) === i
-    );
   }, [clickData]);
 
-  /* ============================= */
-  /*  Compute Base Quantity        */
-  /* ============================= */
-
-  const computeBaseQtyLocal = (
-    unitId: number,
-    unitQty: number
-  ) => {
-    if (!baseUnitId) return unitQty;
-    if (unitId === baseUnitId) return unitQty;
-
-    const conv = conversions.find(
-      (c: any) =>
-        c.fromUnitId === unitId &&
-        c.toUnitId === baseUnitId
-    );
-
-    if (!conv) return unitQty;
-
-    return unitQty * Number(conv.multiplier);
+  const getSelectedUnit = (unitId: number) => {
+    return unitOptions.find((u: any) => Number(u.unitId) === Number(unitId));
   };
 
-  // ----------------------------
-  // ✅ Prefill when open
-  // ----------------------------
+  const getSuggestedUnitPrice = (unitId: number) => {
+    const selectedUnit = getSelectedUnit(unitId);
+    if (!selectedUnit) return 0;
+
+    return quoteSaleType === "WHOLESALE"
+      ? Number(selectedUnit.suggestedWholesalePrice ?? 0)
+      : Number(selectedUnit.suggestedRetailPrice ?? 0);
+  };
+
+  const computeBaseQtyLocal = (unitId: number, unitQty: number) => {
+    const selectedUnit = getSelectedUnit(unitId);
+    const operationValue = Number(selectedUnit?.operationValue ?? 1);
+    return Number(unitQty || 0) * operationValue;
+  };
+
   useEffect(() => {
+    if (!isOpen) return;
+
+    isUserEditedPriceRef.current = false;
+
     if (!clickData) {
       reset();
+      prevUnitIdRef.current = null;
       return;
     }
 
-    // Always set common fields
     setValue("ItemType", clickData.ItemType ?? "PRODUCT");
-    setValue("cost", Number(clickData.cost ?? 0));
+    setValue("cost", truncateNumber(Number(clickData.cost ?? 0), 4));
     setValue("taxMethod", (clickData.taxMethod as any) ?? "Include");
     setValue("taxNet", Number(clickData.taxNet ?? 0));
     setValue("discountMethod", (clickData.discountMethod as any) ?? "Fixed");
     setValue("discount", Number(clickData.discount ?? 0));
 
     if (clickData.ItemType === "PRODUCT") {
-      const defaultUnitId =
-        (clickData as any)?.unitId ??
-        unitOptions?.[0]?.id ??
-        (clickData as any)?.productvariants?.baseUnitId ??
-        null;
+      const initialUnitId =
+        Number(
+          (clickData as any)?.unitId ??
+            (clickData as any)?.productvariants?.defaultRetailUnitId ??
+            (clickData as any)?.productvariants?.baseUnitId ??
+            unitOptions?.[0]?.unitId ??
+            0
+        ) || 0;
 
-      setValue("unitId", defaultUnitId as any);
-      setValue("unitQty", Number((clickData as any)?.unitQty ?? clickData.quantity ?? 1) as any);
+      const initialQty = Number(
+        (clickData as any)?.unitQty ?? clickData.quantity ?? 1
+      ) || 1;
 
-      // keep quantity in sync for your existing total logic
-      setValue("quantity", Number((clickData as any)?.unitQty ?? clickData.quantity ?? 1) as any);
+      setValue("unitId", initialUnitId as any);
+      setValue("unitQty", initialQty as any);
+      setValue("quantity", initialQty as any);
+
+      prevUnitIdRef.current = initialUnitId;
     } else {
       setValue("quantity", Number(clickData.quantity ?? 1));
+      prevUnitIdRef.current = null;
     }
-  }, [clickData, reset, setValue, unitOptions]);
+  }, [isOpen, clickData, reset, setValue, unitOptions]);
 
-  // ----------------------------
-  // ✅ Base qty preview compute
-  // ----------------------------
+  useEffect(() => {
+    if (!isOpen) {
+      prevUnitIdRef.current = null;
+      isUserEditedPriceRef.current = false;
+    }
+  }, [isOpen]);
+
   const selectedUnitId = Number(watch("unitId") ?? 0);
   const unitQtyValue = Number((watch("unitQty") as any) ?? watch("quantity") ?? 0);
+  const costValue = Number(watch("cost") ?? 0);
+  const taxValue = Number(watch("taxNet") ?? 0);
+  const discountValue = Number(watch("discount") ?? 0);
+  const taxMethod = watch("taxMethod") ?? "Include";
+  const discountMethod = watch("discountMethod") ?? "Fixed";
+
+  useEffect(() => {
+    if (!isOpen || !isProduct) return;
+    if (!selectedUnitId) return;
+
+    const prevUnitId = prevUnitIdRef.current;
+
+    if (prevUnitId == null) {
+      prevUnitIdRef.current = selectedUnitId;
+      return;
+    }
+
+    if (prevUnitId !== selectedUnitId) {
+      const newPrice = getSuggestedUnitPrice(selectedUnitId);
+
+      if (!isUserEditedPriceRef.current) {
+        setValue("cost", truncateNumber(Number(newPrice ?? 0), 4), {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+
+      prevUnitIdRef.current = selectedUnitId;
+    }
+  }, [isOpen, isProduct, selectedUnitId, quoteSaleType, setValue]);
 
   const baseQtyPreview = useMemo(() => {
     if (!isProduct) return 0;
+    return computeBaseQtyLocal(selectedUnitId, unitQtyValue);
+  }, [isProduct, selectedUnitId, unitQtyValue]);
 
-    const baseUnitId = Number((clickData as any)?.productvariants?.baseUnitId ?? 0);
-    if (!baseUnitId) return unitQtyValue;
+  const lineTotalPreview = useMemo(() => {
+    const qty = isProduct ? unitQtyValue : Number(watch("quantity") ?? 0);
 
-    if (!selectedUnitId || selectedUnitId === baseUnitId) return unitQtyValue;
+    let priceAfterDiscount = costValue;
 
-    const conversions =
-      (clickData as any)?.products?.unitConversions ||
-      (clickData as any)?.productvariants?.products?.unitConversions ||
-      [];
-
-    // find from selected -> base
-    const conv = conversions.find(
-      (c: any) => Number(c.fromUnitId) === selectedUnitId && Number(c.toUnitId) === baseUnitId
-    );
-
-    if (!conv) return unitQtyValue; // fallback
-    return unitQtyValue * Number(conv.multiplier ?? 1);
-  }, [clickData, isProduct, selectedUnitId, unitQtyValue]);
-
-  // ----------------------------
-  // ✅ Submit
-  // ----------------------------
-  const n = (v: any) => {
-    const x = Number(String(v ?? "").replace(/,/g, ""));
-    return Number.isFinite(x) ? x : 0;
-  };
-
-  const calculateTotal = (detail: Partial<QuotationDetailType>) => {
-    const cost = n(detail.cost);
-    const qty = n((detail as any).unitQty ?? detail.quantity);
-
-    const discount = n(detail.discount);
-    const taxRate = n(detail.taxNet);
-
-    let priceAfterDiscount = cost;
-
-    if (detail.discountMethod === "Percent") {
-        priceAfterDiscount = cost * (1 - discount / 100);
+    if (discountMethod === "Percent") {
+      priceAfterDiscount = costValue * (1 - discountValue / 100);
     } else {
-        priceAfterDiscount = cost - discount;
+      priceAfterDiscount = costValue - discountValue;
     }
 
     let unitTotal = priceAfterDiscount;
 
-    if (detail.taxMethod === "Exclude") {
-        unitTotal = priceAfterDiscount + (priceAfterDiscount * taxRate) / 100;
-    } else if (detail.taxMethod === "Include") {
-        unitTotal = priceAfterDiscount; // tax included already
+    if (taxMethod === "Exclude") {
+      unitTotal = priceAfterDiscount + (priceAfterDiscount * taxValue) / 100;
+    }
+
+    if (taxMethod === "Include") {
+      unitTotal = priceAfterDiscount;
     }
 
     return unitTotal * qty;
-  };
+  }, [isProduct, unitQtyValue, watch, costValue, discountMethod, discountValue, taxMethod, taxValue]);
 
   const handleFormSubmit = async (data: QuotationDetailType) => {
     setIsLoading(true);
     try {
-        const isProduct = clickData?.ItemType === "PRODUCT";
+      const isProductLine = clickData?.ItemType === "PRODUCT";
 
-        const cost = n(data.cost);
-        const taxNet = n(data.taxNet);
-        const discount = n(data.discount);
+      const cost = Number(String(data.cost ?? 0).replace(/,/g, ""));
+      const taxNet = Number(String(data.taxNet ?? 0).replace(/,/g, ""));
+      const discount = Number(String(data.discount ?? 0).replace(/,/g, ""));
 
-        // ✅ SERVICE qty uses quantity
-        const serviceQty = n(data.quantity) || 1;
+      const unitId = isProductLine ? Number((data as any).unitId ?? 0) : null;
+      const unitQty = isProductLine ? Number((data as any).unitQty ?? 1) : null;
+      const baseQty =
+        isProductLine && unitId ? computeBaseQtyLocal(unitId, unitQty ?? 1) : null;
 
-        // ✅ PRODUCT qty uses unitQty
-        const unitId = isProduct ? n((data as any).unitId) : null;
-        const unitQty = isProduct ? (n((data as any).unitQty) || 1) : null;
+      const selectedUnit = isProductLine && unitId ? getSelectedUnit(unitId) : null;
 
-        const baseQty = isProduct && unitId
-        ? computeBaseQtyLocal(unitId, unitQty ?? 1)
-        : null;
-
-        const costPerBaseUnit =
-        isProduct && baseQty && baseQty > 0 ? cost / baseQty : 0;
-
-        // ✅ IMPORTANT: compute total HERE
-        const total = calculateTotal({
-        cost,
-        quantity: isProduct ? (unitQty ?? 1) : serviceQty,
-        ...(isProduct ? { unitQty: unitQty ?? 1 } : {}),
-        taxNet,
-        taxMethod: (data.taxMethod as any) ?? "Include",
-        discount,
-        discountMethod: (data.discountMethod as any) ?? "Fixed",
-        });
-
-        const payload: QuotationDetailType = {
-        id: clickData?.id ?? 0,
+      const payload: QuotationDetailType = {
+        id: clickData?.id ?? Date.now(),
         quotationId: clickData?.quotationId ?? 0,
 
-        productId: isProduct ? (clickData?.productId ?? 0) : 0,
-        productVariantId: isProduct ? (clickData?.productVariantId ?? 0) : 0,
-        serviceId: !isProduct ? (clickData?.serviceId ?? 0) : 0,
+        productId: isProductLine ? (clickData?.productId ?? 0) : 0,
+        productVariantId: isProductLine ? (clickData?.productVariantId ?? 0) : 0,
+        serviceId: !isProductLine ? (clickData?.serviceId ?? 0) : 0,
 
         ItemType: clickData?.ItemType ?? "PRODUCT",
 
-        // ✅ PRODUCT only
-        unitId: isProduct ? unitId : null,
-        unitQty: isProduct ? unitQty : null,
-        baseQty: isProduct ? baseQty : null,
+        unitId: isProductLine ? unitId : null,
+        unitQty: isProductLine ? unitQty : null,
+        baseQty: isProductLine ? baseQty : null,
+        unitName: isProductLine
+          ? (selectedUnit?.unitName ?? selectedUnit?.name ?? null)
+          : null,
+        unitOptions: isProductLine ? (unitOptions as any) : [],
 
-        // ✅ quantity always valid
-        quantity: isProduct ? (unitQty ?? 1) : serviceQty,
+        quantity: isProductLine ? (unitQty ?? 1) : Number(data.quantity ?? 1),
 
         cost,
-        costPerBaseUnit: isProduct ? costPerBaseUnit : 0,
+        costPerBaseUnit:
+          isProductLine && baseQty && baseQty > 0
+            ? Number((clickData as any)?.costPerBaseUnit ?? 0)
+            : 0,
 
         taxNet,
         taxMethod: (data.taxMethod as any) ?? "Include",
@@ -239,19 +234,19 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
         discount,
         discountMethod: (data.discountMethod as any) ?? "Fixed",
 
-        total, // ✅ no more clickData.total
+        total: lineTotalPreview,
 
         products: clickData?.products ?? null,
         productvariants: clickData?.productvariants ?? null,
         services: clickData?.services ?? null,
         stocks: clickData?.stocks ?? 0,
-        };
+      };
 
-        await onSubmit(payload);
-        reset();
-        onClose();
+      await onSubmit(payload);
+      reset();
+      onClose();
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -262,13 +257,36 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
       <div className="flex items-center justify-center min-h-screen px-4">
         <div className="panel border-0 p-0 rounded-lg overflow-hidden w-full max-w-lg my-8">
           <div className="flex bg-[#fbfbfb] dark:bg-[#121c2c] items-center justify-between px-5 py-3">
-            <h5 className="font-bold text-lg">
-              {clickData?.ItemType === "PRODUCT"
-                ? `${clickData?.products?.name ?? ""}`
-                : clickData?.services?.name}
-            </h5>
-            <button type="button" className="text-white-dark hover:text-dark" onClick={onClose}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+            <div>
+              <h5 className="font-bold text-lg">
+                {clickData?.ItemType === "PRODUCT"
+                  ? `${clickData?.products?.name ?? ""}`
+                  : clickData?.services?.name}
+              </h5>
+              {isProduct && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Base Unit: {baseUnitName}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="text-white-dark hover:text-dark"
+              onClick={onClose}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24px"
+                height="24px"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6"
+              >
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
@@ -277,43 +295,54 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
 
           <form onSubmit={handleSubmit(handleFormSubmit)}>
             <div className="p-5">
-              {/* Cost */}
-              <div className={"grid grid-cols-1 gap-4 mb-5" + (isProduct ? " sm:grid-cols-2" : " sm:grid-cols-2")}>
+              <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                {isProduct
+                  ? "Enter the quoted price for 1 selected quote unit. When you change unit, the suggested price updates automatically."
+                  : "Enter service quoted price and quantity."}
+              </div>
+
+              <div className={`grid grid-cols-1 gap-4 mb-5 ${isProduct ? "sm:grid-cols-2" : "sm:grid-cols-2"}`}>
                 <div>
                   <label>
-                    {isProduct ? "Product Cost" : "Service Cost"} <span className="text-danger text-md">*</span>
+                    {isProduct ? "Quoted Price per Selected Unit" : "Service Price"}{" "}
+                    <span className="text-danger text-md">*</span>
                   </label>
                   <input
                     type="text"
                     className="form-input w-full"
                     {...register("cost", { required: "Cost is required" })}
+                    onChange={() => {
+                      isUserEditedPriceRef.current = true;
+                    }}
                     onInput={(e: React.FormEvent<HTMLInputElement>) => {
                       const target = e.currentTarget;
                       target.value = target.value.replace(/[^0-9.]/g, "");
                       const parts = target.value.split(".");
-                      if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
+                      if (parts.length > 2) {
+                        target.value = parts[0] + "." + parts.slice(1).join("");
+                      }
                     }}
                   />
-                  {errors.cost && <p className="error_validate">{String(errors.cost.message)}</p>}
+                  {errors.cost && (
+                    <p className="error_validate">{String(errors.cost.message)}</p>
+                  )}
                 </div>
 
-                {clickData?.ItemType === "PRODUCT" &&
-                    <div>
-                        <label htmlFor="module">Stock On Hand</label>
-                        <input
-                            type="text"
-                            placeholder="Enter quantity"
-                            className="form-input w-full"
-                            disabled
-                            value={clickData?.stocks ?? 0}
-                        />
-                    </div>
-                }
-
-                {/* SERVICE qty */}
-                {!isProduct && (
+                {isProduct ? (
                   <div>
-                    <label>Quantity <sup className="text-danger">*</sup></label>
+                    <label>Stock On Hand</label>
+                    <input
+                      type="text"
+                      className="form-input w-full"
+                      disabled
+                      value={`${Number(clickData?.stocks ?? 0).toFixed(4)} ${baseUnitName}`}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label>
+                      Quantity <span className="text-danger text-md">*</span>
+                    </label>
                     <input
                       type="text"
                       className="form-input w-full"
@@ -322,46 +351,89 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                         const target = e.currentTarget;
                         target.value = target.value.replace(/[^0-9.]/g, "");
                         const parts = target.value.split(".");
-                        if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
+                        if (parts.length > 2) {
+                          target.value = parts[0] + "." + parts.slice(1).join("");
+                        }
                       }}
                     />
-                    {errors.quantity && <p className="error_validate">{String(errors.quantity.message)}</p>}
+                    {errors.quantity && (
+                      <p className="error_validate">{String(errors.quantity.message)}</p>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* ✅ PRODUCT: Unit + Qty + Base Qty preview (your requested layout) */}
               {isProduct && (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-5">
-                  <div>
-                    <label>Unit <span className="text-danger text-md">*</span></label>
-                    <select className="form-input" {...register("unitId", { required: "Unit is required" })}>
-                      {unitOptions.map((u) => (
-                        <option key={u.id} value={u.id}>{u.name}</option>
-                      ))}
-                    </select>
-                    {errors.unitId && <p className="error_validate">{String((errors as any).unitId?.message)}</p>}
+                <>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-5">
+                    <div>
+                      <label>
+                        Quote Unit <span className="text-danger text-md">*</span>
+                      </label>
+                      <select
+                        className="form-input"
+                        {...register("unitId", { required: "Unit is required" })}
+                      >
+                        {unitOptions.map((u: any) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.unitId && (
+                        <p className="error_validate">
+                          {String((errors as any).unitId?.message)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label>
+                        Quantity <span className="text-danger text-md">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        className="form-input"
+                        {...register("unitQty", { required: "Qty is required" } as any)}
+                      />
+                      {errors.unitQty && (
+                        <p className="error_validate">
+                          {String((errors as any).unitQty?.message)}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label>Base Qty ({baseUnitName})</label>
+                      <input
+                        className="form-input"
+                        disabled
+                        value={Number(baseQtyPreview).toFixed(4)}
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label>Quantity <span className="text-danger text-md">*</span></label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      className="form-input"
-                      {...register("unitQty", { required: "Qty is required" } as any)}
-                    />
-                    {errors.unitQty && <p className="error_validate">{String((errors as any).unitQty?.message)}</p>}
-                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-5">
+                    <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
+                      <p className="text-sm font-semibold text-gray-700">Selected Unit</p>
+                      <p className="text-lg font-bold text-primary mt-1">
+                        {getSelectedUnit(selectedUnitId)?.unitName ||
+                          getSelectedUnit(selectedUnitId)?.name ||
+                          "-"}
+                      </p>
+                    </div>
 
-                  <div>
-                    <label>Base Qty ({baseUnitName || "Base"})</label>
-                    <input className="form-input" disabled value={Number(baseQtyPreview).toFixed(4)} />
+                    <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
+                      <p className="text-sm font-semibold text-gray-700">Base Qty Preview</p>
+                      <p className="text-lg font-bold text-success mt-1">
+                        {Number(baseQtyPreview).toFixed(4)} {baseUnitName}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
 
-              {/* Tax + Discount */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label>Tax Type</label>
@@ -381,7 +453,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                       const target = e.currentTarget;
                       target.value = target.value.replace(/[^0-9.]/g, "");
                       const parts = target.value.split(".");
-                      if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
+                      if (parts.length > 2) {
+                        target.value = parts[0] + "." + parts.slice(1).join("");
+                      }
                     }}
                   />
                 </div>
@@ -404,23 +478,37 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                       const target = e.currentTarget;
                       target.value = target.value.replace(/[^0-9.]/g, "");
                       const parts = target.value.split(".");
-                      if (parts.length > 2) target.value = parts[0] + "." + parts.slice(1).join("");
+                      if (parts.length > 2) {
+                        target.value = parts[0] + "." + parts.slice(1).join("");
+                      }
                     }}
                   />
                 </div>
               </div>
 
+              <div className="mt-5 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+                Line Total Preview: <strong>${Number(lineTotalPreview).toFixed(4)}</strong>
+              </div>
+
               <div className="flex justify-end items-center mt-8">
-                <button type="button" className="btn btn-outline-danger" onClick={onClose}>
+                <button
+                  type="button"
+                  className="btn btn-outline-danger"
+                  onClick={onClose}
+                >
                   <FontAwesomeIcon icon={faClose} className="mr-1" />
                   Discard
                 </button>
-                <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
+
+                <button
+                  type="submit"
+                  className="btn btn-primary ltr:ml-4 rtl:mr-4"
+                  disabled={isLoading}
+                >
                   <FontAwesomeIcon icon={faSave} className="mr-1" />
                   {isLoading ? "Saving..." : "Save"}
                 </button>
               </div>
-
             </div>
           </form>
         </div>

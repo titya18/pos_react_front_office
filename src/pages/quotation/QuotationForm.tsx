@@ -98,6 +98,128 @@ const QuotationForm: React.FC = () => {
             try {
                 if (id) {
                     const quotationData: QuotationType = await getQuotationByid(parseInt(id, 10));
+                    const resolveBasePriceFromStoredUnit = (
+                        storedPrice: number,
+                        storedUnitId: number | null | undefined,
+                        baseUnitId: number | null | undefined,
+                        conversions: any[]
+                    ) => {
+                        const safePrice = Number(storedPrice ?? 0);
+                        const safeStoredUnitId = Number(storedUnitId ?? 0);
+                        const safeBaseUnitId = Number(baseUnitId ?? 0);
+
+                        if (!safePrice || !safeBaseUnitId) return 0;
+
+                        if (!safeStoredUnitId || safeStoredUnitId === safeBaseUnitId) {
+                            return safePrice;
+                        }
+
+                        const directConv = conversions.find(
+                            (c: any) =>
+                            Number(c.fromUnitId) === safeStoredUnitId &&
+                            Number(c.toUnitId) === safeBaseUnitId
+                        );
+
+                        if (directConv && Number(directConv.multiplier) > 0) {
+                            return safePrice / Number(directConv.multiplier);
+                        }
+
+                        const reverseConv = conversions.find(
+                            (c: any) =>
+                            Number(c.fromUnitId) === safeBaseUnitId &&
+                            Number(c.toUnitId) === safeStoredUnitId
+                        );
+
+                        if (reverseConv && Number(reverseConv.multiplier) > 0) {
+                            return safePrice * Number(reverseConv.multiplier);
+                        }
+
+                        return safePrice;
+                    };
+
+                    const hydratedDetails = (quotationData.quotationDetails || []).map((detail: any) => {
+                        const variant = detail.productvariants;
+                        const product = detail.products;
+
+                        if (detail.ItemType !== "PRODUCT" || !variant || !product) {
+                            return detail;
+                        }
+
+                        const conversions = product.unitConversions || [];
+
+                        const retailBasePrice = resolveBasePriceFromStoredUnit(
+                            Number(variant.retailPrice ?? 0),
+                            Number(variant.retailPriceUnitId ?? variant.baseUnitId ?? 0),
+                            Number(variant.baseUnitId ?? 0),
+                            conversions
+                        );
+
+                        const wholesaleBasePrice = resolveBasePriceFromStoredUnit(
+                            Number(variant.wholeSalePrice ?? 0),
+                            Number(variant.wholeSalePriceUnitId ?? variant.baseUnitId ?? 0),
+                            Number(variant.baseUnitId ?? 0),
+                            conversions
+                        );
+
+                        const unitMap = new Map<number, any>();
+
+                        if (variant.baseUnit) {
+                            unitMap.set(variant.baseUnit.id, {
+                                unitId: variant.baseUnit.id,
+                                unitName: variant.baseUnit.name,
+                                operationValue: 1,
+                                isBaseUnit: true,
+                                suggestedRetailPrice: retailBasePrice,
+                                suggestedWholesalePrice: wholesaleBasePrice,
+                            });
+                        }
+
+                        for (const conv of conversions) {
+                            if (Number(variant.baseUnitId) === Number(conv.toUnitId) && conv.fromUnit) {
+                                const multiplier = Number(conv.multiplier ?? 1);
+
+                                unitMap.set(conv.fromUnit.id, {
+                                    unitId: conv.fromUnit.id,
+                                    unitName: conv.fromUnit.name,
+                                    operationValue: multiplier,
+                                    isBaseUnit: false,
+                                    suggestedRetailPrice: retailBasePrice * multiplier,
+                                    suggestedWholesalePrice: wholesaleBasePrice * multiplier,
+                                });
+                            }
+
+                            if (Number(variant.baseUnitId) === Number(conv.fromUnitId) && conv.toUnit) {
+                                const multiplier = Number(conv.multiplier ?? 1);
+                                const opValue = multiplier > 0 ? 1 / multiplier : 1;
+
+                                unitMap.set(conv.toUnit.id, {
+                                    unitId: conv.toUnit.id,
+                                    unitName: conv.toUnit.name,
+                                    operationValue: opValue,
+                                    isBaseUnit: false,
+                                    suggestedRetailPrice: retailBasePrice * opValue,
+                                    suggestedWholesalePrice: wholesaleBasePrice * opValue,
+                                });
+                            }
+                        }
+
+                        const normalizedUnitOptions = Array.from(unitMap.values());
+
+                        return {
+                            ...detail,
+                            unitOptions: normalizedUnitOptions,
+                            unitName:
+                            detail.unitName ||
+                            normalizedUnitOptions.find((u) => Number(u.unitId) === Number(detail.unitId))?.unitName ||
+                            variant.baseUnit?.name ||
+                            null,
+                            productvariants: {
+                                ...variant,
+                                unitOptions: normalizedUnitOptions,
+                            },
+                        };
+                    });
+
                     await fetchBranches();
                     // await fetchSuppliers();
                     setValue("QuoteSaleType", quotationData.QuoteSaleType);
@@ -115,7 +237,7 @@ const QuotationForm: React.FC = () => {
                     setValue("status", quotationData.status);
                     setValue("note", quotationData.note);
                  
-                    setQuotationDetails(quotationData.quotationDetails);
+                    setQuotationDetails(hydratedDetails);
                     setStatusValue(quotationData.status);
                 }
             } catch (error) {
@@ -332,116 +454,190 @@ const QuotationForm: React.FC = () => {
         }
     };
 
-    const addToCartDirectly = (variant: ProductVariantType | ServiceType, dataType: "PRODUCT" | "SERVICE") => {
-        const isProduct = dataType === "PRODUCT";
-        const productVariant = variant as ProductVariantType;
-        const serviceVariant = variant as ServiceType;
+    const getVariantUnitOptions = (variant: any) => {
+        return Array.isArray(variant?.unitOptions) ? variant.unitOptions : [];
+    };
 
-        const priceValue = isProduct
-            ? Number(productVariant.purchasePrice) || 0
-            : Number(serviceVariant.price) || 0;
+    const getSelectedUnitOption = (variant: any, unitId?: number | null) => {
+        const unitOptions = getVariantUnitOptions(variant);
+        return unitOptions.find((u: any) => Number(u.unitId) === Number(unitId));
+    };
 
-        const baseUnitId = isProduct ? (productVariant.baseUnitId ?? null) : null;
+    const findMatchingQuotationLineIndex = (
+        details: QuotationDetailType[],
+        newDetail: QuotationDetailType
+    ) => {
+        if (newDetail.ItemType === "SERVICE") {
+            return details.findIndex(
+                (item) =>
+                    item.ItemType === "SERVICE" &&
+                    Number(item.serviceId) === Number(newDetail.serviceId) &&
+                    Number(item.cost ?? 0) === Number(newDetail.cost ?? 0) &&
+                    Number(item.taxNet ?? 0) === Number(newDetail.taxNet ?? 0) &&
+                    Number(item.discount ?? 0) === Number(newDetail.discount ?? 0) &&
+                    String(item.taxMethod ?? "Include") === String(newDetail.taxMethod ?? "Include") &&
+                    String(item.discountMethod ?? "Fixed") === String(newDetail.discountMethod ?? "Fixed")
+            );
+        }
 
-        const unitOptions =
-            isProduct
-            ? (productVariant.unitOptions ?? []) // ✅ must exist from API (see notes below)
-            : [];
+        return details.findIndex(
+            (item) =>
+                item.ItemType === "PRODUCT" &&
+                Number(item.productVariantId) === Number(newDetail.productVariantId) &&
+                Number(item.unitId ?? 0) === Number(newDetail.unitId ?? 0) &&
+                Number(item.cost ?? 0) === Number(newDetail.cost ?? 0) &&
+                Number(item.taxNet ?? 0) === Number(newDetail.taxNet ?? 0) &&
+                Number(item.discount ?? 0) === Number(newDetail.discount ?? 0) &&
+                String(item.taxMethod ?? "Include") === String(newDetail.taxMethod ?? "Include") &&
+                String(item.discountMethod ?? "Fixed") === String(newDetail.discountMethod ?? "Fixed")
+        );
+    };
 
+    const buildQuotationDraftFromVariant = (
+        variant: ProductVariantType,
+        saleType: "RETAIL" | "WHOLESALE"
+    ): QuotationDetailType => {
         const defaultUnitId =
-            isProduct
-            ? (baseUnitId ?? (unitOptions[0]?.id ?? null))
-            : null;
+            saleType === "RETAIL"
+                ? ((variant as any).defaultRetailUnitId ?? variant.baseUnitId ?? null)
+                : ((variant as any).defaultWholesaleUnitId ?? variant.baseUnitId ?? null);
 
-        const defaultUnitName =
-            isProduct
-            ? (unitOptions.find(u => u.id === defaultUnitId)?.name ?? null)
-            : null;
+        const selectedUnit = getSelectedUnitOption(variant, defaultUnitId);
+        const operationValue = Number(selectedUnit?.operationValue ?? 1);
 
-        const defaultUnitQty = 1;
+        const suggestedPrice =
+            saleType === "RETAIL"
+                ? Number(selectedUnit?.suggestedRetailPrice ?? 0)
+                : Number(selectedUnit?.suggestedWholesalePrice ?? 0);
 
-        const newDetail: QuotationDetailType = {
-            id: 0,
+        return {
+            id: Date.now() + Math.floor(Math.random() * 1000),
             quotationId: 0,
+            productId: variant.products?.id || 0,
+            productVariantId: variant.id,
+            products: variant.products || null,
+            productvariants: variant,
+            services: null,
+            serviceId: 0,
+            ItemType: "PRODUCT",
 
-            productId: isProduct ? (productVariant.products?.id || 0) : 0,
-            productVariantId: isProduct ? productVariant.id : 0,
-            products: isProduct ? (productVariant.products || null) : null,
-            productvariants: isProduct ? productVariant : null,
+            unitId: defaultUnitId,
+            unitQty: 1,
+            baseQty: operationValue,
+            unitName: selectedUnit?.unitName ?? null,
+            unitOptions: getVariantUnitOptions(variant),
 
-            services: !isProduct ? serviceVariant : null,
-            serviceId: !isProduct ? serviceVariant.id : 0,
+            quantity: 1,
 
-            ItemType: dataType,
+            cost: suggestedPrice,
+            costPerBaseUnit: operationValue > 0 ? suggestedPrice / operationValue : 0,
 
-            // ✅ UOM fields
-            unitId: isProduct ? defaultUnitId : null,
-            unitQty: isProduct ? defaultUnitQty : null,
-            unitName: isProduct ? defaultUnitName : null,
-            unitOptions: isProduct ? unitOptions : [],
-
-            // ✅ keep quantity for old UI, but for PRODUCT we set it = unitQty
-            quantity: isProduct ? defaultUnitQty : 1,
-
-            cost: priceValue,
-            costPerBaseUnit: 0,
             taxNet: 0,
             taxMethod: "Include",
             discount: 0,
             discountMethod: "Fixed",
-            total: calculateTotal({
-                cost: priceValue,
-                quantity: isProduct ? defaultUnitQty : 1,
+
+            total: 0,
+            stocks: Number(
+                Array.isArray(variant.stocks)
+                    ? (variant.stocks[0]?.quantity ?? 0)
+                    : ((variant as any).stocks?.quantity ?? 0)
+            ) || 0,
+        };
+    };
+
+    const addToCartDirectly = (variant: ProductVariantType | ServiceType, dataType: "PRODUCT" | "SERVICE") => {
+        if (dataType === "SERVICE") {
+            const serviceVariant = variant as ServiceType;
+
+            const newDetail: QuotationDetailType = {
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                quotationId: 0,
+                serviceId: serviceVariant.id || 0,
+                services: serviceVariant,
+                ItemType: "SERVICE",
+                quantity: 1,
+                cost: Number(serviceVariant.price) || 0,
+                costPerBaseUnit: 0,
                 taxNet: 0,
                 taxMethod: "Include",
                 discount: 0,
                 discountMethod: "Fixed",
-            }),
+                total: calculateTotal({
+                    ItemType: "SERVICE",
+                    cost: Number(serviceVariant.price) || 0,
+                    quantity: 1,
+                    taxNet: 0,
+                    taxMethod: "Include",
+                    discount: 0,
+                    discountMethod: "Fixed",
+                }),
+            };
 
-            stocks: Number(
-                Array.isArray(variant.stocks)
-                    ? (variant.stocks[0]?.quantity ?? 0)
-                    : (typeof variant.stocks === "number"
-                        ? variant.stocks
-                        : (variant.stocks && (variant.stocks as any).quantity) ?? 0)
-            ) || 0,
-        };
-    
-        const existingIndex = quotationDetails.findIndex(
-            (item) => item.productVariantId === newDetail.productVariantId
-        );
+            const existingIndex = findMatchingQuotationLineIndex(quotationDetails, newDetail);
 
-        let updatedDetails = [...quotationDetails];
-        if (existingIndex !== -1) {
-            // Increase quantity if already in cart
-            const currentQty = Number(updatedDetails[existingIndex].quantity) || 0;
-            const nextQty = currentQty + 1;
+            if (existingIndex !== -1) {
+                const updatedDetails = [...quotationDetails];
+                const currentQty = Number(updatedDetails[existingIndex].quantity ?? 0);
+                const nextQty = currentQty + 1;
 
-            updatedDetails[existingIndex].unitQty =
-                updatedDetails[existingIndex].ItemType === "PRODUCT"
-                    ? nextQty
-                    : updatedDetails[existingIndex].unitQty;
+                updatedDetails[existingIndex] = {
+                    ...updatedDetails[existingIndex],
+                    quantity: nextQty,
+                    total: calculateTotal({
+                        ...updatedDetails[existingIndex],
+                        ItemType: "SERVICE",
+                        quantity: nextQty,
+                    }),
+                };
 
-            updatedDetails[existingIndex].quantity = nextQty;
+                setQuotationDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            } else {
+                const updatedDetails = [...quotationDetails, newDetail];
+                setQuotationDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            }
 
-            updatedDetails[existingIndex].total = calculateTotal({
-                ...updatedDetails[existingIndex],
-                unitQty:
-                    updatedDetails[existingIndex].ItemType === "PRODUCT"
-                        ? nextQty
-                        : updatedDetails[existingIndex].unitQty,
-                quantity: nextQty,
-            });
-        } else {
-            // Add new product/service
-            updatedDetails.push(newDetail);
+            return;
         }
 
-        setQuotationDetails(updatedDetails);
+        const productVariant = variant as ProductVariantType;
+        const newDetail = buildQuotationDraftFromVariant(productVariant, (quoteSaleType as "RETAIL" | "WHOLESALE") || "RETAIL");
 
-        // Recalculate grand total
-        const totalSum = sumTotal(updatedDetails);
-        setGrandTotal(totalSum);
+        const existingIndex = findMatchingQuotationLineIndex(quotationDetails, newDetail);
+
+        if (existingIndex !== -1) {
+            const updatedDetails = [...quotationDetails];
+            const currentQty = Number(updatedDetails[existingIndex].unitQty ?? 0);
+            const nextQty = currentQty + 1;
+
+            const selectedUnit = getSelectedUnitOption(
+                updatedDetails[existingIndex].productvariants,
+                updatedDetails[existingIndex].unitId
+            );
+            const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
+            updatedDetails[existingIndex] = {
+                ...updatedDetails[existingIndex],
+                unitQty: nextQty,
+                quantity: nextQty,
+                baseQty: nextQty * operationValue,
+                total: calculateTotal({
+                    ...updatedDetails[existingIndex],
+                    ItemType: "PRODUCT",
+                    unitQty: nextQty,
+                    quantity: nextQty,
+                }),
+            };
+
+            setQuotationDetails(updatedDetails);
+            setGrandTotal(sumTotal(updatedDetails));
+        } else {
+            const updatedDetails = [...quotationDetails, newDetail];
+            setQuotationDetails(updatedDetails);
+            setGrandTotal(sumTotal(updatedDetails));
+        }
     };
 
     const handleFocus = () => {
@@ -465,23 +661,13 @@ const QuotationForm: React.FC = () => {
 
     // Function to add or update a product detail
     const addOrUpdateQuotationDetail = async (newDetail: QuotationDetailType) => {
-        // Find if the product already exists in the array
-        const existingIndex = quotationDetails.findIndex(
-            (item) => item.productVariantId === newDetail.productVariantId
-        );
-        if (existingIndex !== -1) {
-            await ShowWarningMessage("Product already in cart");
-            return;
-        }
-        // console.log("ddfd:", newDetail);
-
         setClickData({
             ...newDetail
         });
 
         setIsModalOpen(true);
-        setSearchTerm(""); // Clear search
-        setShowSuggestions(false); // Hide suggestions
+        setSearchTerm("");
+        setShowSuggestions(false);
     };
 
     // Function to add or update a service detail
@@ -508,8 +694,9 @@ const QuotationForm: React.FC = () => {
     const handleOnSubmit = async (QuotationDetailData: QuotationDetailType) => {
         try {
             const isProduct = QuotationDetailData.ItemType === "PRODUCT";
+
             const newDetail: QuotationDetailType = {
-                id: QuotationDetailData.id ?? 0,
+                id: QuotationDetailData.id ?? Date.now(),
                 quotationId: QuotationDetailData.quotationId ?? 0,
 
                 productId: QuotationDetailData.productId ?? 0,
@@ -518,14 +705,12 @@ const QuotationForm: React.FC = () => {
 
                 ItemType: QuotationDetailData.ItemType,
 
-                // ✅ KEEP UNIT FIELDS (THIS IS THE MAIN FIX)
                 unitId: isProduct ? (QuotationDetailData.unitId ?? null) : null,
                 unitQty: isProduct ? Number(QuotationDetailData.unitQty ?? QuotationDetailData.quantity ?? 1) : null,
                 baseQty: isProduct ? Number(QuotationDetailData.baseQty ?? 0) : null,
                 unitName: isProduct ? (QuotationDetailData.unitName ?? null) : null,
                 unitOptions: isProduct ? (QuotationDetailData.unitOptions ?? []) : [],
 
-                // ✅ keep quantity synced with unitQty for products
                 quantity: isProduct
                     ? Number(QuotationDetailData.unitQty ?? QuotationDetailData.quantity ?? 1)
                     : Number(QuotationDetailData.quantity ?? 1),
@@ -545,59 +730,87 @@ const QuotationForm: React.FC = () => {
 
                 total: calculateTotal({
                     ...QuotationDetailData,
-                    // ✅ ensure total uses correct qty
+                    ItemType: QuotationDetailData.ItemType,
                     quantity: isProduct
-                    ? Number(QuotationDetailData.unitQty ?? QuotationDetailData.quantity ?? 1)
-                    : Number(QuotationDetailData.quantity ?? 1),
+                        ? Number(QuotationDetailData.unitQty ?? QuotationDetailData.quantity ?? 1)
+                        : Number(QuotationDetailData.quantity ?? 1),
+                    unitQty: isProduct
+                        ? Number(QuotationDetailData.unitQty ?? QuotationDetailData.quantity ?? 1)
+                        : undefined,
                 }),
 
                 stocks: QuotationDetailData.stocks ?? 0,
             };
-            
-            var existingIndex = 0;
-            if (newDetail.ItemType === "PRODUCT") {
-                var existingIndex = quotationDetails.findIndex(
-                    (item) => item.productVariantId === newDetail.productVariantId
-                );
-            }
 
-            if (newDetail.ItemType === "SERVICE") {
-                var existingIndex = quotationDetails.findIndex(
-                    (item) => item.serviceId === newDetail.serviceId
-                );
+            const existingIndex = findMatchingQuotationLineIndex(quotationDetails, newDetail);
+
+            const sameRowEditing = quotationDetails.findIndex((row) => row.id === newDetail.id);
+
+            if (sameRowEditing !== -1) {
+                const updatedDetails = [...quotationDetails];
+                updatedDetails[sameRowEditing] = newDetail;
+                setQuotationDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+                setIsModalOpen(false);
+                return;
             }
 
             if (existingIndex !== -1) {
-                // Product exists; update its data
                 const updatedDetails = [...quotationDetails];
-                updatedDetails[existingIndex] = { ...newDetail }; // Replace with the new data
-                setQuotationDetails(updatedDetails);
-            } else {
-                // Product does not exist; add it
-                setQuotationDetails([...quotationDetails, newDetail]);
-            }
 
-            // Recalculate grand total
-            const totalSum = sumTotal(existingIndex !== -1
-                ? quotationDetails.map((d, i) => i === existingIndex ? newDetail : d)
-                : [...quotationDetails, newDetail]
-            );
-            setGrandTotal(totalSum);
+                if (newDetail.ItemType === "PRODUCT") {
+                    const currentQty = Number(updatedDetails[existingIndex].unitQty ?? 0);
+                    const addQty = Number(newDetail.unitQty ?? 0);
+                    const nextQty = currentQty + addQty;
+
+                    const selectedUnit = getSelectedUnitOption(
+                        updatedDetails[existingIndex].productvariants,
+                        updatedDetails[existingIndex].unitId
+                    );
+                    const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
+                    updatedDetails[existingIndex] = {
+                        ...updatedDetails[existingIndex],
+                        unitQty: nextQty,
+                        quantity: nextQty,
+                        baseQty: nextQty * operationValue,
+                        total: calculateTotal({
+                            ...updatedDetails[existingIndex],
+                            ItemType: "PRODUCT",
+                            unitQty: nextQty,
+                            quantity: nextQty,
+                        }),
+                    };
+                } else {
+                    const currentQty = Number(updatedDetails[existingIndex].quantity ?? 0);
+                    const addQty = Number(newDetail.quantity ?? 0);
+                    const nextQty = currentQty + addQty;
+
+                    updatedDetails[existingIndex] = {
+                        ...updatedDetails[existingIndex],
+                        quantity: nextQty,
+                        total: calculateTotal({
+                            ...updatedDetails[existingIndex],
+                            ItemType: "SERVICE",
+                            quantity: nextQty,
+                        }),
+                    };
+                }
+
+                setQuotationDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            } else {
+                const updatedDetails = [...quotationDetails, newDetail];
+                setQuotationDetails(updatedDetails);
+                setGrandTotal(sumTotal(updatedDetails));
+            }
 
             setIsModalOpen(false);
         } catch (error: any) {
-            // Check if error.message is set by your API function
-            if (error.message) {
-                toast.error(error.message, {
-                    position: "top-right",
-                    autoClose: 2000
-                });
-            } else {
-                toast.error("Error adding/editting quotation", {
-                    position: "top-right",
-                    autoClose: 2000
-                });
-            }
+            toast.error(error.message || "Error adding/editing quotation", {
+                position: "top-right",
+                autoClose: 2000
+            });
         }
     };
 
@@ -605,54 +818,85 @@ const QuotationForm: React.FC = () => {
         const updated = [...quotationDetails];
         const d = updated[index];
 
-        const currentQty = Number(
-            d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity
-        ) || 0;
-
-        if (currentQty < 25) {
+        if (d.ItemType === "PRODUCT") {
+            const currentQty = Number(d.unitQty ?? d.quantity ?? 0);
             const nextQty = currentQty + 1;
 
-            const nextDetail: QuotationDetailType = {
+            const selectedUnit = getSelectedUnitOption(d.productvariants, d.unitId);
+            const operationValue = Number(selectedUnit?.operationValue ?? 1);
+
+            updated[index] = {
                 ...d,
-                unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                unitQty: nextQty,
                 quantity: nextQty,
+                baseQty: nextQty * operationValue,
                 total: calculateTotal({
                     ...d,
-                    unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                    ItemType: "PRODUCT",
+                    unitQty: nextQty,
                     quantity: nextQty,
                 }),
             };
+        } else {
+            const currentQty = Number(d.quantity ?? 0);
+            const nextQty = currentQty + 1;
 
-            updated[index] = nextDetail;
-            setQuotationDetails(updated);
+            updated[index] = {
+                ...d,
+                quantity: nextQty,
+                total: calculateTotal({
+                    ...d,
+                    ItemType: "SERVICE",
+                    quantity: nextQty,
+                }),
+            };
         }
+
+        setQuotationDetails(updated);
     };
 
     const decreaseQuantity = (index: number) => {
         const updated = [...quotationDetails];
         const d = updated[index];
 
-        const currentQty = Number(
-            d.ItemType === "PRODUCT" ? (d.unitQty ?? d.quantity) : d.quantity
-        ) || 0;
+        if (d.ItemType === "PRODUCT") {
+            const currentQty = Number(d.unitQty ?? d.quantity ?? 0);
+            if (currentQty <= 1) return;
 
-        if (currentQty > 1) {
             const nextQty = currentQty - 1;
+            const selectedUnit = getSelectedUnitOption(d.productvariants, d.unitId);
+            const operationValue = Number(selectedUnit?.operationValue ?? 1);
 
-            const nextDetail: QuotationDetailType = {
+            updated[index] = {
                 ...d,
-                unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                unitQty: nextQty,
                 quantity: nextQty,
+                baseQty: nextQty * operationValue,
                 total: calculateTotal({
                     ...d,
-                    unitQty: d.ItemType === "PRODUCT" ? nextQty : d.unitQty,
+                    ItemType: "PRODUCT",
+                    unitQty: nextQty,
                     quantity: nextQty,
                 }),
             };
+        } else {
+            const currentQty = Number(d.quantity ?? 0);
+            if (currentQty <= 1) return;
 
-            updated[index] = nextDetail;
-            setQuotationDetails(updated);
+            const nextQty = currentQty - 1;
+
+            updated[index] = {
+                ...d,
+                quantity: nextQty,
+                total: calculateTotal({
+                    ...d,
+                    ItemType: "SERVICE",
+                    quantity: nextQty,
+                }),
+            };
         }
+
+        setQuotationDetails(updated);
     };
     
     // const calculateTotal = (detail: Partial<QuotationDetailType>): number => {
@@ -998,34 +1242,35 @@ const QuotationForm: React.FC = () => {
                                                             cursor: "pointer",
                                                             borderBottom: "1px solid #eee",
                                                         }}
-                                                        onClick={() => addOrUpdateQuotationDetail({
-                                                            id: 0, // Assign a default or unique value
-                                                            quotationId: 0, // Assign a default or unique value
-                                                            productId: variants.products?.id || 0,
-                                                            productVariantId: variants.id,
-                                                            products: variants.products || null,
-                                                            productvariants: variants,
-                                                            ItemType: "PRODUCT",
+                                                        onClick={() => addOrUpdateQuotationDetail(buildQuotationDraftFromVariant(variants, (quoteSaleType as "RETAIL" | "WHOLESALE") || "RETAIL"))}
+                                                        // onClick={() => addOrUpdateQuotationDetail({
+                                                        //     id: 0, // Assign a default or unique value
+                                                        //     quotationId: 0, // Assign a default or unique value
+                                                        //     productId: variants.products?.id || 0,
+                                                        //     productVariantId: variants.id,
+                                                        //     products: variants.products || null,
+                                                        //     productvariants: variants,
+                                                        //     ItemType: "PRODUCT",
                                                             
-                                                            // ✅ UOM defaults
-                                                            unitOptions: variants.unitOptions ?? [],
-                                                            unitId: variants.baseUnitId ?? variants.baseUnit?.id ?? (variants.unitOptions?.[0]?.id ?? null),
-                                                            unitQty: 1,
-                                                            quantity: 1, // keep old field in sync
+                                                        //     // ✅ UOM defaults
+                                                        //     unitOptions: variants.unitOptions ?? [],
+                                                        //     unitId: variants.baseUnitId ?? variants.baseUnit?.id ?? (variants.unitOptions?.[0]?.id ?? null),
+                                                        //     unitQty: 1,
+                                                        //     quantity: 1, // keep old field in sync
 
-                                                            cost: quoteSaleType === "RETAIL" ? Number(variants.retailPrice) : Number(variants.wholeSalePrice) || 0, // Default cost
-                                                            costPerBaseUnit: 0,
-                                                            taxNet: 0, // Default taxNet
-                                                            taxMethod: "Include", // Default tax method
-                                                            discount: 0,
-                                                            discountMethod: "Fixed",
-                                                            total: 0,
-                                                            stocks: Number(
-                                                                Array.isArray(variants.stocks)
-                                                                    ? (variants.stocks[0]?.quantity ?? 0)
-                                                                    : (variants.stocks?.quantity ?? 0)
-                                                            ) || 0,
-                                                        })}
+                                                        //     cost: quoteSaleType === "RETAIL" ? Number(variants.retailPrice) : Number(variants.wholeSalePrice) || 0, // Default cost
+                                                        //     costPerBaseUnit: 0,
+                                                        //     taxNet: 0, // Default taxNet
+                                                        //     taxMethod: "Include", // Default tax method
+                                                        //     discount: 0,
+                                                        //     discountMethod: "Fixed",
+                                                        //     total: 0,
+                                                        //     stocks: Number(
+                                                        //         Array.isArray(variants.stocks)
+                                                        //             ? (variants.stocks[0]?.quantity ?? 0)
+                                                        //             : (variants.stocks?.quantity ?? 0)
+                                                        //     ) || 0,
+                                                        // })}
                                                     >
                                                         {/* {variants.products?.name} - {variants.name+' - '+variants.barcode} */}
                                                         {variants.products?.name+' - '+variants.barcode} ({variants.productType})
@@ -1125,27 +1370,32 @@ const QuotationForm: React.FC = () => {
                                                 <td>{ index + 1 }</td>
                                                 <td>
                                                     <p>
-                                                        {detail.ItemType === "PRODUCT" ?
-                                                            <>
-                                                                { detail.products?.name } ({ detail.productvariants?.productType })
-                                                            </>
-                                                            :
-                                                            <>
-                                                                { detail.services?.name }
-                                                            </>
-                                                        }
+                                                        {detail.ItemType === "PRODUCT"
+                                                            ? `${detail.products?.name} (${detail.productvariants?.productType})`
+                                                            : `${detail.services?.name}`}
                                                     </p>
+
+                                                    {detail.ItemType === "PRODUCT" && (
+                                                        <>
+                                                            <p className="text-xs text-gray-500 mt-1">
+                                                                Quote Unit: {
+                                                                    getSelectedUnitOption(detail.productvariants, detail.unitId)?.unitName ||
+                                                                    detail.unitName ||
+                                                                    detail.productvariants?.baseUnit?.name ||
+                                                                    "-"
+                                                                }
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">
+                                                                Base Qty: {Number(detail.baseQty ?? 0).toFixed(4)} {detail.productvariants?.baseUnit?.name || ""}
+                                                            </p>
+                                                        </>
+                                                    )}
+
                                                     <p className="text-center">
                                                         <span className="badge badge-outline-primary rounded-full">
-                                                            {detail.ItemType === "PRODUCT" ?
-                                                                <>
-                                                                    { detail.productvariants?.barcode }
-                                                                </>
-                                                                :
-                                                                <>
-                                                                    { detail.services?.serviceCode }
-                                                                </>
-                                                            }
+                                                            {detail.ItemType === "PRODUCT"
+                                                                ? detail.productvariants?.barcode
+                                                                : detail.services?.serviceCode}
                                                         </span>
                                                         <button type="button" onClick={() => updateData(detail)} className="hover:text-warning ml-2" style={{display: "ruby"}} title="Edit">
                                                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-success">
@@ -1346,6 +1596,7 @@ const QuotationForm: React.FC = () => {
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={handleOnSubmit}
                 clickData={clickData}
+                quoteSaleType={(quoteSaleType as "RETAIL" | "WHOLESALE") || "RETAIL"}
             />
 
             <CustomerModal 

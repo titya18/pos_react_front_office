@@ -16,6 +16,7 @@ import { getAllUnits } from "../../api/unit";
 import { getAllVarientAttributes } from "../../api/varientAttribute";
 import MultiSelectVariant from "./MultiSelectVariant";
 import Select from "react-select";
+import { truncateNumber } from "@/helper/numberFormat";
 
 type ProductStock = {
   branchId: number;
@@ -993,7 +994,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
 
                   {costPreviewText && (
                     <div className="mb-5 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-                      Cost Preview: <strong>{costPreviewText}</strong>
+                      Cost Preview: <strong>{truncateNumber(parseFloat(costPreviewText), 4).toFixed(4)}</strong>
                     </div>
                   )}
 
@@ -1051,12 +1052,12 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                   {(wholesaleBasePreviewText || wholesaleHigherPreviewText) && (
                     <div className="mb-5 rounded-md border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-800">
                       <div>
-                        Wholesale Base Preview: <strong>{wholesaleBasePreviewText || "-"}</strong>
+                        Wholesale Base Preview: <strong>{truncateNumber(parseFloat(wholesaleBasePreviewText), 4).toFixed(4) || "-"}</strong>
                       </div>
                       {wholesaleHigherPreviewText && firstHigherConversion && (
                         <div className="mt-1">
                           Approx in {getUnitName(firstHigherConversion.fromUnitId)}:{" "}
-                          <strong>{wholesaleHigherPreviewText}</strong>
+                          <strong>{truncateNumber(parseFloat(wholesaleHigherPreviewText), 4).toFixed(4) || "-"}</strong>
                         </div>
                       )}
                     </div>
@@ -1116,12 +1117,12 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                   {(retailBasePreviewText || retailHigherPreviewText) && (
                     <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
                       <div>
-                        Retail Base Preview: <strong>{retailBasePreviewText || "-"}</strong>
+                        Retail Base Preview: <strong>{truncateNumber(parseFloat(retailBasePreviewText), 4).toFixed(4)|| "-"}</strong>
                       </div>
                       {retailHigherPreviewText && firstHigherConversion && (
                         <div className="mt-1">
                           Approx in {getUnitName(firstHigherConversion.fromUnitId)}:{" "}
-                          <strong>{retailHigherPreviewText}</strong>
+                          <strong>{truncateNumber(parseFloat(retailHigherPreviewText), 4).toFixed(4) || "-"}</strong>
                         </div>
                       )}
                     </div>

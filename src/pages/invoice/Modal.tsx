@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSave, faClose } from "@fortawesome/free-solid-svg-icons";
 import { useForm } from "react-hook-form";
 import { InvoiceDetailType } from "@/data_types/types";
+import { truncateNumber } from "@/helper/numberFormat";
 
 interface ModalProps {
   isOpen: boolean;
@@ -62,7 +63,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
     }
 
     setValue("ItemType", clickData.ItemType ?? "PRODUCT");
-    setValue("price", Number(clickData.price ?? 0));
+    setValue("price", truncateNumber(Number(clickData.price ?? 0), 4));
     setValue("taxMethod", (clickData.taxMethod as any) ?? "Include");
     setValue("taxNet", Number(clickData.taxNet ?? 0));
     setValue("discountMethod", (clickData.discountMethod as any) ?? "Fixed");
@@ -116,7 +117,15 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
           Number((clickData as any)?.productvariants?.wholeSalePrice ?? 0) > 0 &&
           Number(clickData?.price ?? 0) === Number((clickData as any)?.productvariants?.wholeSalePrice ?? -999999);
 
-        setValue("price", useWholesale ? fallbackWholesale : fallbackRetail || nextPrice);
+        const price = useWholesale
+          ? (fallbackWholesale ?? nextPrice)
+          : (fallbackRetail ?? nextPrice);
+
+        setValue(
+          "price",
+          truncateNumber(Number(price || 0), 4),
+          { shouldDirty: true, shouldValidate: true }
+        );
       }
     }
 
@@ -389,7 +398,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
               </div>
 
               <div className="mt-5 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-                Line Total Preview: <strong>${Number(lineTotalPreview).toFixed(2)}</strong>
+                Line Total Preview: <strong>${Number(lineTotalPreview).toFixed(4)}</strong>
               </div>
 
               <div className="flex justify-end items-center mt-8">
