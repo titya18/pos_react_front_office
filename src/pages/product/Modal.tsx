@@ -63,7 +63,8 @@ interface ModalProps {
     stocks?: ProductStock[],
 
     baseUnitId?: number | null,
-    unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[]
+    unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[],
+    updateStock?: boolean,
   ) => void;
 
   product?: {
@@ -92,8 +93,8 @@ interface ModalProps {
     variantValueIds?: number[];
     branchId?: number | null;
     stocks?: Array<{ branchId: number; quantity: string | number }> | null;
-
-    // ✅ NEW (UOM)
+    updateStock?: boolean;
+    // NEW (UOM)
     baseUnitId?: number | null;
     unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[];
   } | null;
@@ -128,6 +129,7 @@ export interface ProductFormData {
 
   branchId?: number | null;
   stocks?: Array<{ branchId: number; quantity: string | number }> | null;
+  updateStock: boolean;
 }
 
 export interface CategoryData {
@@ -168,6 +170,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
       purchasePriceUnitId: null,
       retailPriceUnitId: null,
       wholeSalePriceUnitId: null,
+      updateStock: false,
     },
   });
 
@@ -260,6 +263,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
     fetchVariantAttributes();
   }, [isOpen]);
 
+  const updateStock = watch("updateStock");
   // ✅ base unit label
   const baseUnitId = watch("baseUnitId");
   const baseUnitName = units.find((u) => u.id === baseUnitId)?.name || "";
@@ -406,8 +410,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         wholeSalePriceUnitId: product.wholeSalePriceUnitId ?? product.baseUnitId ?? null,
         variantAttributeIds: product.variantAttributeIds ?? [],
         variantValueIds: product.variantValueIds ?? [],
-
+        
         stocks: stockData,
+        updateStock: false,
 
         // ✅ NEW UOM
         baseUnitId: product.baseUnitId ?? null,
@@ -468,6 +473,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         variantValueIds: [],
 
         stocks: initialStocks,
+        updateStock: true,
 
         // ✅ NEW UOM
         baseUnitId: null,
@@ -549,10 +555,12 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
       const convertedExistingImages = await convertExistingImagesPaths();
       const combinedImages = [...convertedExistingImages, ...newImages];
 
-      const stocks: ProductStock[] = (data.stocks || []).map((s) => ({
-        branchId: Number(s.branchId),
-        quantity: Number(s.quantity) || 0,
-      }));
+      const stocks: ProductStock[] = data.updateStock
+      ? (data.stocks || []).map((s) => ({
+          branchId: Number(s.branchId),
+          quantity: Number(s.quantity) || 0,
+        }))
+      : [];
 
       // ✅ sanitize unitConversions
       const conversionsOut = (data.unitConversions || [])
@@ -595,9 +603,10 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
 
         stocks,
 
-        // ✅ NEW UOM
+        // NEW UOM
         data.baseUnitId,
-        conversionsOut
+        conversionsOut,
+        data.updateStock
       );
 
       resetDropzoneOrFormData();
@@ -858,48 +867,70 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                   </div>
                 </div>
 
-                {/* ✅ Stock in base unit */}
                 <div className="mb-4">
-                  {product?.id && (
-                    <div className="mb-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
-                      Editing stock here will create stock adjustment movements and affect FIFO costing.
-                    </div>
-                  )}
-                  <label className="font-semibold mb-2 block">
-                    Opening / Current Stock Per Branch (in {baseUnitName || "Base Unit"})
-                    <p className="text-xs text-gray-500 mt-1">
-                      Changing stock here will create inventory adjustment movements.
-                    </p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="form-checkbox"
+                      {...register("updateStock")}
+                    />
+                    <span className="font-medium">
+                      {product?.id ? "Update branch stock also" : "Set opening stock now"}
+                    </span>
                   </label>
 
-                  <div className="space-y-3">
-                    {branches.map((branch, index) => (
-                      <div key={branch.id} className="flex items-center gap-4">
-                        <input
-                          type="hidden"
-                          value={branch.id}
-                          {...register(`stocks.${index}.branchId`, { valueAsNumber: true })}
-                        />
-
-                        <div className="w-1/2">
-                          <input type="text" value={branch.name} disabled className="form-input bg-gray-100" />
-                        </div>
-
-                        <div className="w-1/2 flex items-center gap-2">
-                          <input
-                            type="number"
-                            step="0.0001"
-                            {...register(`stocks.${index}.quantity`, { valueAsNumber: true })}
-                            className="form-input"
-                          />
-                          {baseUnitName && (
-                            <span className="text-sm text-gray-500 whitespace-nowrap">{baseUnitName}</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {product?.id
+                      ? "Check this only when you want this edit to change stock and create stock adjustment movements."
+                      : "Check this to save opening stock when creating the product."}
+                  </p>
                 </div>
+
+                {/* ✅ Stock in base unit */}
+                {updateStock && (
+                  <div className="mb-4">
+                    {product?.id && (
+                      <div className="mb-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                        Editing stock here will create stock adjustment movements and affect FIFO costing.
+                      </div>
+                    )}
+
+                    <label className="font-semibold mb-2 block">
+                      Opening / Current Stock Per Branch (in {baseUnitName || "Base Unit"})
+                      <p className="text-xs text-gray-500 mt-1">
+                        Changing stock here will create inventory adjustment movements.
+                      </p>
+                    </label>
+
+                    <div className="space-y-3">
+                      {branches.map((branch, index) => (
+                        <div key={branch.id} className="flex items-center gap-4">
+                          <input
+                            type="hidden"
+                            value={branch.id}
+                            {...register(`stocks.${index}.branchId`, { valueAsNumber: true })}
+                          />
+
+                          <div className="w-1/2">
+                            <input type="text" value={branch.name} disabled className="form-input bg-gray-100" />
+                          </div>
+
+                          <div className="w-1/2 flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="0.0001"
+                              {...register(`stocks.${index}.quantity`, { valueAsNumber: true })}
+                              className="form-input"
+                            />
+                            {baseUnitName && (
+                              <span className="text-sm text-gray-500 whitespace-nowrap">{baseUnitName}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Variant Attributes */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 mb-4">

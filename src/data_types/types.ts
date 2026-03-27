@@ -179,6 +179,8 @@ export interface ProductType {
 
     baseUnitId?: number | null;          // ✅
     unitConversions?: ProductUnitConversionType[]; // ✅
+
+    updateStock?: boolean;
 }
 
 export interface VarientAttributeType {
@@ -589,6 +591,7 @@ export interface InvoiceType {
     items: InvoiceDetailType[];
 
     totalProfit?: number | null;
+    vat_status?: number | null;
 }
 
 export interface InvoiceDetailType {

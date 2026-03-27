@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import * as apiClient from "@/api/invoice";
 import Pagination from "../components/Pagination"; // Import the Pagination component
 import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
+import ShowConfirmationDeclareVat from "../components/ShowConfirmationDeclareVat";
 import { useQueryClient } from "@tanstack/react-query";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowUpZA, faArrowDownAZ, faPrint, faClose, faSave } from '@fortawesome/free-solid-svg-icons';
@@ -10,7 +11,7 @@ import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAppContext } from "@/hooks/useAppContext";
 import { format } from 'date-fns';
-import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, NotebookText, MessageCircleOff, Undo2 } from 'lucide-react';
+import { Pencil, Trash2, BanknoteArrowUp, PrinterCheck, Plus, NotebookText, MessageCircleOff, Undo2, Receipt, CheckCircle2 } from 'lucide-react';
 import { InvoicePaymentType, InvoiceType } from "@/data_types/types";
 import { useSearchParams } from "react-router-dom";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
@@ -212,6 +213,27 @@ const Invoice: React.FC = () => {
             fetchInvoice();
         } catch (err: any) {
             toast.error(err.message || "Error deleting invoice");
+        }
+    };
+
+    const handleDeclareVAT = async (id: number) => {
+        const confirmed = await ShowConfirmationDeclareVat();
+        if (!confirmed) return;
+
+        try {
+            await apiClient.DeclarationVat(id);
+            toast.success("Sale has declared VAT successfully", {
+                position: "top-right",
+                autoClose: 4000
+            })
+
+            fetchInvoice();
+        } catch (err: any) {
+            console.error("Error declaring VAT:", err);
+            toast.error(err.message || "Error declaring VAT", {
+                position: 'top-right',
+                autoClose: 6000
+            });
         }
     };
 
@@ -473,6 +495,25 @@ const Invoice: React.FC = () => {
                                                                         )}
                                                                         {(rows.status === 'APPROVED' || rows.status === 'COMPLETED') && (
                                                                             <>
+                                                                                {hasPermission('Declare-VAT') && (
+                                                                                    <button
+                                                                                        disabled={rows.vat_status ? true : false}
+                                                                                        className={`
+                                                                                            inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold
+                                                                                            transition-all duration-200
+                                                                                            ${rows.vat_status
+                                                                                            ? "bg-green-50 text-green-700 border border-green-200 cursor-not-allowed dark:bg-green-900/20 dark:text-green-300"
+                                                                                            : "bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-900/20 dark:text-blue-300"
+                                                                                            }
+                                                                                        `}
+                                                                                        onClick={() => handleDeclareVAT(Number(rows.id))}
+                                                                                        title={rows.vat_status ? "Declared" : "Declare VAT"}
+                                                                                    >
+                                                                                        {rows.vat_status ? <span style={{ color: 'pink' }}><CheckCircle2 size={14} /></span> : <Receipt size={14} />}
+                                                                                        {rows.vat_status ? <span style={{ marginLeft: '2px', color: 'pink' }}>Declared</span> : 'Declare VAT'}
+                                                                                    </button>  
+                                                                                )}
+
                                                                                 {hasPermission('Sale-Payment') && (
                                                                                     <button
                                                                                         type="button"
@@ -515,7 +556,6 @@ const Invoice: React.FC = () => {
                                                                                 <button type="button" className="hover:text-danger" onClick={() => rows.id && handleDeleteInvoice(rows.id)} title="Delete">
                                                                                     <Trash2 color="red" />
                                                                                 </button>
-                                                                            
                                                                         }
                                                                     </div>
                                                                 </td>

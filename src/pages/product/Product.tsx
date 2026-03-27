@@ -76,6 +76,7 @@ const Product: React.FC = () => {
         wholeSalePriceUnitId: number | null,
         variantAttributeIds?: number[], 
         variantValueIds?: number[],
+        updateStock?: boolean,
         stocks?: ProductStock[],
 
         // ✅ NEW (UOM)
@@ -197,6 +198,7 @@ const Product: React.FC = () => {
         // ✅ NEW (UOM)
         baseUnitId?: number | null,
         unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[],
+        updateStock?: boolean,
     ) => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
@@ -226,6 +228,7 @@ const Product: React.FC = () => {
                 variantAttributeIds: variantAttributeIds ?? undefined,
                 variantValueIds: variantValueIds ?? [],
 
+                updateStock: updateStock ?? false,
                 stocks: stocks ?? [],
 
                 // ✅ NEW (UOM)
@@ -331,7 +334,9 @@ const Product: React.FC = () => {
                 quantity: Number(s.quantity)
             })) : [],
 
-            // ✅ NEW (UOM)
+            updateStock: false,
+
+            // NEW (UOM)
             baseUnitId: getProduct.productvariants && getProduct.productvariants.length > 0 ? getProduct.productvariants[0].baseUnitId : null,
             unitConversions: Array.isArray(getProduct.unitConversions)
                 ? getProduct.unitConversions.map((c: any) => ({

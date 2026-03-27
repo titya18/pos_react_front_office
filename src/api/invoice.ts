@@ -150,7 +150,21 @@ export const ApprovedInvoice = async (id: number): Promise<InvoiceType> => {
     });
     if (!response.ok) {
         const errorResponse = await response.json();
-        throw new Error(errorResponse.message || "Error deleting invoice");
+        throw new Error(errorResponse.message || "Error approve invoice");
+    }
+    return response.json();
+};
+
+export const DeclarationVat = async (id: number): Promise<InvoiceType> => {
+    const response = await fetch(`${API_BASE_URL}/api/invoice/declareationVat/${id}`, {
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json"
+        }
+    });
+    if (!response.ok) {
+        const errorResponse = await response.json();
+        throw new Error(errorResponse.message || "Error declaration vat invoice");
     }
     return response.json();
 };
