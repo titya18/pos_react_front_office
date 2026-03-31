@@ -253,10 +253,14 @@ const AddressSection: React.FC<{ data: any }> = ({ data }) => {
 const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
   // Helper function to safely format numbers
 
-  const formatCurrency = (value: any) => {
-    const num = parseFloat(value) || 0;
-    return `$${num.toFixed(2)}`;
-  };
+const formatCurrency = (value: any) => {
+  const num = parseFloat(value) || 0;
+  return num.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  });
+};
 
   return (
     <div className="items-section" style={{ marginBottom: '0px' }}>
@@ -331,9 +335,15 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
         <tbody>
           {items.map((item, index) => {
             const qty = parseFloat(item.qty) || 1;
-            const cost = parseFloat(item.cost) || 0;
+            const price = parseFloat(item.price) || 0;
             const total = parseFloat(item.total) || 0;
-            const discount = (cost * qty) - total;
+            const discount = (price * qty) - total;
+
+            const formatQty = (qty: number, unit?: string) => {
+              const cleanQty = Number(qty).toFixed(2).replace(/\.00$/, "");
+              const cleanUnit = unit?.replace("_", " "); // box_length → box length
+              return unit ? `${cleanQty} ${cleanUnit}` : cleanQty;
+            };
             
             return (
               <tr key={index} style={{
@@ -351,15 +361,13 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
                   padding: '0px 15px',
                   textAlign: 'right',
                   borderRight: '1px solid #e0e6ed'
-                }}>{formatCurrency(cost)}</td>
+                }}>{formatCurrency(price)}</td>
                 <td style={{ 
                   padding: '0px 15px',
                   textAlign: 'right',
                   borderRight: '1px solid #e0e6ed'
                 }}>
-                  {item.itemType === "PRODUCT" && item.unitName
-                  ? `${qty} ${item.unitName}`
-                  : qty}
+                  {formatQty(qty, item.unitName)}
                 </td>
                 <td style={{ 
                   padding: '0px 15px',
@@ -374,7 +382,7 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
                         ? 0
                         : item.discountMethod === "Fixed" 
                             ? Number(item.discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                            : Number(item.cost - (item.cost * ((100 - item.discount) / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                            : Number(item.price - (item.price * ((100 - item.discount) / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                   }
                 </td>
                 <td style={{ 
@@ -384,8 +392,8 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
                 }}>
                   { 
                       item.discountMethod === "Fixed" 
-                      ? Number(item.qty * ((item.cost - item.discount) * (item.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                      : Number(item.qty * ((item.cost * ((100 - item.discount) / 100)) * (item.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                      ? Number(item.qty * ((item.price - item.discount) * (item.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                      : Number(item.qty * ((item.price * ((100 - item.discount) / 100)) * (item.taxNet / 100))).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
                   }
                   <br/>
                   <span style={{fontSize: '12px'}}>({item.taxMethod})</span>
@@ -596,7 +604,7 @@ const TermsNotesSection: React.FC<{ data: any }> = ({ data }) => {
             marginBottom: "5px",
           }}
         >
-          {data.lastName} {data.firstName}
+          {data.roleType === "ADMIN" ? '' : `${data.lastName} ${data.firstName}`}
         </div>
       </div>
     </div>
@@ -687,6 +695,7 @@ const PrintInvoice: React.FC = () => {
           lastName: invoice.creator?.lastName || "",
           firstName: invoice.creator?.firstName || "",
           customerName: invoice.customer?.name || "Customer",
+          roleType: invoice.creator?.roleType || "",
           
           from: {
             name: "IZOOM",
@@ -708,7 +717,8 @@ const PrintInvoice: React.FC = () => {
               item.ItemType === "PRODUCT"
                 ? item.productvariants?.productType === "New"
                   ? item.products?.name
-                  : `${item.products?.name} (${item.productvariants?.productType})`
+                  // : `${item.products?.name} (${item.productvariants?.productType})`
+                  : `${item.products?.name}`
                 : item.services?.name || `Item ${index + 1}`,
 
             qty:
@@ -726,7 +736,7 @@ const PrintInvoice: React.FC = () => {
             taxNet: item.taxNet,
             taxMethod: item.taxMethod,
             discountMethod: item.discountMethod,
-            cost: item.cost || 0,
+            price: item.price || 0,
             discount: item.discount || 0,
             total: item.total || 0,
           })) || [],

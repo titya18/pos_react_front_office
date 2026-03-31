@@ -252,10 +252,14 @@ const AddressSection: React.FC<{ data: any }> = ({ data }) => {
 const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
   // Helper function to safely format numbers
 
-  const formatCurrency = (value: any) => {
-    const num = parseFloat(value) || 0;
-    return `$${num.toFixed(2)}`;
-  };
+const formatCurrency = (value: any) => {
+  const num = parseFloat(value) || 0;
+  return num.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  });
+};
 
   return (
     <div className="items-section" style={{ marginBottom: '0px' }}>
@@ -333,6 +337,12 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
             const cost = parseFloat(item.cost) || 0;
             const total = parseFloat(item.total) || 0;
             const discount = (cost * qty) - total;
+
+            const formatQty = (qty: number, unit?: string) => {
+              const cleanQty = Number(qty).toFixed(2).replace(/\.00$/, "");
+              const cleanUnit = unit?.replace("_", " "); // box_length → box length
+              return unit ? `${cleanQty} ${cleanUnit}` : cleanQty;
+            };
             
             return (
               <tr key={index} style={{
@@ -356,7 +366,7 @@ const InvoiceItemsTable: React.FC<{ items: any[] }> = ({ items }) => {
                   textAlign: 'right',
                   borderRight: '1px solid #e0e6ed'
                 }}> 
-                  {qty} {item.unitName}
+                  {formatQty(qty, item.unitName)}
                 </td>
                 <td style={{ 
                   padding: '0px 15px',
@@ -596,7 +606,7 @@ const TermsNotesSection: React.FC<{ data: any }> = ({ data }) => {
             marginBottom: "5px",
           }}
         >
-          {data.lastName} {data.firstName}
+          {data.roleType === "ADMIN" ? '' : `${data.lastName} ${data.firstName}`}
         </div>
       </div>
     </div>
@@ -687,6 +697,7 @@ const PrintPurchase: React.FC = () => {
           lastName: purchase.creator?.lastName || "",
           firstName: purchase.creator?.firstName || "",
           supplierName: purchase.suppliers?.name || "Supplier",
+          roleType: purchase.creator?.roleType || "",
           
           from: {
             name: "IZOOM",

@@ -916,6 +916,9 @@ export interface SaleReturnType {
     customer?: {
         id?: number;
         name?: string;
+        phone?: string;
+        email?: string;
+        address?: string;
     } | null;
 
     branch?: {
@@ -923,11 +926,7 @@ export interface SaleReturnType {
         name?: string;
     } | null;
 
-    creator?: {
-        id?: number;
-        firstName?: string;
-        lastName?: string;
-    } | null;
+    creator?: UserType | null;
 
     updater?: {
         id?: number;
@@ -942,6 +941,7 @@ export interface SaleReturnType {
         status?: string;
         orderDate?: string;
     } | null;
+    items?: SaleReturnDetailType[] | null;
 }
 
 export interface SaleReturnDetailType {
