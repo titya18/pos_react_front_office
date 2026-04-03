@@ -129,7 +129,7 @@ const ModalPayment: React.FC<ModalProps> = ({ isOpen, onClose, amountInvoice, on
         setIsLoading(true);
         try {
             const data = await getLastExchangeRate();
-            setExchangeRate(data.amount);
+            setExchangeRate(data?.amount ?? 0);
         } catch (error) {
             console.error("Error fetching last exchange rate:", error);
         } finally {

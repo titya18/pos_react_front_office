@@ -121,6 +121,28 @@ export interface UnitData {
     name: string;
 };
 
+export type TrackingType = "NONE" | "ASSET_ONLY" | "MAC_ONLY" | "ASSET_AND_MAC";
+
+export type AssetItemStatus =
+  | "IN_STOCK"
+  | "RESERVED"
+  | "SOLD"
+  | "RETURNED"
+  | "TRANSFERRED"
+  | "DAMAGED"
+  | "LOST"
+  | "REMOVED";
+
+export interface ProductTrackedItemType {
+  id?: number;
+  branchId: number;
+  assetCode?: string | null;
+  macAddress?: string | null;
+  serialNumber?: string | null;
+  status?: AssetItemStatus | null;
+  soldOrderItemId?: number | null;
+}
+
 export type ProductStock = {
     branchId: number;
     quantity: number;
@@ -181,6 +203,9 @@ export interface ProductType {
     unitConversions?: ProductUnitConversionType[]; // ✅
 
     updateStock?: boolean;
+
+    trackingType?: TrackingType;
+    trackedItems?: ProductTrackedItemType[];
 }
 
 export interface VarientAttributeType {
@@ -596,6 +621,7 @@ export interface InvoiceType {
 
 export interface InvoiceDetailType {
     id: number;
+    orderItemId?: number | null;
     orderId: number;
     productId?: number;
     productVariantId?: number;
@@ -625,6 +651,12 @@ export interface InvoiceDetailType {
 
     // ✅ UI helper (optional)
     unitOptions?: { id?: number; name?: string }[];
+
+    trackingType?: "NONE" | "ASSET_ONLY" | "MAC_ONLY" | "ASSET_AND_MAC";
+    serialSelectionMode?: "AUTO" | "MANUAL";
+    selectedTrackedItemIds?: number[];
+    selectedTrackedItems?: ProductTrackedItemType[];
+    branchId?: number | null;
 }
 
 export interface StockAdjustmentType {

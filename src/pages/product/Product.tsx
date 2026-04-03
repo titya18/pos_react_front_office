@@ -9,7 +9,7 @@ import Pagination from "../components/Pagination";
 import ShowDeleteConfirmation from "../components/ShowDeleteConfirmation";
 import Modal from "./Modal";
 import { NavLink, useSearchParams } from "react-router-dom";
-import { ProductType, VariantValueType } from "@/data_types/types";
+import { ProductTrackedItemType, ProductType, TrackingType, VariantValueType } from "@/data_types/types";
 import VisibleColumnsSelector from "@/components/VisibleColumnsSelector";
 import ExportDropdown from "@/components/ExportDropdown";
 import { Pencil, Settings, Trash2 } from "lucide-react";
@@ -82,6 +82,8 @@ const Product: React.FC = () => {
         // ✅ NEW (UOM)
         baseUnitId?: number | null,
         unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[],
+        trackingType?: TrackingType;
+        trackedItems?: ProductTrackedItemType[];
     } | null>(null);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -199,6 +201,9 @@ const Product: React.FC = () => {
         baseUnitId?: number | null,
         unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[],
         updateStock?: boolean,
+
+        trackingType?: TrackingType,
+        trackedItems?: ProductTrackedItemType[],
     ) => {
         try {
             await queryClient.invalidateQueries({ queryKey: ["validateToken"] });
@@ -234,6 +239,9 @@ const Product: React.FC = () => {
                 // ✅ NEW (UOM)
                 baseUnitId: baseUnitId ?? null,
                 unitConversions: unitConversions ?? [],
+
+                trackingType: trackingType ?? "NONE",
+                trackedItems: trackedItems ?? [],
             };
 
             await apiClient.upsertProduct(productData);
@@ -345,6 +353,19 @@ const Product: React.FC = () => {
                     multiplier: Number(c.multiplier),
                 }))
                 : [],
+            
+            trackingType: (variant as any)?.trackingType ?? "NONE",
+            trackedItems: Array.isArray((variant as any)?.productAssetItems)
+            ? (variant as any).productAssetItems
+                .filter((x: any) => x.status === "IN_STOCK")
+                .map((x: any) => ({
+                    id: x.id,
+                    branchId: x.branchId,
+                    assetCode: x.assetCode ?? "",
+                    macAddress: x.macAddress ?? "",
+                    serialNumber: x.serialNumber ?? "",
+                }))
+            : [],
         });
         setIsModalOpen(true);
     };

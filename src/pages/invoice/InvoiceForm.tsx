@@ -141,87 +141,131 @@ const InvoiceForm: React.FC = () => {
                         return safePrice;
                     };
 
-                    const hydratedDetails = (invoiceData.items || []).map((detail: any) => {
-                        const variant = detail.productvariants;
-                        const product = detail.products;
+                    const hydratedDetails = (invoiceData.items || []).map((detail: any, index: number) => {
+                    const variant = detail.productvariants;
+                    const product = detail.products;
 
-                        if (detail.ItemType !== "PRODUCT" || !variant || !product) {
-                            return detail;
-                        }
-
-                        const conversions = product.unitConversions || [];
-
-                        const retailBasePrice = resolveBasePriceFromStoredUnit(
-                            Number(variant.retailPrice ?? 0),
-                            Number(variant.retailPriceUnitId ?? variant.baseUnitId ?? 0),
-                            Number(variant.baseUnitId ?? 0),
-                            conversions
-                        );
-
-                        const wholesaleBasePrice = resolveBasePriceFromStoredUnit(
-                            Number(variant.wholeSalePrice ?? 0),
-                            Number(variant.wholeSalePriceUnitId ?? variant.baseUnitId ?? 0),
-                            Number(variant.baseUnitId ?? 0),
-                            conversions
-                        );
-
-                        const unitMap = new Map<number, any>();
-
-                        if (variant.baseUnit) {
-                            unitMap.set(variant.baseUnit.id, {
-                                unitId: variant.baseUnit.id,
-                                unitName: variant.baseUnit.name,
-                                operationValue: 1,
-                                isBaseUnit: true,
-                                suggestedRetailPrice: retailBasePrice,
-                                suggestedWholesalePrice: wholesaleBasePrice,
-                            });
-                        }
-
-                        for (const conv of conversions) {
-                            if (Number(variant.baseUnitId) === Number(conv.toUnitId) && conv.fromUnit) {
-                                const multiplier = Number(conv.multiplier ?? 1);
-
-                                unitMap.set(conv.fromUnit.id, {
-                                    unitId: conv.fromUnit.id,
-                                    unitName: conv.fromUnit.name,
-                                    operationValue: multiplier,
-                                    isBaseUnit: false,
-                                    suggestedRetailPrice: retailBasePrice * multiplier,
-                                    suggestedWholesalePrice: wholesaleBasePrice * multiplier,
-                                });
-                            }
-
-                            if (Number(variant.baseUnitId) === Number(conv.fromUnitId) && conv.toUnit) {
-                                const multiplier = Number(conv.multiplier ?? 1);
-                                const opValue = multiplier > 0 ? 1 / multiplier : 1;
-
-                                unitMap.set(conv.toUnit.id, {
-                                    unitId: conv.toUnit.id,
-                                    unitName: conv.toUnit.name,
-                                    operationValue: opValue,
-                                    isBaseUnit: false,
-                                    suggestedRetailPrice: retailBasePrice * opValue,
-                                    suggestedWholesalePrice: wholesaleBasePrice * opValue,
-                                });
-                            }
-                        }
-
-                        const normalizedUnitOptions = Array.from(unitMap.values());
-
+                    if (detail.ItemType !== "PRODUCT" || !variant || !product) {
                         return {
-                            ...detail,
-                            unitOptions: normalizedUnitOptions,
-                            unitName:
-                            detail.unitName ||
-                            normalizedUnitOptions.find((u) => Number(u.unitId) === Number(detail.unitId))?.unitName ||
-                            variant.baseUnit?.name ||
-                            null,
-                            productvariants: {
-                                ...variant,
-                                unitOptions: normalizedUnitOptions,
-                            },
+                        ...detail,
+                        id: Number(detail.id),
+                        orderItemId: Number(detail.id),
+                        selectedTrackedItemIds: Array.isArray(detail.selectedAssetItems)
+                            ? detail.selectedAssetItems.map((x: any) => Number(x.productAssetItemId))
+                            : [],
+                        selectedTrackedItems: Array.isArray(detail.selectedAssetItems)
+                            ? detail.selectedAssetItems.map((x: any) => ({
+                                id: x.productAssetItem?.id,
+                                branchId: x.productAssetItem?.branchId,
+                                serialNumber: x.productAssetItem?.serialNumber,
+                                assetCode: x.productAssetItem?.assetCode ?? null,
+                                macAddress: x.productAssetItem?.macAddress ?? null,
+                                status: x.productAssetItem?.status ?? null,
+                                soldOrderItemId: x.productAssetItem?.soldOrderItemId ?? null,
+                            }))
+                            : [],
+                        serialSelectionMode: detail.serialSelectionMode ?? "AUTO",
+                        branchId: invoiceData.branchId ?? null,
                         };
+                    }
+
+                    const conversions = product.unitConversions || [];
+
+                    const retailBasePrice = resolveBasePriceFromStoredUnit(
+                        Number(variant.retailPrice ?? 0),
+                        Number(variant.retailPriceUnitId ?? variant.baseUnitId ?? 0),
+                        Number(variant.baseUnitId ?? 0),
+                        conversions
+                    );
+
+                    const wholesaleBasePrice = resolveBasePriceFromStoredUnit(
+                        Number(variant.wholeSalePrice ?? 0),
+                        Number(variant.wholeSalePriceUnitId ?? variant.baseUnitId ?? 0),
+                        Number(variant.baseUnitId ?? 0),
+                        conversions
+                    );
+
+                    const unitMap = new Map<number, any>();
+
+                    if (variant.baseUnit) {
+                        unitMap.set(variant.baseUnit.id, {
+                        unitId: variant.baseUnit.id,
+                        unitName: variant.baseUnit.name,
+                        operationValue: 1,
+                        isBaseUnit: true,
+                        suggestedRetailPrice: retailBasePrice,
+                        suggestedWholesalePrice: wholesaleBasePrice,
+                        });
+                    }
+
+                    for (const conv of conversions) {
+                        if (Number(variant.baseUnitId) === Number(conv.toUnitId) && conv.fromUnit) {
+                        const multiplier = Number(conv.multiplier ?? 1);
+
+                        unitMap.set(conv.fromUnit.id, {
+                            unitId: conv.fromUnit.id,
+                            unitName: conv.fromUnit.name,
+                            operationValue: multiplier,
+                            isBaseUnit: false,
+                            suggestedRetailPrice: retailBasePrice * multiplier,
+                            suggestedWholesalePrice: wholesaleBasePrice * multiplier,
+                        });
+                        }
+
+                        if (Number(variant.baseUnitId) === Number(conv.fromUnitId) && conv.toUnit) {
+                        const multiplier = Number(conv.multiplier ?? 1);
+                        const opValue = multiplier > 0 ? 1 / multiplier : 1;
+
+                        unitMap.set(conv.toUnit.id, {
+                            unitId: conv.toUnit.id,
+                            unitName: conv.toUnit.name,
+                            operationValue: opValue,
+                            isBaseUnit: false,
+                            suggestedRetailPrice: retailBasePrice * opValue,
+                            suggestedWholesalePrice: wholesaleBasePrice * opValue,
+                        });
+                        }
+                    }
+
+                    const normalizedUnitOptions = Array.from(unitMap.values());
+
+                    return {
+                        ...detail,
+                        id: Number(detail.id),
+                        orderItemId: Number(detail.id),
+                        unitOptions: normalizedUnitOptions,
+                        unitName:
+                        detail.unitName ||
+                        normalizedUnitOptions.find((u) => Number(u.unitId) === Number(detail.unitId))?.unitName ||
+                        variant.baseUnit?.name ||
+                        null,
+
+                        productvariants: {
+                        ...variant,
+                        unitOptions: normalizedUnitOptions,
+                        },
+
+                        trackingType: detail.productvariants?.trackingType ?? "NONE",
+
+                        selectedTrackedItemIds: Array.isArray(detail.selectedAssetItems)
+                        ? detail.selectedAssetItems.map((x: any) => Number(x.productAssetItemId))
+                        : [],
+
+                        selectedTrackedItems: Array.isArray(detail.selectedAssetItems)
+                        ? detail.selectedAssetItems.map((x: any) => ({
+                            id: x.productAssetItem?.id,
+                            branchId: x.productAssetItem?.branchId,
+                            serialNumber: x.productAssetItem?.serialNumber,
+                            assetCode: x.productAssetItem?.assetCode ?? null,
+                            macAddress: x.productAssetItem?.macAddress ?? null,
+                            status: x.productAssetItem?.status ?? null,
+                            soldOrderItemId: x.productAssetItem?.soldOrderItemId ?? null,
+                            }))
+                        : [],
+
+                        serialSelectionMode: detail.serialSelectionMode ?? "AUTO",
+                        branchId: invoiceData.branchId ?? null,
+                    };
                     });
 
                     await fetchBranches();
@@ -316,28 +360,6 @@ const InvoiceForm: React.FC = () => {
         };
         run();
     }, [branchId, user, id, setValue]);
-
-
-    // useEffect(() => {
-    //     // Don't regenerate when editing invoice
-    //     if (id) return;
-    //     if (!branchId) {
-    //         setValue("ref", "");
-    //         return;
-    //     }
-
-    //     getNextInvoiceRef(Number(branchId))
-    //         .then((data) => {
-    //             const refValue = (data && typeof data === "object" && "ref" in data)
-    //                 ? (data as any).ref
-    //                 : String(data || "");
-    //             setValue("ref", refValue);
-    //         })
-    //         .catch(() => {
-    //             toast.error("Failed to generate invoice number");
-    //         });
-
-    // }, [branchId, setValue]);
 
     // Watch the "shipping" field
     const shippingValue = String(watch("shipping") || "0"); // Force it to be a string
@@ -506,17 +528,30 @@ const InvoiceForm: React.FC = () => {
             );
         }
 
-        return details.findIndex(
-            (item) =>
-                item.ItemType === "PRODUCT" &&
-                Number(item.productVariantId) === Number(newDetail.productVariantId) &&
-                Number(item.unitId ?? 0) === Number(newDetail.unitId ?? 0) &&
-                Number(item.price ?? 0) === Number(newDetail.price ?? 0) &&
-                Number(item.taxNet ?? 0) === Number(newDetail.taxNet ?? 0) &&
-                Number(item.discount ?? 0) === Number(newDetail.discount ?? 0) &&
-                String(item.taxMethod ?? "Include") === String(newDetail.taxMethod ?? "Include") &&
-                String(item.discountMethod ?? "Fixed") === String(newDetail.discountMethod ?? "Fixed")
-        );
+        return details.findIndex((item) => {
+            if (
+                item.ItemType !== "PRODUCT" ||
+                Number(item.productVariantId) !== Number(newDetail.productVariantId) ||
+                Number(item.unitId ?? 0) !== Number(newDetail.unitId ?? 0) ||
+                Number(item.price ?? 0) !== Number(newDetail.price ?? 0) ||
+                Number(item.taxNet ?? 0) !== Number(newDetail.taxNet ?? 0) ||
+                Number(item.discount ?? 0) !== Number(newDetail.discount ?? 0) ||
+                String(item.taxMethod ?? "Include") !== String(newDetail.taxMethod ?? "Include") ||
+                String(item.discountMethod ?? "Fixed") !== String(newDetail.discountMethod ?? "Fixed")
+            ) {
+                return false;
+            }
+
+            const itemSerials = Array.isArray(item.selectedTrackedItemIds)
+                ? [...item.selectedTrackedItemIds].map(Number).sort((a, b) => a - b)
+                : [];
+
+            const newSerials = Array.isArray(newDetail.selectedTrackedItemIds)
+                ? [...newDetail.selectedTrackedItemIds].map(Number).sort((a, b) => a - b)
+                : [];
+
+            return JSON.stringify(itemSerials) === JSON.stringify(newSerials);
+        });
     };
 
     const buildSaleDraftFromVariant = (
@@ -538,6 +573,7 @@ const InvoiceForm: React.FC = () => {
 
         return {
             id: Date.now() + Math.floor(Math.random() * 1000),
+            orderItemId: null,
             orderId: 0,
             productId: variant.products?.id || 0,
             productVariantId: variant.id,
@@ -569,6 +605,11 @@ const InvoiceForm: React.FC = () => {
                     ? (variant.stocks[0]?.quantity ?? 0)
                     : ((variant as any).stocks?.quantity ?? 0)
             ) || 0,
+
+            trackingType: ((variant as any).trackingType ?? "NONE"),
+            serialSelectionMode: "AUTO",
+            selectedTrackedItemIds: [],
+            selectedTrackedItems: [],
         };
     };
 
@@ -578,6 +619,7 @@ const InvoiceForm: React.FC = () => {
 
             const newDetail: InvoiceDetailType = {
                 id: Date.now() + Math.floor(Math.random() * 1000),
+                orderItemId: null,
                 orderId: 0,
                 serviceId: serviceVariant.id || 0,
                 services: serviceVariant,
@@ -685,10 +727,20 @@ const InvoiceForm: React.FC = () => {
         handleSearchService(term);
     };
 
+    const effectiveBranchId =
+            user?.roleType === "USER"
+                ? user.branchId
+                : watch("branchId");
+
     // Function to add or update a product detail
     const addOrUpdateInvoiceDetail = async (newDetail: InvoiceDetailType) => {
         setClickData({
-            ...newDetail
+            ...newDetail,
+            branchId: effectiveBranchId ?? 0,
+            trackingType: newDetail.trackingType ?? (newDetail.productvariants as any)?.trackingType ?? "NONE",
+            serialSelectionMode: newDetail.serialSelectionMode ?? "AUTO",
+            selectedTrackedItemIds: newDetail.selectedTrackedItemIds ?? [],
+            selectedTrackedItems: newDetail.selectedTrackedItems ?? [],
         });
 
         setIsModalOpen(true);
@@ -709,7 +761,8 @@ const InvoiceForm: React.FC = () => {
         // console.log("ddfd:", newDetail);
 
         setClickData({
-            ...newDetail
+            ...newDetail,
+            branchId: effectiveBranchId ?? 0,
         });
   
         setIsModalOpen(true);
@@ -766,6 +819,12 @@ const InvoiceForm: React.FC = () => {
                 }),
 
                 stocks: InvoiceDetailData.stocks ?? 0,
+
+                trackingType: InvoiceDetailData.trackingType ?? "NONE",
+                serialSelectionMode: InvoiceDetailData.serialSelectionMode ?? "AUTO",
+                selectedTrackedItemIds: InvoiceDetailData.selectedTrackedItemIds ?? [],
+                selectedTrackedItems: InvoiceDetailData.selectedTrackedItems ?? [],
+                branchId: InvoiceDetailData.branchId ?? (user?.roleType === "USER" ? user.branchId : watch("branchId")),
             };
 
             const existingIndex = findMatchingInvoiceLineIndex(invoiceDetails, newDetail);
@@ -1042,6 +1101,7 @@ const InvoiceForm: React.FC = () => {
     const updateData = (newDetail: InvoiceDetailType) => {
         setClickData({
             id: newDetail.id,
+            orderItemId: newDetail.orderItemId ?? newDetail.id ?? null,
             orderId: newDetail.orderId,
             productId: newDetail.products?.id || 0,
             productVariantId: newDetail.productVariantId,
@@ -1065,6 +1125,12 @@ const InvoiceForm: React.FC = () => {
             discountMethod: newDetail.discountMethod,
             total: newDetail.total,
             stocks: newDetail.stocks,
+            
+            trackingType: newDetail.trackingType ?? (newDetail.productvariants as any)?.trackingType ?? "NONE",
+            serialSelectionMode: newDetail.serialSelectionMode ?? "AUTO",
+            selectedTrackedItemIds: newDetail.selectedTrackedItemIds ?? [],
+            selectedTrackedItems: newDetail.selectedTrackedItems ?? [],
+            branchId: newDetail.branchId ?? (user?.roleType === "USER" ? user.branchId : watch("branchId")),
         });
         setIsModalOpen(true);
     }

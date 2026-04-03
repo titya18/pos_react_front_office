@@ -32,6 +32,7 @@ export const signUp = async (formData: SignUpFormData) => {
     if (!response.ok) {
         throw new Error(responseBody.message);
     }
+    return responseBody;
 };
 
 export const validateToken = async () => {

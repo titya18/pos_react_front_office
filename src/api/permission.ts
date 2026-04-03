@@ -5,7 +5,7 @@ export interface PermissionData {
     name: string;
 }
 
-export const getAllPermissions = async (): Promise<PermissionData> => {
+export const getAllPermissions = async (): Promise<PermissionData[]> => {
     const response = await fetch(`${API_BASE_URL}/api/permission`, {
         credentials: "include"
     });

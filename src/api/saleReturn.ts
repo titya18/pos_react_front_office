@@ -1,4 +1,4 @@
-import { SaleReturnType, SaleReturnDetailType } from "../data_types/types";
+import { SaleReturnType, SaleReturnDetailType, ProductTrackedItemType } from "../data_types/types";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export const getAllSaleReturnsWithPagination = async (
@@ -91,5 +91,22 @@ export const getSaleReturnByReturnId = async (id: number): Promise<SaleReturnTyp
         ...data,
         items: data.SaleReturns || [], // ✅ map backend field → frontend field
     };
+};
+
+export const getReturnTrackedItems = async (
+  orderItemId: number
+): Promise<ProductTrackedItemType[]> => {
+  const response = await fetch(
+    `${API_BASE_URL}/api/salereturn/tracked-items?orderItemId=${orderItemId}`,
+    {
+      credentials: "include",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Error fetching return tracked items");
+  }
+
+  return response.json();
 };
 

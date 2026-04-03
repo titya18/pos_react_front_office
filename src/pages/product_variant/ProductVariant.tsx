@@ -225,7 +225,6 @@ const ProductVariant: React.FC = () => {
     };
 
     const handleEditClick = (productVariantData: ProductVariantType) => {
-        console.log("Editing product variant:", productVariantData); // Debug log
         setSelectProductVariant({
             ...productVariantData,
             imagesToDelete: productVariantData.imagesToDelete ?? [],

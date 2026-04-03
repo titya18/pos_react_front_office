@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSave, faClose } from "@fortawesome/free-solid-svg-icons";
 import { useForm } from "react-hook-form";
-import { InvoiceDetailType } from "@/data_types/types";
+import { getAvailableTrackedItems } from "@/api/invoice";
+import { InvoiceDetailType, ProductTrackedItemType } from "@/data_types/types";
 import { truncateNumber } from "@/helper/numberFormat";
 
 interface ModalProps {
@@ -16,6 +17,11 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
   const [isLoading, setIsLoading] = useState(false);
   const prevUnitIdRef = useRef<number | null>(null);
 
+  const [availableTrackedItems, setAvailableTrackedItems] = useState<ProductTrackedItemType[]>([]);
+  const [selectedTrackedIds, setSelectedTrackedIds] = useState<number[]>([]);
+  const [serialSelectionMode, setSerialSelectionMode] = useState<"AUTO" | "MANUAL">("AUTO");
+  const [isLoadingTracked, setIsLoadingTracked] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -26,6 +32,13 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
   } = useForm<InvoiceDetailType>();
 
   const isProduct = clickData?.ItemType === "PRODUCT";
+
+  const trackingType = ((clickData as any)?.trackingType ??
+    (clickData as any)?.productvariants?.trackingType ??
+    "NONE") as "NONE" | "ASSET_ONLY" | "MAC_ONLY" | "ASSET_AND_MAC";
+
+  const isTrackedProduct = isProduct && trackingType !== "NONE";
+  const currentBranchId = Number((clickData as any)?.branchId ?? 0);
 
   const baseUnit =
     (clickData as any)?.productvariants?.baseUnit || null;
@@ -69,6 +82,16 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
     setValue("discountMethod", (clickData.discountMethod as any) ?? "Fixed");
     setValue("discount", Number(clickData.discount ?? 0));
 
+    setSerialSelectionMode(
+      ((clickData as any)?.serialSelectionMode ?? "AUTO") as "AUTO" | "MANUAL"
+    );
+
+    setSelectedTrackedIds(
+      Array.isArray((clickData as any)?.selectedTrackedItemIds)
+        ? (clickData as any).selectedTrackedItemIds.map(Number)
+        : []
+    );
+
     if (clickData.ItemType === "PRODUCT") {
       const initialUnitId =
         Number(
@@ -96,6 +119,52 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
   const discountValue = Number(watch("discount") ?? 0);
   const taxMethod = watch("taxMethod") ?? "Include";
   const discountMethod = watch("discountMethod") ?? "Fixed";
+
+  useEffect(() => {
+    const run = async () => {
+      if (!isOpen || !isTrackedProduct) {
+        setAvailableTrackedItems([]);
+        return;
+      }
+
+      const variantId = Number(clickData?.productVariantId ?? 0);
+      const orderItemId = Number(clickData?.orderItemId ?? 0);
+
+      if (!variantId || !currentBranchId) return;
+
+      setIsLoadingTracked(true);
+      try {
+        const rows = await getAvailableTrackedItems(
+          variantId,
+          currentBranchId,
+          orderItemId || null
+        );
+        setAvailableTrackedItems(rows);
+      } catch (error) {
+        console.error(error);
+        setAvailableTrackedItems([]);
+      } finally {
+        setIsLoadingTracked(false);
+      }
+    };
+
+    run();
+  }, [isOpen, isTrackedProduct, clickData?.productVariantId, clickData?.orderItemId, currentBranchId]);
+
+  useEffect(() => {
+    if (!isTrackedProduct) return;
+    if (serialSelectionMode !== "MANUAL") return;
+
+    const nextQty = selectedTrackedIds.length;
+
+    setValue("unitQty", nextQty as any, { shouldDirty: true, shouldValidate: true });
+    setValue("quantity", nextQty as any, { shouldDirty: true, shouldValidate: true });
+
+    if (selectedUnitId) {
+      const nextBaseQty = computeBaseQtyLocal(selectedUnitId, nextQty);
+      setValue("baseQty", nextBaseQty as any, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [selectedTrackedIds, serialSelectionMode, isTrackedProduct, selectedUnitId, setValue]);
 
   useEffect(() => {
     if (!isOpen || !isProduct) return;
@@ -160,6 +229,12 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
     return unitTotal * qty;
   }, [isProduct, unitQtyValue, watch, priceValue, discountMethod, discountValue, taxMethod, taxValue]);
 
+  const toggleTrackedItem = (id: number) => {
+    setSelectedTrackedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   const handleFormSubmit = async (data: InvoiceDetailType) => {
     setIsLoading(true);
     try {
@@ -173,8 +248,19 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
       const unitQty = isProductLine ? Number((data as any).unitQty ?? 1) : null;
       const baseQty = isProductLine && unitId ? computeBaseQtyLocal(unitId, unitQty ?? 1) : null;
 
+      const selectedTrackedItems = availableTrackedItems.filter((x) =>
+        selectedTrackedIds.includes(Number(x.id))
+      );
+
+      if (isTrackedProduct && serialSelectionMode === "MANUAL") {
+        if (selectedTrackedIds.length === 0) {
+          throw new Error("Please select at least one serial number.");
+        }
+      }
+
       const payload: InvoiceDetailType = {
         id: clickData?.id ?? Date.now(),
+        orderItemId: clickData?.orderItemId ?? null,
         orderId: clickData?.orderId ?? 0,
 
         productId: isProductLine ? (clickData?.productId ?? 0) : 0,
@@ -206,6 +292,20 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
         productvariants: clickData?.productvariants ?? null,
         services: clickData?.services ?? null,
         stocks: clickData?.stocks ?? 0,
+
+        trackingType,
+        serialSelectionMode,
+        selectedTrackedItemIds: selectedTrackedIds,
+        selectedTrackedItems: selectedTrackedItems.map((x) => ({
+          id: x.id,
+          branchId: x.branchId,
+          serialNumber: x.serialNumber,
+          assetCode: x.assetCode ?? null,
+          macAddress: x.macAddress ?? null,
+          status: x.status ?? null,
+          soldOrderItemId: x.soldOrderItemId ?? null,
+        })),
+        branchId: currentBranchId,
       };
 
       await onSubmit(payload);
@@ -299,6 +399,79 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                 )}
               </div>
 
+              {isTrackedProduct && (
+                <div className="mb-5 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-3">
+                  <label className="font-semibold block mb-2">Serial Selection</label>
+
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        checked={serialSelectionMode === "AUTO"}
+                        onChange={() => setSerialSelectionMode("AUTO")}
+                      />
+                      <span>Auto take available serial(s)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        checked={serialSelectionMode === "MANUAL"}
+                        onChange={() => setSerialSelectionMode("MANUAL")}
+                      />
+                      <span>Choose exact serial(s)</span>
+                    </label>
+                  </div>
+
+                  <p className="text-xs text-gray-600 mt-2">
+                    AUTO: seller enters quantity only, it will auto-assigns serial numbers.  
+                    MANUAL: seller chooses exact serial numbers, quantity follows selection.
+                  </p>
+                </div>
+              )}
+
+              {isTrackedProduct && serialSelectionMode === "MANUAL" && (
+                <div className="mb-5 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-3">
+                  <label className="font-semibold block mb-2">
+                    Choose Exact Serial Number(s)
+                  </label>
+
+                  {isLoadingTracked ? (
+                    <p className="text-sm text-gray-500">Loading serials...</p>
+                  ) : availableTrackedItems.length === 0 ? (
+                    <p className="text-sm text-red-500">No serials available in this branch.</p>
+                  ) : (
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {availableTrackedItems.map((item) => {
+                        const checked = selectedTrackedIds.includes(Number(item.id));
+
+                        return (
+                          <label
+                            key={item.id}
+                            className={`flex items-start gap-3 p-3 rounded border cursor-pointer ${
+                              checked ? "bg-indigo-100 border-indigo-400" : "bg-white border-gray-200"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleTrackedItem(Number(item.id))}
+                              className="mt-1"
+                            />
+
+                            <div className="text-sm">
+                              <div><strong>Serial:</strong> {item.serialNumber}</div>
+                              {item.assetCode && <div><strong>Asset:</strong> {item.assetCode}</div>}
+                              {item.macAddress && <div><strong>MAC:</strong> {item.macAddress}</div>}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {isProduct && (
                 <>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 mb-5">
@@ -318,6 +491,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, clickData }) =
                         type="number"
                         step="0.0001"
                         className="form-input"
+                        disabled={isTrackedProduct && serialSelectionMode === "MANUAL"}
                         {...register("unitQty", { required: "Qty is required" } as any)}
                       />
                       {errors.unitQty && <p className="error_validate">{String((errors as any).unitQty?.message)}</p>}

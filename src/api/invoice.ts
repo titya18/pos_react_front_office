@@ -1,4 +1,4 @@
-import { InvoicePaymentType, InvoiceType } from "../data_types/types";
+import { InvoicePaymentType, InvoiceType, ProductTrackedItemType } from "../data_types/types";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
 export const upsertInvoice = async (invoiceData: InvoiceType): Promise<InvoiceType> => {
@@ -167,4 +167,33 @@ export const DeclarationVat = async (id: number): Promise<InvoiceType> => {
         throw new Error(errorResponse.message || "Error declaration vat invoice");
     }
     return response.json();
+};
+
+export const getAvailableTrackedItems = async (
+  productVariantId: number,
+  branchId: number,
+  orderItemId?: number | null
+): Promise<ProductTrackedItemType[]> => {
+  const params = new URLSearchParams({
+    productVariantId: String(productVariantId),
+    branchId: String(branchId),
+  });
+
+  if (orderItemId && orderItemId > 0) {
+    params.append("orderItemId", String(orderItemId));
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/invoice/tracked-items?${params.toString()}`,
+    {
+      credentials: "include",
+    }
+  );
+
+  if (!response.ok) {
+    const errorResponse = await response.json();
+    throw new Error(errorResponse.message || "Error fetching tracked items");
+  }
+
+  return response.json();
 };

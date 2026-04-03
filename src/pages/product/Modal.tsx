@@ -1,7 +1,7 @@
 // ✅ Modal.tsx (FULL UPDATED FILE) — works with UOM (Base Unit + unitConversions)
 // Stock input is ALWAYS in Base Unit (recommended)
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSave, faClose, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { useAppContext } from "../../hooks/useAppContext";
@@ -10,13 +10,14 @@ import { getAllCategories } from "../../api/category";
 import { getAllBrands } from "../../api/brand";
 import { FileRejection, useDropzone } from "react-dropzone";
 
-import { UnitData, VarientAttributeType, BranchType } from "../../data_types/types";
+import { UnitData, VarientAttributeType, BranchType, TrackingType, ProductTrackedItemType } from "../../data_types/types";
 import { getAllBranches } from "@/api/branch";
 import { getAllUnits } from "../../api/unit";
 import { getAllVarientAttributes } from "../../api/varientAttribute";
 import MultiSelectVariant from "./MultiSelectVariant";
 import Select from "react-select";
 import { truncateNumber } from "@/helper/numberFormat";
+import { toast } from "react-toastify";
 
 type ProductStock = {
   branchId: number;
@@ -65,6 +66,9 @@ interface ModalProps {
     baseUnitId?: number | null,
     unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[],
     updateStock?: boolean,
+
+    trackingType?: TrackingType,
+    trackedItems?: ProductTrackedItemType[],
   ) => void;
 
   product?: {
@@ -97,6 +101,9 @@ interface ModalProps {
     // NEW (UOM)
     baseUnitId?: number | null;
     unitConversions?: { fromUnitId: number; toUnitId: number; multiplier: number }[];
+
+    trackingType?: TrackingType;
+    trackedItems?: ProductTrackedItemType[];
   } | null;
 }
 
@@ -130,6 +137,9 @@ export interface ProductFormData {
   branchId?: number | null;
   stocks?: Array<{ branchId: number; quantity: string | number }> | null;
   updateStock: boolean;
+
+  trackingType: TrackingType;
+  trackedItems: ProductTrackedItemType[];
 }
 
 export interface CategoryData {
@@ -171,6 +181,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
       retailPriceUnitId: null,
       wholeSalePriceUnitId: null,
       updateStock: false,
+
+      trackingType: "NONE",
+      trackedItems: [],
     },
   });
 
@@ -189,6 +202,112 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
     control,
     name: "stocks",
   });
+
+  // Tracked items field array
+  const {
+    fields: trackedItemFields,
+    append: appendTrackedItem,
+    remove: removeTrackedItem,
+  } = useFieldArray({
+    control,
+    name: "trackedItems",
+  });
+
+  const trackingType = watch("trackingType");
+
+  const normalizeMac = (value?: string | null) => {
+    if (!value) return "";
+    return value.replace(/[^A-Fa-f0-9]/g, "").toUpperCase();
+  };
+
+  const isTrackedRowValid = (item: ProductTrackedItemType) => {
+    const branchId = Number(item.branchId || 0);
+    const hasSerial = !!item.serialNumber?.trim();
+
+    return !!branchId && hasSerial;
+  };
+
+  const countInvalidTrackedRows = (items: ProductTrackedItemType[]) => {
+    return items.filter((item) => !isTrackedRowValid(item)).length;
+  };
+
+  const buildTrackedSummaryByBranch = (items: ProductTrackedItemType[]) => {
+    const grouped: Record<number, number> = {};
+
+    items.forEach((item) => {
+      const branchId = Number(item.branchId || 0);
+      if (!branchId) return;
+
+      // count all rows with branch
+      grouped[branchId] = (grouped[branchId] || 0) + 1;
+    });
+
+    return grouped;
+  };
+
+  const buildValidTrackedSummaryByBranch = (items: ProductTrackedItemType[]) => {
+    const grouped: Record<number, number> = {};
+
+    items.forEach((item) => {
+      const branchId = Number(item.branchId || 0);
+      if (!branchId) return;
+      if (!isTrackedRowValid(item)) return;
+
+      grouped[branchId] = (grouped[branchId] || 0) + 1;
+    });
+
+    return grouped;
+  };
+
+  const validateTrackedItems = (items: ProductTrackedItemType[]) => {
+    const cleaned = items
+      .map((item) => ({
+        id: item.id,
+        branchId: Number(item.branchId || 0),
+        assetCode: item.assetCode?.trim() || "",
+        macAddress: normalizeMac(item.macAddress),
+        serialNumber: item.serialNumber?.trim() || "",
+      }))
+      .filter((item) => item.branchId);
+
+    const assetSet = new Set<string>();
+    const macSet = new Set<string>();
+    const serialSet = new Set<string>();
+
+    for (const item of cleaned) {
+      // ✅ serial always required
+      if (!item.serialNumber) {
+        throw new Error("Every tracked row must have Serial Number.");
+      }
+
+      // ✅ serial always unique in form
+      const serialKey = item.serialNumber.toUpperCase();
+      if (serialSet.has(serialKey)) {
+        throw new Error(`Duplicate Serial Number: ${item.serialNumber}`);
+      }
+      serialSet.add(serialKey);
+
+      // ✅ asset optional, only check duplicate when filled
+      if (item.assetCode) {
+        const assetKey = item.assetCode.toUpperCase();
+        if (assetSet.has(assetKey)) {
+          throw new Error(`Duplicate Asset Code: ${item.assetCode}`);
+        }
+        assetSet.add(assetKey);
+      }
+
+      // ✅ mac optional, only check duplicate when filled
+      if (item.macAddress) {
+        if (macSet.has(item.macAddress)) {
+          throw new Error(`Duplicate MAC Address: ${item.macAddress}`);
+        }
+        macSet.add(item.macAddress);
+      }
+    }
+
+    return cleaned;
+  };
+  // End of tracked items logic
 
   // ✅ unitConversions field array
   const {
@@ -276,8 +395,20 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
 
   const wholeSalePriceValue = watch("wholeSalePrice");
   const wholeSalePriceUnitId = watch("wholeSalePriceUnitId");
-
   const watchedConversions = watch("unitConversions") || [];
+
+  // Track logic
+  const watchedTrackedItems = watch("trackedItems") || [];
+  const liveTrackedSummary = buildTrackedSummaryByBranch(watchedTrackedItems);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const validTrackedSummary = useMemo(() => buildValidTrackedSummaryByBranch(watchedTrackedItems), [JSON.stringify(watchedTrackedItems)]);
+  const invalidTrackedCount = countInvalidTrackedRows(watchedTrackedItems);
+
+  const hasTrackedValidationError =
+    trackingType !== "NONE" &&
+    updateStock &&
+    watchedTrackedItems.length > 0 &&
+    invalidTrackedCount > 0;
 
   const getUnitName = (unitId?: number | null) =>
     units.find((u) => u.id === unitId)?.name || "";
@@ -374,6 +505,23 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
       )
     : "";
 
+  // Auto-build stock quantity from tracked items
+  useEffect(() => {
+    if (!updateStock) return;
+    if (trackingType === "NONE") return;
+
+    const autoStocks = branches.map((branch) => ({
+      branchId: Number(branch.id ?? 0),
+      quantity: validTrackedSummary[Number(branch.id ?? 0)] || 0,
+    }));
+
+    setValue("stocks", autoStocks, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+  }, [updateStock, trackingType, branches, validTrackedSummary, setValue]);
+  // End of auto stock logic
+
   useEffect(() => {
     // Only run after branches are fetched and modal is open
     if (!isOpen || branches.length === 0) return;
@@ -421,6 +569,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
           toUnitId: c.toUnitId,
           multiplier: c.multiplier,
         })),
+
+        trackingType: product.trackingType ?? "NONE",
+        trackedItems: product.trackedItems ?? [],
       });
 
       // images preview (your logic)
@@ -478,6 +629,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         // ✅ NEW UOM
         baseUnitId: null,
         unitConversions: [],
+        trackingType: "NONE",
+        trackedItems: [],
       });
 
       setVariantValues([]);
@@ -549,20 +702,109 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
     return imageFiles;
   };
 
+  // const handleFormSubmit = async (data: ProductFormData) => {
+  //   setIsLoading(true);
+  //   try {
+  //     const convertedExistingImages = await convertExistingImagesPaths();
+  //     const combinedImages = [...convertedExistingImages, ...newImages];
+
+  //     const stocks: ProductStock[] = data.updateStock
+  //     ? (data.stocks || []).map((s) => ({
+  //         branchId: Number(s.branchId),
+  //         quantity: Number(s.quantity) || 0,
+  //       }))
+  //     : [];
+
+  //     // ✅ sanitize unitConversions
+  //     const conversionsOut = (data.unitConversions || [])
+  //       .filter(
+  //         (c) =>
+  //           c.fromUnitId &&
+  //           c.toUnitId &&
+  //           Number(c.multiplier) > 0 &&
+  //           c.fromUnitId !== c.toUnitId
+  //       )
+  //       .map((c) => ({
+  //         fromUnitId: Number(c.fromUnitId),
+  //         toUnitId: Number(c.toUnitId),
+  //         multiplier: Number(c.multiplier),
+  //       }));
+
+  //     await onSubmit(
+  //       product?.id || null,
+  //       data.categoryId,
+  //       data.brandId,
+  //       data.name,
+  //       data.note,
+  //       data.isActive,
+  //       combinedImages,
+  //       imagesToDelete,
+
+  //       data.unitId,
+  //       data.barcode || null,
+  //       data.productType || "New",
+  //       data.sku || "",
+  //       data.stockAlert || 0,
+  //       data.purchasePrice || "",
+  //       data.purchasePriceUnitId ?? null,
+  //       data.retailPrice || "",
+  //       data.retailPriceUnitId ?? null,
+  //       data.wholeSalePrice || "",
+  //       data.wholeSalePriceUnitId ?? null,
+  //       data.variantAttributeIds ?? null,
+  //       data.variantValueIds,
+
+  //       stocks,
+
+  //       // NEW UOM
+  //       data.baseUnitId,
+  //       conversionsOut,
+  //       data.updateStock
+  //     );
+
+  //     resetDropzoneOrFormData();
+  //     onClose();
+  //   } catch (error: any) {
+  //     console.log("Error submitting form:", error);
+  //     resetDropzoneOrFormData();
+  //     document.querySelector("form")?.reset();
+  //   } finally {
+  //     resetDropzoneOrFormData();
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const handleFormSubmit = async (data: ProductFormData) => {
     setIsLoading(true);
+
     try {
       const convertedExistingImages = await convertExistingImagesPaths();
       const combinedImages = [...convertedExistingImages, ...newImages];
 
-      const stocks: ProductStock[] = data.updateStock
-      ? (data.stocks || []).map((s) => ({
-          branchId: Number(s.branchId),
-          quantity: Number(s.quantity) || 0,
-        }))
-      : [];
+      let trackedItemsOut: ProductTrackedItemType[] = [];
+      let stocks: ProductStock[] = [];
 
-      // ✅ sanitize unitConversions
+      if (data.updateStock) {
+        if (data.trackingType === "NONE") {
+          stocks = (data.stocks || []).map((s) => ({
+            branchId: Number(s.branchId),
+            quantity: Number(s.quantity) || 0,
+          }));
+        } else {
+          trackedItemsOut = validateTrackedItems(data.trackedItems || []);
+
+          const qtyMap: Record<number, number> = {};
+          trackedItemsOut.forEach((item) => {
+            qtyMap[item.branchId] = (qtyMap[item.branchId] || 0) + 1;
+          });
+
+          stocks = branches.map((branch) => ({
+            branchId: Number(branch.id),
+            quantity: qtyMap[Number(branch.id)] || 0,
+          }));
+        }
+      }
+
       const conversionsOut = (data.unitConversions || [])
         .filter(
           (c) =>
@@ -592,8 +834,10 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
         data.productType || "New",
         data.sku || "",
         data.stockAlert || 0,
+
         data.purchasePrice || "",
         data.purchasePriceUnitId ?? null,
+
         data.retailPrice || "",
         data.retailPriceUnitId ?? null,
         data.wholeSalePrice || "",
@@ -603,20 +847,27 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
 
         stocks,
 
-        // NEW UOM
         data.baseUnitId,
         conversionsOut,
-        data.updateStock
+        data.updateStock,
+
+        data.trackingType,
+        trackedItemsOut
       );
 
+      // ✅ only reset and close when submit success
       resetDropzoneOrFormData();
       onClose();
     } catch (error: any) {
-      console.log("Error submitting form:", error);
-      resetDropzoneOrFormData();
-      document.querySelector("form")?.reset();
+      console.error("Error submitting form:", error);
+      toast.error(error.message, {
+          position: "top-right",
+          autoClose: 4500
+      });
+      // ✅ do NOT close modal
+      // ✅ do NOT reset form
+      // let parent toast show backend error
     } finally {
-      resetDropzoneOrFormData();
       setIsLoading(false);
     }
   };
@@ -866,6 +1117,34 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                     ))}
                   </div>
                 </div>
+                
+                {/* Add tracking type */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 mb-4">
+                  <div>
+                    <label>
+                      Tracking Type <span className="text-danger text-md">*</span>
+                    </label>
+                    <select
+                      className="form-input"
+                      {...register("trackingType", { required: "Tracking Type is required" })}
+                    >
+                      <option value="NONE">None</option>
+                      <option value="ASSET_ONLY">Asset Code Only</option>
+                      <option value="MAC_ONLY">MAC Address Only</option>
+                      <option value="ASSET_AND_MAC">Asset Code + MAC Address</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label>Stock Mode</label>
+                    <input
+                      type="text"
+                      disabled
+                      className="form-input bg-gray-100"
+                      value={trackingType === "NONE" ? "Manual Quantity" : "Auto from Tracked Items"}
+                    />
+                  </div>
+                </div>
 
                 <div className="mb-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -886,8 +1165,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                   </p>
                 </div>
 
-                {/* ✅ Stock in base unit */}
-                {updateStock && (
+                {/* Stock in base unit */}
+                {/* It isn't track product stock, opening and manual stock for each branch. */}
+                {updateStock && trackingType === "NONE" && (
                   <div className="mb-4">
                     {product?.id && (
                       <div className="mb-3 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
@@ -897,9 +1177,6 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
 
                     <label className="font-semibold mb-2 block">
                       Opening / Current Stock Per Branch (in {baseUnitName || "Base Unit"})
-                      <p className="text-xs text-gray-500 mt-1">
-                        Changing stock here will create inventory adjustment movements.
-                      </p>
                     </label>
 
                     <div className="space-y-3">
@@ -929,6 +1206,164 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* if it is track product stock, show tracked items table instead of stock input, and stock will be auto-calculated from valid tracked items */}
+                {updateStock && trackingType !== "NONE" && (
+                  <div className="mb-6 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h6 className="font-bold text-base">Tracked Items</h6>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Quantity is auto-calculated from valid tracked rows.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-primary"
+                        onClick={() =>
+                          appendTrackedItem({
+                            branchId: branches[0]?.id ?? 0,
+                            assetCode: "",
+                            macAddress: "",
+                            serialNumber: "",
+                          })
+                        }
+                      >
+                        <FontAwesomeIcon icon={faPlus} className="mr-1" />
+                        Add Item
+                      </button>
+                    </div>
+
+                    {trackedItemFields.length === 0 && (
+                      <p className="text-sm text-gray-500">
+                        Add one row per actual device/item in stock.
+                      </p>
+                    )}
+
+                    <div className="space-y-3">
+                      {trackedItemFields.map((field, index) => {
+                        const currentRow = watchedTrackedItems[index] || {};
+                        const rowValid = isTrackedRowValid(currentRow);
+
+                        return (
+                          <div
+                            key={field.id}
+                            className={`grid grid-cols-1 sm:grid-cols-12 gap-2 border rounded-md p-3 ${
+                              rowValid
+                                ? "bg-white border-gray-200"
+                                : "bg-red-50 border-red-300"
+                            }`}
+                          >
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div>
+                                <label className="text-sm">Branch</label>
+                                <select
+                                  className="form-input"
+                                  {...register(`trackedItems.${index}.branchId`, { valueAsNumber: true })}
+                                >
+                                  <option value="">Select Branch...</option>
+                                  {branches.map((branch) => (
+                                    <option key={branch.id} value={branch.id}>
+                                      {branch.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="text-sm">Serial Number</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder="SN"
+                                  {...register(`trackedItems.${index}.serialNumber`, {
+                                    required: "Serial Number is required",
+                                  })}
+                                />
+                                {errors?.trackedItems?.[index]?.serialNumber && (
+                                  <p className="text-red-500 text-xs">
+                                    {errors.trackedItems[index]?.serialNumber?.message}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="sm:col-span-3" style={{marginTop: '-12px'}}>
+                                {!rowValid && (
+                                  <p className="error_validate">
+                                    This row is invalid. Branch and Serial Number are required.
+                                  </p>
+                                )}
+                            </div>
+                            
+                            {(trackingType === "ASSET_ONLY" || trackingType === "ASSET_AND_MAC") && (
+                              <div className="sm:col-span-3">
+                                <label className="text-sm">Asset Code</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder="Enter asset code"
+                                  {...register(`trackedItems.${index}.assetCode`)}
+                                />
+                              </div>
+                            )}
+
+                            {(trackingType === "MAC_ONLY" || trackingType === "ASSET_AND_MAC") && (
+                              <div className="sm:col-span-3">
+                                <label className="text-sm">MAC Address</label>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  placeholder="AA:BB:CC:11:22:33"
+                                  {...register(`trackedItems.${index}.macAddress`)}
+                                />
+                              </div>
+                            )}
+
+                            <div className="sm:col-span-3 flex justify-end">
+                              <button type="button" className="btn btn-outline-danger" onClick={() => removeTrackedItem(index)} title="Remove">
+                                <FontAwesomeIcon icon={faTrash} />
+                              </button>
+                            </div>
+                          </div>
+                        );                      
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* auto stock summary from tracked items, only show when updateStock is checked and trackingType is not NONE, to give user a preview of how many stock will be after saving based on the tracked items they input */}
+                {updateStock && trackingType !== "NONE" && (
+                  <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-3">
+                    <label className="font-semibold block mb-2">
+                      Auto Stock Summary (from tracked rows)
+                    </label>
+
+                    <div className="space-y-2">
+                      {branches.map((branch) => {
+                        const totalRows = liveTrackedSummary[Number(branch.id)] || 0;
+                        const validRows = validTrackedSummary[Number(branch.id)] || 0;
+
+                        return (
+                          <div key={branch.id} className="flex justify-between text-sm">
+                            <span>{branch.name}</span>
+                            <span className="font-semibold">
+                              {/* {validRows} valid /  */}
+                              {totalRows} total {baseUnitName || "unit"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {invalidTrackedCount > 0 && (
+                      <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {invalidTrackedCount} tracked row(s) are missing required data.
+                        Only valid rows will affect stock.
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1200,6 +1635,12 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                   </div>
                 </div>
 
+                {hasTrackedValidationError && (
+                  <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    Cannot save yet. Please fill Serial Number for all tracked rows.
+                  </div>
+                )}
+
                 {/* Buttons */}
                 <div className="flex justify-end items-center mt-8">
                   <button type="button" className="btn btn-outline-danger" onClick={onClose}>
@@ -1207,9 +1648,17 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, product }) => 
                     Discard
                   </button>
 
-                  {hasPermission("Category-Create") && (
-                    <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
-                      <FontAwesomeIcon icon={faSave} className="mr-1" />
+                  {hasPermission(product?.id ? "Product-Edit" : "Product-Create") && (
+                    <button
+                      type="submit"
+                      disabled={hasTrackedValidationError || isLoading}
+                      className={`btn btn-primary ltr:ml-4 rtl:mr-4 ${
+                        hasTrackedValidationError || isLoading
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                    >
+                      <FontAwesomeIcon icon={faSave} className="mr-2" />
                       {isLoading ? "Saving..." : "Save"}
                     </button>
                   )}

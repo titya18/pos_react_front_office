@@ -135,7 +135,7 @@ const SaleReturn: React.FC = () => {
         "No": (page - 1) * pageSize + index + 1,
         "Return No": inv.ref,
         "INV-No": inv.order?.ref,
-        "Customer": inv.customers ? inv.customers.name : "N/A",
+        "Customer": inv.customer ? inv.customer.name : "N/A",
         "Branch": inv.branch ? inv.branch.name : "",
         "Discount": inv.discount,
         "Tax Rate": inv.taxRate,
@@ -281,8 +281,8 @@ const SaleReturn: React.FC = () => {
                                                             {visibleCols.includes("Actions") && (
                                                                 <td className="text-center">
                                                                     <div className="flex items-center justify-center gap-2">
-                                                                        {rows.note !== null &&
-                                                                            <button type="button" className="hover:text-danger" onClick={() => handleViewNote(rows.note)} title="View Note">
+                                                                        {rows.note !== null && rows.note !== undefined &&
+                                                                            <button type="button" className="hover:text-danger" onClick={() => handleViewNote(rows.note as string)} title="View Note">
                                                                                 <NotebookText color="pink" />
                                                                             </button>
                                                                         }

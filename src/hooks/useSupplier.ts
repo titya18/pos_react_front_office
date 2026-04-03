@@ -84,6 +84,7 @@ export const useSuppliers = () => {
                 position: "top-right",
                 autoClose: 2000
             });
+            throw error;
         }
     };
 

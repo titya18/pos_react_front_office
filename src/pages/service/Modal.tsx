@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSave, faClose } from '@fortawesome/free-solid-svg-icons';
 import { useForm } from "react-hook-form";
 import { useAppContext } from "../../hooks/useAppContext";
-import { el } from "date-fns/locale";
 
 interface ModalProps {
     isOpen: boolean;
@@ -127,7 +126,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, service }) => 
                                     <FontAwesomeIcon icon={faClose} className='mr-1' />
                                     Discard
                                 </button>
-                                {hasPermission('Branch-Create') &&
+                                {hasPermission(service?.id ? 'Service-Edit' : 'Service-Create') &&
                                     <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                                         <FontAwesomeIcon icon={faSave} className='mr-1' />
                                         {isLoading ? 'Saving...' : 'Save'}

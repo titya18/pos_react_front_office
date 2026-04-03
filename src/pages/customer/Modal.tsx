@@ -54,7 +54,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, customer }) =>
             reset();
             onClose(); 
         } catch (error) {
-            console.log("Error submitting from:", error);
+            console.error("Error submitting form:", error);
         } finally {
             setIsLoading(false);
         }
@@ -129,7 +129,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, customer }) =>
                                     <FontAwesomeIcon icon={faClose} className='mr-1' />
                                     Discard
                                 </button>
-                                {hasPermission('Category-Create') &&
+                                {hasPermission('Customer-Create') &&
                                     <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                                         <FontAwesomeIcon icon={faSave} className='mr-1' />
                                         {isLoading ? 'Saving...' : 'Save'}

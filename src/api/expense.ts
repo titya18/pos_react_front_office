@@ -5,7 +5,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 export const upsertExpense = async (expenseData: ExpenseType): Promise<ExpenseType> => {
     const { id, ...data } = expenseData;
     const method = id ? "PUT" : "POST";
-    console.log(method);
     const url = id ? `${API_BASE_URL}/api/expense/${id}` : `${API_BASE_URL}/api/expense`;
 
     const response = await fetch(url, {

@@ -69,10 +69,12 @@ export const upsertProduct = async (productData: ProductType): Promise<ProductTy
     // MULTI BRANCH STOCK
     // ===============================
     formData.append("updateStock", String(data.updateStock ?? false));
+    formData.append("trackingType", data.trackingType ?? "NONE");
 
     // ✅ only send stocks when wanted
     if (data.updateStock) {
         formData.append("stocks", JSON.stringify(data.stocks ?? []));
+        formData.append("trackedItems", JSON.stringify(data.trackedItems ?? []));
     }
 
     // ===============================

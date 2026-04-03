@@ -25,6 +25,7 @@ import CustomerModal from "../customer/Modal";
 import { upsertCustomerAction } from "@/utils/customerActions";
 import { useQueryClient } from "@tanstack/react-query";
 import { Undo2 } from "lucide-react";
+import ReturnTrackedModal from "./ReturnTrackedModal";
 
 type ReturnLineMap = Record<number, SaleReturnDetailType>;
 
@@ -42,6 +43,10 @@ const SaleReturn: React.FC = () => {
   const [returnedGrandTotal, setReturnedGrandTotal] = useState(0);
   const [returnLines, setReturnLines] = useState<ReturnLineMap>({});
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [clickData, setClickData] = useState<any>(null);
+  const [returnItems, setReturnItems] = useState<any[]>([]);
 
   const {
     control,
@@ -357,6 +362,8 @@ const SaleReturn: React.FC = () => {
         products: line.products ?? null,
         productvariants: line.productvariants ?? null,
         services: line.services ?? null,
+
+        selectedTrackedItemIds: (line as any).selectedTrackedItemIds || [],
       }));
 
       if (items.length === 0) {
@@ -370,6 +377,23 @@ const SaleReturn: React.FC = () => {
       const selectedBranch =
         branches.find((b) => b.id === Number(formData.branchId)) || null;
 
+      // ✅ VALIDATE SERIAL TRACKING
+      for (const line of Object.values(returnLines)) {
+        const isTracked =
+          line.ItemType === "PRODUCT" &&
+          (line as any)?.productvariants?.isTracked === true;
+
+        if (!isTracked) continue; // ✅ skip non-tracked
+
+        const qty = Number(line.unitQty || line.quantity || 0);
+        const selected = (line as any).selectedTrackedItemIds || [];
+
+        if (selected.length !== qty) {
+          toast.error(`Serial mismatch on item ${line.saleItemId}`);
+          return;
+        }
+      }
+
       const payload: SaleReturnType = {
         orderId: Number(id),
         branchId: Number(formData.branchId),
@@ -377,15 +401,13 @@ const SaleReturn: React.FC = () => {
         ref: watch("ref") || "",
         status: formData.status || "APPROVED",
         note: formData.note ?? "",
-        taxRate: watch("taxRate") ?? null,
+        taxRate: n(watch("taxRate")) || undefined,
         taxNet: 0,
-        shipping: watch("shipping") ?? null,
-        discount: watch("discount") ?? null,
+        shipping: n(watch("shipping")) || undefined,
+        discount: n(watch("discount")) || undefined,
         totalAmount: returnGrandTotal,
-        delReason: "",
         branch: selectedBranch,
         customer: selectedCustomer,
-        customers: selectedCustomer,
         order: null,
         items: items as unknown as SaleReturnDetailType[],
       };
@@ -403,6 +425,24 @@ const SaleReturn: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSaveTrackedItems = (ids: number[]) => {
+    if (!clickData) return;
+
+    setReturnLines((prev) => {
+      const existing = prev[clickData.id];
+
+      if (!existing) return prev;
+
+      return {
+        ...prev,
+        [clickData.id]: {
+          ...existing,
+          selectedTrackedItemIds: ids,
+        },
+      };
+    });
   };
 
   return (
@@ -610,42 +650,94 @@ const SaleReturn: React.FC = () => {
                           <td>{soldQty}</td>
 
                           <td>
-                            <div className="inline-flex" style={{ width: "40%" }}>
-                              <button
-                                type="button"
-                                onClick={() => decreaseQuantity(index)}
-                                className="flex items-center justify-center border border-r-0 border-danger bg-danger px-3 font-semibold text-white ltr:rounded-l-md rtl:rounded-r-md"
-                                disabled={currentReturn <= 0}
-                              >
-                                -
-                              </button>
+                            {(() => {
+                              const isTracked = detail.ItemType === "PRODUCT" &&
+                                (detail as any).productvariants?.trackingType != null &&
+                                (detail as any).productvariants?.trackingType !== "NONE";
+                              const selectedCount = (currentLine as any)?.selectedTrackedItemIds?.length || 0;
 
-                              <input
-                                type="text"
-                                value={`${currentReturn} / ${maxReturnable}`}
-                                className="form-input rounded-none text-center"
-                                readOnly
-                              />
+                              return (
+                              <div className="flex flex-col gap-2" style={{ minWidth: 150 }}>
+                                {/* Compact stepper */}
+                                <div className="inline-flex items-center rounded-lg border border-gray-200 overflow-hidden w-fit">
+                                  <button
+                                    type="button"
+                                    onClick={() => decreaseQuantity(index)}
+                                    disabled={currentReturn <= 0}
+                                    className="w-8 h-8 flex items-center justify-center text-base font-semibold text-red-500 bg-red-50 hover:bg-red-100 disabled:opacity-35 disabled:cursor-not-allowed transition-colors border-r border-gray-200"
+                                  >−</button>
 
-                              <button
-                                type="button"
-                                onClick={() => increaseQuantity(index)}
-                                className="flex items-center justify-center border border-l-0 border-warning bg-warning px-3 font-semibold text-white ltr:rounded-r-md rtl:rounded-l-md"
-                                disabled={currentReturn >= maxReturnable}
-                              >
-                                +
-                              </button>
-                            </div>
+                                  <div className="px-3 h-8 flex items-center gap-1 bg-white">
+                                    <span className="text-sm font-bold text-gray-800">{currentReturn}</span>
+                                    <span className="text-xs text-gray-400">/ {maxReturnable}</span>
+                                  </div>
 
-                            <p className="mt-1 text-xs text-gray-500">
-                              Remaining: <span className="font-medium">{remaining}</span>
-                            </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => increaseQuantity(index)}
+                                    disabled={currentReturn >= maxReturnable}
+                                    className="w-8 h-8 flex items-center justify-center text-base font-semibold text-green-600 bg-green-50 hover:bg-green-100 disabled:opacity-35 disabled:cursor-not-allowed transition-colors border-l border-gray-200"
+                                  >+</button>
+                                </div>
 
-                            {detail.ItemType === "PRODUCT" && currentLine && (
-                              <p className="mt-1 text-xs text-blue-600">
-                                Base Qty Return: {n(currentLine.baseQty).toFixed(4)}
-                              </p>
-                            )}
+                                {/* Remaining */}
+                                <p className="text-xs text-gray-400">
+                                  Remaining: <span className={`font-medium ${remaining === 0 ? "text-green-600" : "text-gray-700"}`}>{remaining}</span>
+                                </p>
+
+                                {/* Base qty */}
+                                {detail.ItemType === "PRODUCT" && currentLine && (
+                                  <p className="text-xs text-gray-400">
+                                    Base: <span className="text-blue-500 font-medium">{n(currentLine.baseQty).toFixed(4)}</span>
+                                  </p>
+                                )}
+
+                                {/* Serial selection — only for tracked products */}
+                                {isTracked && currentReturn > 0 && (
+                                  <div className="flex flex-col gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const currentLine = returnLines[detail.id];
+                                        const qty = currentLine ? getLineQty(currentLine) : 0;
+                                        if (qty <= 0) { toast.warn("Please select quantity first"); return; }
+                                        setClickData({
+                                          ...detail,
+                                          orderItemId: detail.id,
+                                          selectedTrackedItemIds: (currentLine as any)?.selectedTrackedItemIds || [],
+                                          quantity: qty,
+                                        });
+                                        setIsModalOpen(true);
+                                      }}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors w-fit
+                                        text-indigo-600 bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                      Select Serial
+                                    </button>
+
+                                    {selectedCount > 0 ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 text-xs rounded-full w-fit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        {selectedCount}/{currentReturn} selected
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 text-xs text-amber-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        No serial selected
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              );
+                            })()}
                           </td>
 
                           <td>$ {n((detail as any).discount).toFixed(2)}</td>
@@ -738,6 +830,13 @@ const SaleReturn: React.FC = () => {
         isOpen={isCustomerModalOpen}
         onClose={() => setIsCustomerModalOpen(false)}
         onSubmit={handleAddorEditCustomer}
+      />
+
+      <ReturnTrackedModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        clickData={clickData}
+        onSave={handleSaveTrackedItems}
       />
     </>
   );

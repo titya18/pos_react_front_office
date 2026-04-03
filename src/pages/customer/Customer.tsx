@@ -267,7 +267,7 @@ export const Customer = () => {
                                                             {visibleCols.includes("Actions") && (
                                                                 <td className="text-center">
                                                                     <div className="flex gap-2">
-                                                                        {hasPermission('Category-Edit') &&
+                                                                        {hasPermission('Customer-Edit') &&
                                                                             <button type="button" className="hover:text-warning" onClick={() => handleEditClick(rows)} title="Edit">
                                                                                 <Pencil color="green" />
                                                                             </button>

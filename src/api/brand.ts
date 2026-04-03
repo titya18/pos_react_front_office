@@ -47,7 +47,7 @@ export const upsertBrand = async (brandData: BrandType): Promise<BrandType> => {
     const formData = new FormData();
     formData.append('en_name', data.en_name);
     // formData.append('kh_name', data.kh_name);
-    formData.append('description', data.description);
+    if (data.description) formData.append('description', data.description);
     if (image) formData.append('image', image);
     
     const response = await fetch(url, {

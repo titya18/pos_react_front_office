@@ -96,7 +96,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, category }) =>
                                     <FontAwesomeIcon icon={faClose} className='mr-1' />
                                     Discard
                                 </button>
-                                {hasPermission('Category-Create') &&
+                                {hasPermission(category?.id ? 'Category-Edit' : 'Category-Create') &&
                                     <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                                         <FontAwesomeIcon icon={faSave} className='mr-1' />
                                         {isLoading ? 'Saving...' : 'Save'}

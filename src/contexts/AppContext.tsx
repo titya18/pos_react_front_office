@@ -37,12 +37,7 @@ interface AppContextType {
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // socket io connect to backend index.ts
-// Old style
-// const socket = io(import.meta.env.VITE_API_URL || 'wss://202.93.8.4', {
-//     transports: ['websocket'],
-// });
-
-const socket = io("http://202.93.8.4", {
+const socket = io(import.meta.env.VITE_API_URL || "http://localhost:4000", {
   path: "/socket.io",
   transports: ["websocket"],
 });
@@ -63,7 +58,7 @@ export const AppContextProvider: React.FC<{ children: ReactNode }> = ({ children
             const permissionsResponse = await getAllPermissions();
             if (Array.isArray(permissionsResponse)) {
                 const formattedPermissions: { [key: string]: string } = {};
-                permissionsResponse.forEach((perm: PermissionData) => {
+                permissionsResponse.forEach((perm) => {
                     if (perm.id !== undefined) {
                         formattedPermissions[perm.id.toString()] = perm.name;
                     }
@@ -115,7 +110,6 @@ export const AppContextProvider: React.FC<{ children: ReactNode }> = ({ children
                 if (prevUser) {
                     const updatedRoles = prevUser.roles.map(role => {
                         if (role.id === updatedRole.id) {
-                            console.log('Updating permissions for role:', role.name);
                             return { ...role, permissions: updatedRole.permissions };
                         }
                         return role;

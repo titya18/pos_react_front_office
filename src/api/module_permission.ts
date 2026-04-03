@@ -25,7 +25,7 @@ export const upsertModule = async (modulePermissionData: ModulePermissionData): 
         body: JSON.stringify(data)
     });
     if (!response.ok) {
-        const custom_error = id ? "Error updating Module" : "Error adding Moudle";
+        const custom_error = id ? "Error updating Module" : "Error adding Module";
         const  errorResponse = await response.json();
         throw new Error(errorResponse.message || custom_error);
     }

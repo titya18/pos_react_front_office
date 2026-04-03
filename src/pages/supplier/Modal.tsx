@@ -134,7 +134,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, supplier }) =>
                                     <FontAwesomeIcon icon={faClose} className='mr-1' />
                                     Discard
                                 </button>
-                                {hasPermission('Supplier-Create') &&
+                                {hasPermission(supplier?.id ? 'Supplier-Edit' : 'Supplier-Create') &&
                                     <button type="submit" className="btn btn-primary ltr:ml-4 rtl:mr-4" disabled={isLoading}>
                                         <FontAwesomeIcon icon={faSave} className='mr-1' />
                                         {isLoading ? 'Saving...' : 'Save'}

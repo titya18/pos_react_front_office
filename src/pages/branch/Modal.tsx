@@ -45,7 +45,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, branche }) => 
             reset();
             onClose();
         } catch (error) {
-            console.log("Error submitting from:", error);
+            console.error("Error submitting form:", error);
         } finally {
             setIsLoading(false);
         }

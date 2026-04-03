@@ -38,9 +38,9 @@ interface ModalProps {
         barcode: string | null; 
         sku: string; 
         name: string; 
-        purchasePrice: number | string; 
-        retailPrice: number | string; 
-        wholeSalePrice: number | string; 
+        purchasePrice?: number | string;
+        retailPrice?: number | string;
+        wholeSalePrice?: number | string;
         isActive: number; 
         image: File | File[] | string | null; 
         variantAttributeId?: number | null;
@@ -294,9 +294,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, onSubmit, productVariant
                 data.barcode ?? "",
                 data.sku,
                 data.name,
-                data.purchasePrice,
-                data.retailPrice,
-                data.wholeSalePrice,
+                data.purchasePrice ?? 0,
+                data.retailPrice ?? 0,
+                data.wholeSalePrice ?? 0,
                 data.isActive,
                 combinedImages,
                 imagesToDelete,
